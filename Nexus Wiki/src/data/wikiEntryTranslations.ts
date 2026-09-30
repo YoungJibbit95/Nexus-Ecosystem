@@ -287,11 +287,11 @@ export const englishEntryTranslations: Record<string, EntryTranslation> = {
     summary: 'Dashboard combines Today Layer, Resume Lane, Quick Capture, workspace status and a persistent two-column widget system.',
     guide: g([
       ['1. Read focus signals', 'Read Today Layer, Resume Lane and workspace status first to identify the next useful step.'],
-      ['2. Use Quick Capture', 'Capture new notes, tasks, reminders or code ideas directly from the dashboard without losing context.'],
+      ['2. Use Quick Capture', 'Open an unsaved Note, Task, fixed Event or Reminder form; only acknowledged saving creates an identity.'],
       ['3. Adjust layout', 'Enable layout editing, move widgets by drag/drop or C1/C2 and R-/R+, and control visibility.'],
     ]),
     points: [
-      'Today Layer condenses open tasks, due reminders and operational hints.',
+      'Today separates task deadlines, fixed events, work blocks and reminder points; the same due-and-scheduled task is counted once.',
       'Resume Lane brings the last working context back faster.',
       'Quick Capture reduces view switching for quick input.',
       'Layout is persisted under nx-dashboard-layout-v2.',
@@ -704,11 +704,11 @@ export const englishEntryTranslations: Record<string, EntryTranslation> = {
     title: 'Today / Continue Workflow Surface Philosophy',
     summary: 'Nexus prioritizes the next useful work step through Today Layer, Quick Capture and command-driven continue flows.',
     guide: g([
-      ['1. Read Today Layer', 'Open tasks, due-today reminders and overdue pressure are combined into one focus signal.'],
-      ['2. Continue by command', 'Terminal and Quick Capture intents create direct jumps into Notes/Tasks/Reminders/Code/Canvas.'],
-      ['3. Hand off state', 'Workspace handoff data keeps context, confidence and last action traceable on Mobile.'],
+      ['1. Read Today Layer', 'Task deadlines, commitments and reminder points stay distinct; due-and-scheduled work is not counted twice.'],
+      ['2. Use manual Agenda', 'In Main Calendar/Agenda or Mobile Agenda, select the day and timezone. Scheduling/moving a work block preserves its task deadline; enter unknown duration and explicitly decide unresolved coverage or conflicts.'],
+      ['3. Capture and transfer state', 'Shell, Dashboard and palette open shared unsaved forms. Confirmation follows storage acknowledgement. Complete Runtime V2 snapshots preserve planning and portable reminder facts; a separate legacy V1 downgrade reports losses.'],
     ]),
-    points: ['computeTodayLayerSummary condenses reminder health and open tasks.', 'createCaptureIntent/parseCaptureIntentFromQuery create fast capture entry points.', 'Workspace handoff stores source, risk and checkpoint metadata for mobile continuation.'],
+    points: ['ICS preview retains the original and warnings. Recurrence, exceptions, alarms and embedded zones are not executed; a series base interval needs separate consent.', 'Note/Canvas context focuses existing targets; promotion reuses the existing task and missing links remain visible for repair.', 'Cerebri production remains disabled. Local preview qualification activates no collector or automatic scheduling.'],
   },
   'ecosystem-documentation-map': {
     title: 'Documentation Map: README, InfoView, Website, Wiki',

@@ -13,14 +13,24 @@ Sie kombiniert produktive Kern-Views mit der zentralen Render-/Motion-Laufzeit a
 
 **Code ist ein Archiv:** Vorhandene Code-Dateien lassen sich nach Namen suchen, lesen und als einzelne Datei oder mit Ordnerdaten als JSON exportieren. Die Daten bleiben in der lokalen Speicherung und in unterstützten Workspace-Snapshots/Backups erhalten. Im Archiv gibt es kein Bearbeiten oder Ausführen. Exportierte Einzeldateien kannst du in einem selbst gewählten Ordner in der separaten App Nexus Code öffnen; Archiv-JSON ist kein automatischer Projektimport.
 
-Nexus Code verwendet CodeMirror und einen einfachen Befehlsrunner mit stdio, keine interaktive PTY-Shell. Sprachserver und GitHub benötigen externe Voraussetzungen. Debugging und Marketplace sind Vorschauen; ein Fehler bei zitierten absoluten Windows-Befehlspfaden mit Leerzeichen ist weiterhin offen. Die separate App benötigt einen validierten kompatiblen Account.
+Nexus Code uses CodeMirror and a simple stdio command runner. The quoted absolute Windows-path regression is corrected and covered by actual IPC probes; this does not establish every command or installed-platform behavior. Language servers and GitHub need external prerequisites. PTY, connected debugging and executable marketplace support are not qualified. The separate app requires a validated compatible account.
 
 ## View Overview
+
+### Manual agenda and workspace transfer
+
+Open **Calendar → Agenda** to capture a task, a fixed event or an explicit work block. A task deadline and a work block are separate: planning Wednesday does not move a Friday deadline. Enter the duration yourself when it is unknown. Missing calendar coverage is shown as unknown; overlaps and uncertainty require an explicit decision before saving. Dashboard and Flux use the same distinct task, commitment and reminder counts.
+
+Shell, Dashboard and command-palette capture open the same unsaved forms. Opening or cancelling a form does not save an entity; confirmation returns its canonical identity only after storage acknowledgement. Note and Canvas context links focus existing entities and offer explicit repair when a source is missing.
+
+ICS import previews fixed intervals and keeps the original file and warnings. Recurrence, exceptions, alarms and embedded timezone rules are retained as raw provenance rather than executed. A recurring base interval requires a separate explicit choice. Complete workspace exports/backups use Runtime V2 for planning and portable reminder occurrence state. A separate legacy V1 downgrade reports the omitted planning/history before use; loose-file import is not a complete snapshot.
+
+Cerebri production assistance remains disabled. The local preview qualification does not activate a production collector or automatic scheduling. See the [User Guide](../docs/USER_GUIDE.md#manual-agenda-and-capture), [Developer Guide](../docs/DEVELOPER_GUIDE.md#planning-and-workspace-contracts) and [shared planning contract](../packages/nexus-core/src/planning/README.md).
 
 | View | Purpose | Highlights |
 | --- | --- | --- |
 | `dashboard` | start and control center | Today layer, resume lane, quick capture, workspace status |
-| `calendar` | shared planning layer (partial) | task/reminder-backed day, week, month, agenda and ICS flows |
+| `calendar` | manual planning and temporal context | separate deadlines, fixed events, work blocks, explicit availability and loss-aware ICS preview |
 | `notes` | markdown knowledge workflow (partial) | edit/preview/split, templates, linking/context helpers |
 | `tasks` | execution planning | kanban flow, priorities, due states, focus actions |
 | `reminders` | time-based workflow | grouped due states, snooze/complete, health controls |

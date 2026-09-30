@@ -388,11 +388,11 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'Dashboard verbindet Today Layer, Resume Lane, Quick Capture, Workspace-Status und ein persistentes 2-Spalten Widget-System.',
     guide: [
       { title: '1. Fokus lesen', detail: 'Today Layer, Resume Lane und Workspace-Status zuerst lesen, um den naechsten sinnvollen Arbeitsschritt zu erkennen.' },
-      { title: '2. Quick Capture nutzen', detail: 'Neue Notes, Tasks, Reminders oder Code-Ideen direkt aus dem Dashboard aufnehmen, ohne den Kontext zu verlieren.' },
+      { title: '2. Quick Capture nutzen', detail: 'Note, Task, feste Verpflichtung oder Reminder als ungespeichertes Formular oeffnen; erst bestaetigtes Speichern erzeugt eine Identitaet.' },
       { title: '3. Layout justieren', detail: 'Layout bearbeiten aktivieren, Widgets per Drag/Drop oder C1/C2 und R-/R+ feinjustieren und Sichtbarkeit steuern.' },
     ],
     points: [
-      'Today Layer verdichtet offene Tasks, faellige Reminders und operative Hinweise.',
+      'Today trennt Taskfristen, feste Verpflichtungen, Arbeitsbloecke und Erinnerungspunkte; dieselbe faellige und geplante Aufgabe wird einmal gezaehlt.',
       'Resume Lane bringt den letzten Arbeitskontext schneller zurueck.',
       'Quick Capture reduziert View-Wechsel fuer schnelle Eingaben.',
       'Layout wird unter nx-dashboard-layout-v2 persistiert.',
@@ -1385,20 +1385,21 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     summary:
       'Nexus priorisiert den naechsten sinnvollen Arbeitsschritt ueber Today Layer, Quick Capture und kommandogetriebene Continue-Flows.',
     guide: [
-      { title: '1. Today Layer lesen', detail: 'Offene Tasks, due-today Reminder und Overdue-Druck werden als Fokus-Signal zusammengefuehrt.' },
-      { title: '2. Continue per Command', detail: 'Terminal- und Quick-Capture-Intents erzeugen direkte Spruenge in Notes/Tasks/Reminders/Code/Canvas.' },
-      { title: '3. Zustand uebergeben', detail: 'Workspace-Handoff-Daten auf Mobile halten Kontext, Confidence und letzte Aktion nachvollziehbar.' },
+      { title: '1. Today Layer lesen', detail: 'Taskfristen, Verpflichtungen und Erinnerungspunkte bleiben getrennt; faellige und geplante Arbeit wird nicht doppelt gezaehlt.' },
+      { title: '2. Agenda manuell verwenden', detail: 'In Main Calendar/Agenda oder Mobile Agenda Tag und Zeitzone waehlen. Arbeitsblock planen/verschieben erhaelt die Taskfrist; unbekannte Dauer wird eingegeben, unbekannte Abdeckung und Konflikte brauchen ausdrueckliche Entscheidung.' },
+      { title: '3. Erfassen und Zustand uebergeben', detail: 'Shell, Dashboard und Palette oeffnen gemeinsame ungespeicherte Formulare. Bestaetigung folgt erst nach Speicherung. Vollstaendige Runtime-V2-Snapshots erhalten Planung und portable Reminder-Fakten; separater Legacy-V1-Downgrade zeigt Verluste.' },
     ],
     points: [
-      'computeTodayLayerSummary verdichtet Reminder-Health und offene Aufgaben.',
-      'createCaptureIntent/parseCaptureIntentFromQuery schaffen schnelle Capture-Einstiege.',
-      'Workspace-Handoff speichert Quelle, Risiko und Checkpoint-Metadaten fuer mobile Uebernahme.',
+      'ICS-Vorschau erhaelt Original und Warnungen. Serien, Ausnahmen, Alarme und eingebettete Zeitzonen werden nicht ausgefuehrt; ein Serien-Basistermin braucht separate Zustimmung.',
+      'Note-/Canvas-Kontext fokussiert bestehende Ziele; Promotion verwendet den bestehenden Task, fehlende Links bleiben zur Reparatur sichtbar.',
+      'Cerebri-Produktion bleibt ausgeschaltet. Lokale Vorschauqualifikation aktiviert keinen Collector und keine automatische Planung.',
     ],
     commands: ['stats', 'today', 'new note [T]', 'new task [T]', 'new reminder [T]'],
     tags: ['today-layer', 'continue-flow', 'quick-capture', 'workspace-handoff'],
     sources: [
-      'packages/nexus-core/src/todayLayer.ts',
-      'packages/nexus-core/src/quickCapture.ts',
+      'packages/nexus-core/src/planning/README.md',
+      'docs/USER_GUIDE.md',
+      'docs/DEVELOPER_GUIDE.md',
       'Nexus Mobile/src/store/workspaceHandoffStore.ts',
     ],
   },

@@ -291,6 +291,7 @@ Wenn Doku und Laufzeit abweichen, gilt die Laufzeit.`}</Code>
         <Acc title="Komplette View-Referenz" icon={Layers} open={open.guide} onToggle={() => tog("guide")} badge="ALL VIEWS">
           <Grid2>
             <Card icon="📊" title="Dashboard" desc="Today/Continue + In-Grid Editor + Hidden Tray." />
+            <Card icon="📅" title="Agenda" desc="Choose day/timezone and explicitly schedule work separately from task deadlines. Unknown duration/coverage stays visible. ICS keeps raw warnings without executing recurrence. Runtime V2 preserves planning; separate legacy downgrade reports loss. Shared capture stays unsaved until confirmation. Cerebri production assistance is disabled." />
             <Card
               icon="📝"
               title="Notes"

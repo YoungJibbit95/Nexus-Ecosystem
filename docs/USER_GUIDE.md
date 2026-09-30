@@ -20,6 +20,22 @@ Use a published package for your platform when available. Package availability a
 
 Main and Mobile store workspace data locally. Optional cloud availability is separate from local storage; local-first does not promise automatic cloud backup or complete offline account access.
 
+### Manual agenda and capture
+
+In Main, open **Calendar → Agenda**; in Mobile, open **Agenda**. Choose the day and timezone. A **task deadline** says when work is due, a **fixed event** occupies a stated interval, and a **work block** schedules time for an existing task. Schedule work on Wednesday while keeping its Friday deadline; moving the block preserves that deadline. Enter an unknown duration yourself. A date-only deadline uses the explicitly selected timezone; an older date without a zone remains unresolved.
+
+Time is not declared free when calendar coverage is unknown. Overlaps, blocked work and other unresolved constraints remain visible; keeping them requires an explicit choice. Dashboard and Flux show distinct task, commitment and reminder counts without counting the same due-and-scheduled task twice.
+
+Shell, Dashboard and command-palette actions open shared **unsaved** capture forms. Opening a form or cancelling it creates nothing. Review the fields and confirm; the saved result appears only after storage acknowledgement. Note and Canvas promotion keeps the source and reuses its existing task on repetition. Context actions focus the exact existing note or canvas node; a missing target remains visible for repair.
+
+Completing a task keeps its history and marks future work blocks inactive. Independent and linked reminders remain unless you explicitly select a linked reminder to stop. The reminder stop has its own acknowledgement; a saved task completion does not prove native cancellation or delivery.
+
+**ICS:** preview the original file before importing. Fixed start/end intervals can become events. Unsupported recurrence, exceptions, alarms and embedded timezone rules remain raw with warnings and are not executed. A recurring base interval needs a separate explicit choice. Import does not change a task deadline or create a reminder series.
+
+**Transfer and backup:** complete workspace snapshots use **Runtime V2**, including planning and portable reminder occurrence facts. Native notification IDs stay local. Keep a complete backup before replacement. A separately selected legacy V1 downgrade reports the omitted planning/history; loose-file import is not a complete snapshot. An imported unknown format is retained for recovery rather than silently reset.
+
+Cerebri production assistance is disabled. The qualified local preview does not activate automatic scheduling, a production collector or native execution. Manual capture and scheduling remain available independently. Native touch, keyboard, screen-reader and notification acceptance depend on the tested release/platform. The [planning contract](../packages/nexus-core/src/planning/README.md) provides the technical details.
+
 ### Existing code files / Bisherige Code-Dateien
 
 Open the Code archive, search by file name, expand a source preview and choose **File / Datei** to download one file. **Entire archive / Gesamtes Archiv (.json)** preserves code records and folder data. Existing code records also remain in supported workspace snapshots/backups. Exporting does not delete them.
@@ -32,7 +48,7 @@ To edit a downloaded file, put it in a folder you choose and open that folder in
 
 Open a selected workspace, edit UTF-8 files with CodeMirror and save them. Basic tabs, syntax highlighting, find/undo and local Git operations are implemented. Search has a bounded scope; it is not an unlimited whole-workspace search/replace feature.
 
-The desktop runner starts commands and shows their standard input/output and exit state. It is **not a PTY or persistent interactive shell**. A Windows command using a quoted absolute path containing spaces has a reproduced failure; relative command execution passed the current native characterization. Do not interpret a terminal-shaped panel as proof that every command works.
+The desktop runner starts commands and shows their standard input/output and exit state. It is **not a PTY or persistent interactive shell**. The quoted absolute Windows-path regression is corrected; actual IPC probes cover script/executable paths, stdin/output and exit behavior. This bounded check does not establish every command, live language server or installed-platform behavior.
 
 Language-server features require an installed external server and a ready desktop bridge. Completion, diagnostics and navigation vary by language and method; full language intelligence is not promised. GitHub workflows require the desktop integration and a connected account; live operations have not been accepted by the local audit.
 
@@ -51,5 +67,5 @@ When cloud features are unavailable, use the available local workspace workflows
 - Check whether you are in the Code archive or the separate Nexus Code app.
 - If a download is unavailable, keep the existing local records and use the supported backup/export path.
 - Check device permission and the displayed status when a reminder is not delivered.
-- For a Code runner error, report the command shape and platform without secrets; the known quoted-Windows-path failure remains open.
+- For a Code runner error, report the command shape and platform without secrets. Include the tested release; the quoted-Windows-path regression was corrected, while broader command/platform limits remain.
 - Developers can use the [build and diagnostic instructions](DEVELOPER_GUIDE.md). Public issues should describe the visible failure without private infrastructure details.
