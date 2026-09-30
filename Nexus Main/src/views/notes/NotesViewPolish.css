@@ -355,10 +355,15 @@
   justify-content: flex-start !important;
 }
 
-.nx-app-shell[data-nx-color-mode="light"] .nx-notes-unified-status-action.nx-notes-workbar {
+#root .nx-app-shell[data-nx-color-mode="light"] .nx-notes-main .nx-notes-unified-status-action.nx-notes-workbar {
   background:
     radial-gradient(620px circle at 6% -120%, rgba(var(--nx-shell-accent-rgb, 47, 142, 255), 0.16), transparent 68%),
     rgba(255, 255, 255, 0.7) !important;
+}
+
+#root .nx-app-shell[data-nx-color-mode="light"] .nx-notes-main .nx-notes-format-toolbar {
+  border-color: var(--nx-ui-border, rgba(20, 30, 45, 0.12));
+  background: var(--nx-ui-surface-elevated, rgba(255, 255, 255, 0.92));
 }
 
 @container (max-width: 980px) {

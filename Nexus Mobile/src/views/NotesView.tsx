@@ -814,7 +814,7 @@ export function NotesView() {
             <Glass className="flex items-center shrink-0" style={{ padding: isTightViewport ? '3px 5px' : '5px 7px', gap: 5 }}>
               <input
                 className="flex-1 bg-transparent outline-none font-semibold"
-                style={{ fontSize: isTightViewport ? 10.5 : 11.5, minWidth: 0 }}
+                style={{ fontSize: isTightViewport ? 10.5 : 11.5, minWidth: 0, color: 'inherit' }}
                 value={active.title}
                 onChange={e => updateNote(active.id, { title: e.target.value })}
                 placeholder="Titel..."
@@ -829,7 +829,7 @@ export function NotesView() {
             <Glass className="flex items-center gap-1.5 shrink-0" style={{ padding: isTightViewport ? (isTinyMobile ? '3px 4px' : '4px 5px') : (isTinyMobile ? '4px 5px' : '5px 7px') }}>
               <input
                 className="flex-1 bg-transparent outline-none font-semibold"
-                style={{ fontSize: isTightViewport ? (isTinyMobile ? 10.5 : 11.5) : (isTinyMobile ? 11.5 : 12.5), minWidth: 0 }}
+                style={{ fontSize: isTightViewport ? (isTinyMobile ? 10.5 : 11.5) : (isTinyMobile ? 11.5 : 12.5), minWidth: 0, color: 'inherit' }}
                 value={active.title}
                 onChange={e => updateNote(active.id, { title: e.target.value })}
                 placeholder="Titel..."

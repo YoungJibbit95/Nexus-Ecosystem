@@ -15,6 +15,7 @@ import {
   type NexusViewManifest,
 } from "@nexus/core";
 import type { View } from "../components/Sidebar";
+import { useTheme } from "../store/themeStore";
 import { MoreHorizontal, X } from "lucide-react";
 import "./NexusV6ViewShell.css";
 
@@ -100,6 +101,7 @@ export function NexusV6ViewShell({
   onCanExecuteCommand,
   children,
 }: Props) {
+  const themeMode = useTheme((state) => state.mode);
   const contract = React.useMemo(() => resolveViewContract(viewId), [viewId]);
   const relatedViews = React.useMemo(
     () => sameCategoryViews(viewId, availableViews, contract),
@@ -112,12 +114,12 @@ export function NexusV6ViewShell({
           viewId,
           surface: "desktop",
           density: "comfortable",
-          themeMode: "dark",
+          themeMode,
           accent: contract.accent,
           reducedMotion,
         }),
       ),
-    [contract.accent, reducedMotion, viewId],
+    [contract.accent, reducedMotion, themeMode, viewId],
   );
   const [inspectorOpen, setInspectorOpen] = React.useState(false);
   const [focusMode, setFocusMode] = React.useState(false);

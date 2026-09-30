@@ -505,7 +505,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
   return (
     <div
-      className="nx-mobile-view-screen"
+      className="nx-mobile-view-screen nx-mobile-files-screen"
       style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}
     >
       <div style={{ padding: compactHeaderPadding }}>
@@ -705,7 +705,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
         </div>
       )}
 
-      <div style={{ display:'flex', flex:1, minHeight:0, overflow:'hidden' }}>
+      <div className="nx-mobile-files-body" style={{ display:'flex', flex:1, minHeight:0, overflow:'hidden' }}>
         {/* ── Left: Workspace panel ────────────────────────── */}
         {!mob.isMobile ? (
         <div style={{ width: 260, flexShrink:0, display:'flex', flexDirection:'column', borderRight:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.12)', overflow:'hidden' }}>
@@ -771,7 +771,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
         {/* ── Right: File list ──────────────────────────────── */}
         <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0 }}>
-          <div className="nx-mobile-row-scroll" style={{ gap:isCompactMobile ? 8 : 10, padding: mob.isMobile ? (isCompactMobile ? '6px 8px' : '10px 10px') : '10px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)' }}>
+          <div className="nx-mobile-files-toolbar nx-mobile-row-scroll" style={{ gap:isCompactMobile ? 8 : 10, padding: mob.isMobile ? (isCompactMobile ? '6px 8px' : '10px 10px') : '10px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)' }}>
             {activeWs ? (
               <div style={{ display:'flex', alignItems:'center', gap:8, flex:1 }}>
                 <span style={{ fontSize:20 }}>{activeWs.icon}</span>
@@ -911,7 +911,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
           </div>
           ) : null}
 
-          <div style={{ flex:1, overflowY:'auto', padding: mob.isMobile ? (isCompactMobile ? '8px' : '10px') : 12 }}>
+          <div className="nx-mobile-files-items" style={{ flex:1, overflowY:'auto', padding: mob.isMobile ? (isCompactMobile ? '8px' : '10px') : 12 }}>
             {displayItems.length === 0 ? (
               <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'60%', gap:12, opacity:0.4 }}>
                 <Layers size={48} strokeWidth={1} style={{ color:t.accent, opacity:0.4 }}/>
