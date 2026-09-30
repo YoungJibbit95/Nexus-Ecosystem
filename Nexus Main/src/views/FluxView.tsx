@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { canHandleViewKeyboardEvent, hasPlainShortcutModifiers, isEditableShortcutTarget, useActiveViewCommandScope } from '../app/ViewCommandScope'
 import {
   Activity as ActivityIcon,
   AlertTriangle,
@@ -114,6 +115,7 @@ const formatDue = (ts: number) => {
 }
 
 export function FluxView({ setView }: { setView?: (view: string) => void } = {}) {
+  const activeCommandScope = useActiveViewCommandScope()
   const t = useTheme()
   const accentRgb = hexToRgb(t.accent)
   const {
@@ -288,10 +290,11 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (!canHandleViewKeyboardEvent(e, activeCommandScope) || isEditableShortcutTarget(e.target) || e.altKey) return
       const cmd = e.metaKey || e.ctrlKey
       const k = e.key.toLowerCase()
 
-      if (cmd && k === 'f') {
+      if (cmd && !e.shiftKey && k === 'f') {
         e.preventDefault()
         searchRef.current?.focus()
         searchRef.current?.select()
@@ -335,6 +338,8 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
         }
       }
 
+      if (hasPlainShortcutModifiers(e)) return
+
       if (e.key === '1') {
         e.preventDefault()
         setFilter('note')
@@ -374,7 +379,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [reviewTaskBacklog, reviewUrgentNow, runQuickAction])
+  }, [activeCommandScope, reviewTaskBacklog, reviewUrgentNow, runQuickAction])
 
   const normalizedQuery = useMemo(() => query.trim().toLowerCase(), [query])
   const matchesQuery = useCallback((...parts: Array<string | undefined>) => {
