@@ -33,14 +33,7 @@ jobs:
             Nexus Wiki/package-lock.json
 
       - name: Install package dependencies
-        shell: pwsh
-        run: |
-          npm install --prefix "packages/nexus-core"
-          npm ci --prefix "Nexus Main"
-          npm ci --prefix "Nexus Mobile"
-          npm ci --prefix "Nexus Code"
-          npm ci --prefix "Nexus Code Mobile"
-          npm ci --prefix "Nexus Wiki"
+        run: node tools/install-public-packages.mjs
 
-      - name: Run release gate
-        run: npm run release:gate -- --ci --skip-doctor --skip-website
+      - name: Run public repository release checks
+        run: npm run release:gate -- --ci --public-only
