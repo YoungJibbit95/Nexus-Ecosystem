@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { canHandleViewKeyboardEvent, hasPlainShortcutModifiers, isEditableShortcutTarget, useActiveViewCommandScope } from "../app/ViewCommandScope";
 import { AnimatePresence } from "framer-motion";
 import {
   CheckCircle2,
@@ -97,6 +98,7 @@ const formatDateTime = (iso: string) => {
 };
 
 export function FilesView({ setView }: FilesViewProps = {}) {
+  const activeCommandScope = useActiveViewCommandScope();
   const t = useTheme();
   const rgb = hexToRgb(t.accent);
   const {
@@ -494,7 +496,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (
-        event.defaultPrevented ||
+        !canHandleViewKeyboardEvent(event, activeCommandScope) ||
+        isEditableShortcutTarget(event.target) ||
         newWsOpen ||
         Boolean(editWs) ||
         Boolean(assignItem)
@@ -503,20 +506,14 @@ export function FilesView({ setView }: FilesViewProps = {}) {
       }
       const key = event.key.toLowerCase();
       const cmd = event.metaKey || event.ctrlKey;
-      const target = event.target as HTMLElement | null;
-      const isEditable =
-        target?.tagName === "INPUT" ||
-        target?.tagName === "TEXTAREA" ||
-        target?.isContentEditable;
-
-      if (cmd && key === "f") {
+      if (cmd && !event.altKey && !event.shiftKey && key === "f") {
         event.preventDefault();
         searchInputRef.current?.focus();
         searchInputRef.current?.select();
         return;
       }
 
-      if (isEditable) return;
+      if (hasPlainShortcutModifiers(event)) return;
 
       if (key === "1") {
         event.preventDefault();
@@ -571,7 +568,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeWs, assignItem, editWs, newWsOpen]);
+  }, [activeCommandScope, activeWs, assignItem, editWs, newWsOpen]);
 
   const openItem = useCallback(
     (item: FileItem) => {

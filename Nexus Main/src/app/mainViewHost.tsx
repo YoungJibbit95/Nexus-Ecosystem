@@ -5,6 +5,7 @@ import type { View } from "../components/Sidebar";
 import { useApp } from "../store/appStore";
 import { ViewErrorBoundary } from "../components/ViewErrorBoundary";
 import { NexusV6ViewShell } from "./NexusV6ViewShell";
+import { ViewCommandScope } from "./ViewCommandScope";
 import {
   MAIN_FEATURE_FLAGS_VIEW_ID,
   isMainDevelopmentOnlyViewsEnabled,
@@ -300,7 +301,9 @@ export function MainViewHost({
                 ) : null
               }
             >
-              {renderActiveView(viewId, onRequestViewChange, onOpenWalkthrough)}
+              <ViewCommandScope value={viewId === view}>
+                {renderActiveView(viewId, onRequestViewChange, onOpenWalkthrough)}
+              </ViewCommandScope>
             </Suspense>
           </NexusV6ViewShell>
         </div>

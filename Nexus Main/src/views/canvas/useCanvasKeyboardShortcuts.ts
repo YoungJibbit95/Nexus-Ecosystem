@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { canHandleViewKeyboardEvent, isEditableShortcutTarget, useActiveViewCommandScope } from "../../app/ViewCommandScope";
 
 export const useCanvasKeyboardShortcuts = ({
   selectedNodeId,
@@ -42,22 +43,12 @@ export const useCanvasKeyboardShortcuts = ({
   undo: () => void;
   redo: () => void;
 }) => {
+  const activeCommandScope = useActiveViewCommandScope();
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
-      const targetTag = (e.target as HTMLElement).tagName;
-      const isEditing =
-        targetTag === "INPUT" ||
-        targetTag === "TEXTAREA" ||
-        (e.target as HTMLElement).isContentEditable;
-
-      if (e.code === "Space" && !isEditing) {
-        e.preventDefault();
-        setSpaceHeld(true);
-      }
-      if (e.key === "Delete" && selectedNodeId && !isEditing) {
-        deleteSelectedNode(selectedNodeId);
-        setSelectedNodeId(null);
-      }
+      if (!canHandleViewKeyboardEvent(e, activeCommandScope) || e.altKey) return;
+      const isEditing = isEditableShortcutTarget(e.target);
+      if (isEditing) return;
       if (e.key === "Escape") {
         setConnectingFrom(null);
         setSelectedNodeId(null);
@@ -83,12 +74,28 @@ export const useCanvasKeyboardShortcuts = ({
         openProjectSearch();
         return;
       }
-      if ((e.ctrlKey || e.metaKey) && e.key === "0") {
+      if (commandKey && !e.shiftKey && e.key === "0") {
         resetViewport();
+        return;
       }
-      if (!isEditing && (e.key === "+" || e.key === "=")) {
+      if (commandKey && !e.shiftKey && historyKey === "m") {
+        e.preventDefault();
+        setShowMagicBuilder(true);
+        return;
+      }
+      if (!commandKey && (e.key === "+" || e.key === "=")) {
         e.preventDefault();
         zoomFromCenterBy(0.12);
+        return;
+      }
+      if (commandKey || e.shiftKey) return;
+      if (e.code === "Space") {
+        e.preventDefault();
+        setSpaceHeld(true);
+      }
+      if (e.key === "Delete" && selectedNodeId) {
+        deleteSelectedNode(selectedNodeId);
+        setSelectedNodeId(null);
       }
       if (!isEditing && e.key === "-") {
         e.preventDefault();
@@ -110,10 +117,6 @@ export const useCanvasKeyboardShortcuts = ({
         e.preventDefault();
         setShowProjectPanel((prev) => !prev);
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "m" && !isEditing) {
-        e.preventDefault();
-        setShowMagicBuilder(true);
-      }
       if (!isEditing && (e.key === "1" || e.key === "2" || e.key === "3")) {
         const mode = e.key === "1" ? "mindmap" : e.key === "2" ? "timeline" : "board";
         setLayoutMode(mode);
@@ -122,16 +125,19 @@ export const useCanvasKeyboardShortcuts = ({
     };
 
     const onUp = (e: KeyboardEvent) => {
+      if (!activeCommandScope) return;
       if (e.code === "Space") setSpaceHeld(false);
     };
 
     window.addEventListener("keydown", onDown);
     window.addEventListener("keyup", onUp);
     return () => {
+      setSpaceHeld(false);
       window.removeEventListener("keydown", onDown);
       window.removeEventListener("keyup", onUp);
     };
   }, [
+    activeCommandScope,
     applyAutoLayout,
     deleteSelectedNode,
     fitView,

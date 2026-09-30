@@ -9,6 +9,7 @@ import React, {
   useDeferredValue,
 } from "react";
 import { createPortal } from "react-dom";
+import { canHandleViewKeyboardEvent, isEditableShortcutTarget, useActiveViewCommandScope } from "../app/ViewCommandScope";
 import "./notes/NotesViewPolish.css";
 import {
   Plus,
@@ -130,6 +131,7 @@ const resolveReminderDatetime = (value: string) => {
   return new Date(Date.now() + 60 * 60 * 1000).toISOString();
 };
 export function NotesView() {
+  const activeCommandScope = useActiveViewCommandScope();
   const {
     notes,
     activeNoteId,
@@ -211,7 +213,7 @@ export function NotesView() {
   );
 
   useEffect(() => {
-    if (!mobileSidebarOpen || typeof window === "undefined") return;
+    if (!activeCommandScope || !mobileSidebarOpen || typeof window === "undefined") return;
     if (!window.matchMedia("(max-width: 760px)").matches) return;
 
     const sidebar = mobileSidebarRef.current;
@@ -225,6 +227,7 @@ export function NotesView() {
         : [];
     const frame = window.requestAnimationFrame(() => focusable()[0]?.focus());
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (!canHandleViewKeyboardEvent(event, activeCommandScope)) return;
       if (event.key === "Escape") {
         event.preventDefault();
         setMobileSidebarOpen(false);
@@ -249,7 +252,7 @@ export function NotesView() {
       window.removeEventListener("keydown", handleKeyDown);
       mobileSidebarTriggerRef.current?.focus();
     };
-  }, [mobileSidebarOpen]);
+  }, [activeCommandScope, mobileSidebarOpen]);
 
   useEffect(() => {
     if (focusMode) setMobileSidebarOpen(false);
@@ -590,7 +593,7 @@ export function NotesView() {
   };
 
   useEffect(() => {
-    if (!notesEmojiMenuOpen && !notesBlocksMenuOpen) return;
+    if (!activeCommandScope || (!notesEmojiMenuOpen && !notesBlocksMenuOpen)) return;
     const handleDismiss = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       if (
@@ -605,6 +608,7 @@ export function NotesView() {
       setFloatingMenuPlacement(null);
     };
     const handleEscape = (event: KeyboardEvent) => {
+      if (!canHandleViewKeyboardEvent(event, activeCommandScope)) return;
       if (event.key !== "Escape") return;
       setNotesEmojiMenuOpen(false);
       setNotesBlocksMenuOpen(false);
@@ -616,7 +620,7 @@ export function NotesView() {
       window.removeEventListener("mousedown", handleDismiss);
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [notesBlocksMenuOpen, notesEmojiMenuOpen]);
+  }, [activeCommandScope, notesBlocksMenuOpen, notesEmojiMenuOpen]);
 
   useEffect(() => {
     if (!notesEmojiMenuOpen && !notesBlocksMenuOpen) return;
@@ -786,6 +790,7 @@ export function NotesView() {
 
   useEffect(() => {
     const onGlobalKeyDown = (event: KeyboardEvent) => {
+      if (!canHandleViewKeyboardEvent(event, activeCommandScope) || isEditableShortcutTarget(event.target) || event.altKey || event.shiftKey) return;
       if (showQuickSwitch) return;
       const editable = isEditableTarget(event.target);
       if (!(event.ctrlKey || event.metaKey)) return;
@@ -820,7 +825,7 @@ export function NotesView() {
     return () => {
       window.removeEventListener("keydown", onGlobalKeyDown);
     };
-  }, [openQuickSwitch, showQuickSwitch]);
+  }, [activeCommandScope, openQuickSwitch, showQuickSwitch]);
 
   useEffect(() => {
     if (!showQuickSwitch) return;
@@ -1061,6 +1066,7 @@ export function NotesView() {
   useEffect(() => {
     if (!showQuickSwitch) return;
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!canHandleViewKeyboardEvent(event, activeCommandScope)) return;
       const target = event.target;
       const isQuickSwitchInput = target === quickSwitchInputRef.current;
       if (isEditableTarget(target) && !isQuickSwitchInput) {
@@ -1102,6 +1108,7 @@ export function NotesView() {
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [
+    activeCommandScope,
     closeQuickSwitch,
     quickSwitchCursor,
     quickSwitchResults,

@@ -1,4 +1,5 @@
 import { PersistenceNotice } from '@nexus/core/storage/PersistenceNotice'
+import { WorkspaceMutationGuard } from '@nexus/core/storage/WorkspaceMutationGuard'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
@@ -10,6 +11,7 @@ recoverWorkspaceRestore().then(recovered => root.render(
   <React.StrictMode>
     {recovered && <div role="status">Eine unterbrochene Wiederherstellung wurde auf den vorherigen Stand zurückgesetzt.</div>}
     <App />
+    <WorkspaceMutationGuard />
     <PersistenceNotice />
   </React.StrictMode>,
 )).catch(error => root.render(
