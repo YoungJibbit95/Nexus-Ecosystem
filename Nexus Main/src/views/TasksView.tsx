@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import React, { useState, useMemo, useCallback, useRef, useEffect, useId } from 'react'
 import {
   Plus,
   Trash2,
@@ -28,6 +28,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { DndProvider, useDrag, useDrop } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { shallow } from 'zustand/shallow'
+import { canHandleViewKeyboardEvent, hasPlainShortcutModifiers, isEditableShortcutTarget, isViewCommandScopeActive, useActiveViewCommandScope } from '../app/ViewCommandScope'
+import { taskDeadlineDate, taskDeadlineForSave } from './tasks/taskDeadline'
 
 const PRIORITY_COLOR = { low: '#30d158', mid: '#ffd60a', high: '#ff453a' }
 const PRIORITY_LABEL = { low: 'Low', mid: 'Medium', high: 'High' }
@@ -83,13 +85,6 @@ const getOpenDependencyCount = (task: Task, taskMap: Map<string, Task>) => {
 
 const isTaskBlocked = (task: Task, taskMap: Map<string, Task>) =>
   Boolean(task.blocked) || getOpenDependencyCount(task, taskMap) > 0
-
-const isEditableTarget = (target: EventTarget | null) => {
-  const el = target as HTMLElement | null
-  if (!el) return false
-  const tag = el.tagName
-  return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable
-}
 
 const scoreTaskForFocus = (task: Task, taskMap: Map<string, Task>, nowMs: number) => {
   if (task.status === 'done') return -1
@@ -322,6 +317,53 @@ function TaskModal({
   status?: 'todo'|'doing'|'done'
   setView?: (viewId: string) => void
 }) {
+  const activeCommandScope = useActiveViewCommandScope()
+  const dialogLabelId = useId()
+  const titleInputId = useId()
+  const panelRef = useRef<HTMLDivElement>(null)
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+  useEffect(() => {
+    if (!activeCommandScope) return
+    const panel = panelRef.current
+    if (!panel) return
+    const previousFocus = document.activeElement as HTMLElement | null
+    const candidates = () => Array.from(panel.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [href], [tabindex]:not([tabindex="-1"])',
+    )).filter(element => element.getClientRects().length > 0)
+    const focusFirst = () => (panel.querySelector<HTMLInputElement>('input[autofocus], input[aria-label="Task title"]') || candidates()[0] || panel).focus()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!isViewCommandScopeActive(activeCommandScope) || event.defaultPrevented || event.isComposing || event.keyCode === 229) return
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        closeRef.current()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const controls = candidates()
+      const first = controls[0]
+      const last = controls[controls.length - 1]
+      if (!first) { event.preventDefault(); panel.focus(); return }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === panel)) {
+        event.preventDefault(); last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first.focus()
+      }
+    }
+    const onFocus = (event: FocusEvent) => {
+      if (!isViewCommandScopeActive(activeCommandScope)) return
+      if (!panel.contains(event.target as Node)) focusFirst()
+    }
+    focusFirst()
+    panel.addEventListener('keydown', onKeyDown)
+    document.addEventListener('focusin', onFocus)
+    return () => {
+      panel.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('focusin', onFocus)
+      if (previousFocus?.isConnected && previousFocus.getClientRects().length > 0) previousFocus.focus()
+    }
+  }, [activeCommandScope])
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const {
@@ -355,7 +397,7 @@ function TaskModal({
   const [title,    setTitle]    = useState(task?.title ?? '')
   const [desc,     setDesc]     = useState(task?.desc ?? '')
   const [priority, setPriority] = useState<'low'|'mid'|'high'>(task?.priority ?? 'low')
-  const [deadline, setDeadline] = useState(task?.deadline ? task.deadline.split('T')[0] : '')
+  const [deadline, setDeadline] = useState(taskDeadlineDate(task?.deadline))
   const [tagInput, setTagInput] = useState('')
   const [tags,     setTags]     = useState<string[]>(task?.tags ?? [])
   const [notesMd,  setNotesMd]  = useState((task as any)?.notes ?? '')
@@ -480,7 +522,7 @@ function TaskModal({
       title,
       desc,
       priority,
-      deadline: deadline || undefined,
+      deadline: taskDeadlineForSave(task?.deadline, deadline),
       tags,
       notes: notesMd,
       linkedNoteId: linkedNoteId || undefined,
@@ -517,6 +559,11 @@ function TaskModal({
       onClick={onClose}
     >
       <motion.div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={dialogLabelId}
+        tabIndex={-1}
         initial={panelInitial}
         animate={{ scale:1, y:0, opacity:1 }}
         exit={panelInitial}
@@ -526,14 +573,15 @@ function TaskModal({
       >
         <Glass className="nx-task-modal-sheet" glow style={{ padding:0, display:'flex', flexDirection:'column', maxHeight:'85vh', color:t.mode==='light'?'rgba(15,23,42,0.92)':undefined }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px 12px', borderBottom:'1px solid rgba(255,255,255,0.08)', flexShrink:0 }}>
-            <div style={{ fontSize:15, fontWeight:800 }}>{task ? 'Edit Task' : 'New Task'}</div>
-            <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', opacity:0.5, color:'inherit', padding:4, borderRadius:6 }}>
+            <div id={dialogLabelId} style={{ fontSize:15, fontWeight:800 }}>{task ? 'Edit Task' : 'New Task'}</div>
+            <button aria-label="Close task dialog" onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', opacity:0.5, color:'inherit', padding:4, borderRadius:6 }}>
               <X size={16}/>
             </button>
           </div>
 
           <div style={{ padding:'14px 20px 0', flexShrink:0 }}>
-            <input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Task title…" style={{ width:'100%', padding:'9px 12px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', outline:'none', fontSize:14, fontWeight:600, color:'inherit', marginBottom:10 }} />
+            <label htmlFor={titleInputId} style={{ fontSize:11, opacity:0.65, display:'block', marginBottom:5 }}>Task title</label>
+            <input id={titleInputId} aria-label="Task title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Task title…" style={{ width:'100%', padding:'9px 12px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', outline:'none', fontSize:14, fontWeight:600, color:'inherit', marginBottom:10 }} />
             <div style={{ display:'flex', gap:6, marginBottom:10 }}>
               {(['low','mid','high'] as const).map((priorityKey) => (
                 <button
@@ -577,7 +625,10 @@ function TaskModal({
                 <textarea value={desc} onChange={(event) => setDesc(event.target.value)} placeholder="Add a description…" rows={3} style={{ width:'100%', padding:'9px 12px', borderRadius:9, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:13, color:'inherit', resize:'vertical', fontFamily:'inherit', marginBottom:14 }} />
 
                 <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:0.5 }}>Deadline</label>
-                <input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} style={{ width:'100%', padding:'8px 12px', borderRadius:9, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:13, color:'inherit', marginBottom:14, colorScheme: t.mode==='dark'?'dark':'light' }} />
+                <input aria-label="Deadline date" aria-describedby="nx-task-deadline-help" type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} style={{ width:'100%', padding:'8px 12px', borderRadius:9, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:13, color:'inherit', marginBottom:5, colorScheme: t.mode==='dark'?'dark':'light' }} />
+                <div id="nx-task-deadline-help" style={{ fontSize:11, opacity:0.65, marginBottom:14 }}>
+                  {task?.deadline?.includes('T') ? 'Changing the date keeps the existing time and UTC offset. Clear the date to remove the deadline.' : 'A date-only deadline stays date-only. Clear the date to remove it.'}
+                </div>
 
                 <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:0.5 }}>Tags</label>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginBottom:6 }}>
@@ -756,6 +807,7 @@ function TaskModal({
 }
 
 export function TasksView({ setView }: { setView?: (viewId: string) => void } = {}) {
+  const active = useActiveViewCommandScope()
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const {
@@ -943,17 +995,18 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!canHandleViewKeyboardEvent(event, active) || newStatus || editId || isEditableShortcutTarget(event.target)) return
       const key = event.key.toLowerCase()
       const cmd = event.metaKey || event.ctrlKey
 
-      if (cmd && key === 'f') {
+      if (cmd && !event.altKey && !event.shiftKey && key === 'f') {
         event.preventDefault()
         searchInputRef.current?.focus()
         searchInputRef.current?.select()
         return
       }
 
-      if (isEditableTarget(event.target)) return
+      if (hasPlainShortcutModifiers(event)) return
 
       if (key === '1') {
         event.preventDefault()
@@ -1017,7 +1070,7 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [quickAdd])
+  }, [active, editId, newStatus, quickAdd])
 
   return (
     <DndProvider backend={HTML5Backend}>

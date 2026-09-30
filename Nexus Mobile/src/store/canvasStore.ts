@@ -412,7 +412,7 @@ draftRegistry.register(() => {
     else globalThis.clearTimeout(queuedNodePatchHandle)
   }
   flushQueuedNodePatchesNow()
-})
+}, { phase: 'store' })
 
 const enqueueNodePatch = (
   set: (updater: (state: CanvasStore) => CanvasStore) => void,

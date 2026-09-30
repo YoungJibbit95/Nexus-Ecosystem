@@ -54,7 +54,42 @@ function EditorFixture() {
 }
 
 async function run() {
+  const stage = new URLSearchParams(location.search).get('stage') ?? 'write'
+  if (stage.startsWith('handoff-') || stage === 'empty-reload') {
+    await (await import('./workspaceHandoffHarness')).runHandoffStage(stage, assert)
+    return
+  }
   const store = createStore()
+  if (new URLSearchParams(location.search).get('stage') === 'characterize-empty') {
+    const { useApp: mainApp } = await import('../../Nexus Main/src/store/appStore')
+    const { useCanvas: mainCanvas } = await import('../../Nexus Main/src/store/canvasStore')
+    const { useWorkspaces: mainWorkspaces } = await import('../../Nexus Main/src/store/workspaceStore')
+    const { useWorkspaces: mobileWorkspaces } = await import('../../Nexus Mobile/src/store/workspaceStore')
+    const { useWorkspaceSync } = await import('../../Nexus Main/src/views/files/useWorkspaceSync')
+    await Promise.all([mainApp, mainCanvas, mainWorkspaces, mobileWorkspaces].map(value => value.persist.rehydrate()))
+    const board = { id: 'old-board', name: 'Old board', nodes: [], connections: [], created: '2026-01-01', updated: '2026-01-01' }
+    mainCanvas.setState({ canvases: [board], activeCanvasId: board.id })
+    const snapshot = buildEmptyRuntime()
+    window.api = { fs: { read: async () => ({ ok: true, data: JSON.stringify(snapshot) }), readDir: async () => ({ ok: true, entries: [] }) } } as any
+    const { useWorkspaceFs } = await import('../../Nexus Main/src/store/workspaceFsStore')
+    useWorkspaceFs.setState({ rootPath: '/synthetic-workspace' })
+    let sync: ReturnType<typeof useWorkspaceSync>
+    function DiskImportFixture() {
+      sync = useWorkspaceSync({ ...mainApp.getState(), ...mainCanvas.getState(), ...mainWorkspaces.getState() })
+      return null
+    }
+    const root = createRoot(document.getElementById('root')!)
+    flushSync(() => root.render(<DiskImportFixture />))
+    await sync!.importWorkspaceFromDisk()
+    const applied = { canvases: mainCanvas.getState().canvases.length, workspaces: mainWorkspaces.getState().workspaces.length }
+    mobileWorkspaces.setState({ workspaces: [], activeWorkspaceId: null })
+    await persistenceRegistry.flush()
+    await Promise.all([mainApp, mainWorkspaces, mobileWorkspaces].map(value => value.persist.rehydrate()))
+    const hydrated = { notes: mainApp.getState().notes.length, mainWorkspaces: mainWorkspaces.getState().workspaces.length, mobileWorkspaces: mobileWorkspaces.getState().workspaces.length }
+    flushSync(() => root.unmount())
+    assert(Object.values(applied).every(value => value === 0) && Object.values(hydrated).every(value => value === 0), `complete empty disk replacement and hydration retain emptiness: ${JSON.stringify({ applied, hydrated })}`)
+    return
+  }
   if (new URLSearchParams(location.search).get('stage') === 'reload') {
     assert(JSON.stringify(await store.getItem('app')) === JSON.stringify(value), 'fresh page reads acknowledged IndexedDB bytes')
     const files = repository.load()
@@ -150,5 +185,8 @@ async function run() {
   await useApp.persist.rehydrate()
   useApp.setState({ notes: [{ ...initialNote, content: 'Partial application before interruption' }] })
   assert(await persistenceRegistry.flush(), 'interruption fixture persists partial state while retaining the recovery journal')
+}
+function buildEmptyRuntime() {
+  return { version: 1, app: 'Synthetic fixture', exportedAt: '2026-09-30T00:00:00Z', state: { notes: [], codes: [], tasks: [], reminders: [], folders: [], canvases: [], workspaces: [], openNoteIds: [], activeNoteId: null, openCodeIds: [], activeCodeId: null, activeCanvasId: null, activeWorkspaceId: null } }
 }
 run().then(() => { window.persistenceTestResult = { ok: true, checks } }).catch(error => { window.persistenceTestResult = { ok: false, error: error.stack ?? String(error), checks } })

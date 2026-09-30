@@ -27,6 +27,7 @@ import {
   formatReminderRepeat,
   type ReminderTemplateId,
 } from '@nexus/core'
+import { createReminderTimeEdit, resolveReminderTimeEdit } from '@nexus/core/time/reminderTimeEdit'
 
 type QuietHoursState = {
   enabled: boolean
@@ -326,13 +327,12 @@ function ReminderModal({
   const modalActionFont = isCompactMobile ? 12 : 13
   const { addRem, updateReminder, tasks, notes: noteEntries, openNote, setNote } = useApp()
 
-  const now = new Date()
-  now.setMinutes(now.getMinutes() + 15)
-  const defaultDT = now.toISOString().slice(0,16)
-
+  const [timeEdit, setTimeEdit] = useState(() => createReminderTimeEdit(reminder?.datetime))
   const [title,    setTitle]    = useState(reminder?.title ?? '')
   const [msg,      setMsg]      = useState(reminder?.msg ?? '')
-  const [datetime, setDatetime] = useState(reminder?.datetime ? reminder.datetime.slice(0,16) : defaultDT)
+  const [datetime, setDatetime] = useState(timeEdit.initialLocal)
+  const [occurrence, setOccurrence] = useState('')
+  const timeResolution = useMemo(() => resolveReminderTimeEdit(timeEdit, datetime, occurrence), [timeEdit, datetime, occurrence])
   const [repeat,   setRepeat]   = useState<Reminder['repeat']>(reminder?.repeat ?? 'none')
   const [linkedTaskId, setLinkedTaskId] = useState(reminder?.linkedTaskId ?? '')
   const [linkedNoteId, setLinkedNoteId] = useState(reminder?.linkedNoteId ?? '')
@@ -375,14 +375,14 @@ function ReminderModal({
   ]
 
   const save = () => {
-    if (!title.trim()) return
+    if (!title.trim() || timeResolution.ok === false) return
     if (reminder) {
       updateReminder(
         reminder.id,
         {
           title,
           msg,
-          datetime: new Date(datetime).toISOString(),
+          datetime: timeResolution.instant,
           repeat,
           linkedTaskId: linkedTaskId || undefined,
           linkedNoteId: linkedNoteId || undefined,
@@ -393,7 +393,7 @@ function ReminderModal({
       addRem({
         title,
         msg,
-        datetime: new Date(datetime).toISOString(),
+        datetime: timeResolution.instant,
         repeat,
         linkedTaskId: linkedTaskId || undefined,
         linkedNoteId: linkedNoteId || undefined,
@@ -403,8 +403,10 @@ function ReminderModal({
   }
 
   const setQuick = (mins: number) => {
-    const d = new Date(); d.setMinutes(d.getMinutes() + mins)
-    setDatetime(d.toISOString().slice(0,16))
+    const next = createReminderTimeEdit(new Date(Date.now() + mins * 60_000).toISOString(), timeEdit.timeZone)
+    setTimeEdit(next)
+    setDatetime(next.initialLocal)
+    setOccurrence('')
   }
 
   return (
@@ -448,9 +450,20 @@ function ReminderModal({
 
                 <div style={{ marginBottom:isCompactMobile ? 12 : 14 }}>
                   <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:6, textTransform:'uppercase', letterSpacing:0.5 }}>When</label>
-                  <input type="datetime-local" value={datetime} onChange={e=>setDatetime(e.target.value)} style={{ width:'100%', padding:isCompactMobile ? '8px 10px' : '9px 12px', borderRadius:9, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:modalInputFont, color:'inherit', colorScheme: t.mode==='dark'?'dark':'light' }} />
+                  <input type="datetime-local" aria-label="Reminder date and time" value={datetime} onChange={e=>{setDatetime(e.target.value);setOccurrence('')}} style={{ width:'100%', padding:isCompactMobile ? '8px 10px' : '9px 12px', borderRadius:9, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:modalInputFont, color:'inherit', colorScheme: t.mode==='dark'?'dark':'light' }} />
+                  <div style={{ fontSize:11, opacity:0.8, marginTop:7 }}>Time zone: <strong>{timeEdit.timeZone}</strong></div>
+                  {timeResolution.choices.length > 1 && (
+                    <label style={{ display:'grid', gap:4, fontSize:12, marginTop:8 }}>
+                      This time occurs twice
+                      <select aria-label="Repeated time occurrence" value={timeResolution.selectedOccurrence} onChange={event=>setOccurrence(event.target.value)} style={{ padding:'7px 9px', borderRadius:8, background:'rgba(255,255,255,0.07)', color:'inherit', border:'1px solid rgba(255,255,255,0.2)' }}>
+                        <option value="">Choose earlier or later</option>
+                        {timeResolution.choices.map((choice,index)=><option key={choice.instant} value={choice.instant}>{index===0?'Earlier':'Later'} ({choice.offsetLabel})</option>)}
+                      </select>
+                    </label>
+                  )}
+                  {timeResolution.ok === false && <div role="alert" style={{ color:'#ff9f0a', fontSize:12, marginTop:8 }}>{timeResolution.message}</div>}
                   <div style={{ display:'flex', gap:6, marginTop:7 }}>
-                    {[{l:'15m',m:15},{l:'1h',m:60},{l:'3h',m:180},{l:'Tomorrow',m:24*60},{l:'1 week',m:7*24*60}].map(({l,m}) => (
+                    {[{l:'15m',m:15},{l:'1h',m:60},{l:'3h',m:180},{l:'24h',m:24*60},{l:'7 days',m:7*24*60}].map(({l,m}) => (
                       <button key={l} onClick={()=>setQuick(m)} style={{ flex:1, padding:isCompactMobile ? '4px 0' : '5px 0', borderRadius:7, border:'1px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.05)', cursor:'pointer', fontSize:isCompactMobile ? 9 : 10, fontWeight:600, color:'inherit' }}>+{l}</button>
                     ))}
                   </div>
@@ -533,7 +546,7 @@ function ReminderModal({
 
           <div style={{ display:'flex', gap:8, padding:modalFooterPadding, borderTop:'1px solid rgba(255,255,255,0.07)', flexShrink:0 }}>
             <button onClick={onClose} style={{ flex:1, padding:isCompactMobile ? '8px' : '9px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', fontSize:modalActionFont, color:'inherit' }}>Cancel</button>
-            <button onClick={save} style={{ flex:2, padding:isCompactMobile ? '8px' : '9px', borderRadius:9, background:t.accent, border:'none', cursor:'pointer', fontSize:modalActionFont, fontWeight:700, color:'#fff', boxShadow:`0 2px 14px rgba(${rgb},0.4)` }}>
+            <button onClick={save} disabled={!title.trim() || !timeResolution.ok} style={{ flex:2, padding:isCompactMobile ? '8px' : '9px', borderRadius:9, background:t.accent, border:'none', cursor:'pointer', opacity:timeResolution.ok?1:0.5, fontSize:modalActionFont, fontWeight:700, color:'#fff', boxShadow:`0 2px 14px rgba(${rgb},0.4)` }}>
               {reminder ? 'Save Changes' : 'Create Reminder'}
             </button>
           </div>

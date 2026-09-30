@@ -1,5 +1,6 @@
 import { createWithEqualityFn as create } from 'zustand/traditional'
 import { persist } from 'zustand/middleware'
+import { createStoreManagerStorage } from '@nexus/core/storage/browserPersistence'
 
 type WorkspaceHandoffMode = 'manual-runtime'
 type HandoffRiskLevel = 'low' | 'medium' | 'high'
@@ -30,7 +31,7 @@ type HandoffCheckpointState = {
   activeWorkspaceId: string | null
 }
 
-type HandoffCheckpoint = {
+export type HandoffCheckpoint = {
   savedAt: string
   state: HandoffCheckpointState
 }
@@ -98,13 +99,14 @@ export const useWorkspaceHandoff = create<WorkspaceHandoffStore>()(
         set({
           checkpoint: {
             savedAt: new Date().toISOString(),
-            state,
+            state: JSON.parse(JSON.stringify(state)),
           },
         }),
       clearCheckpoint: () => set({ checkpoint: null }),
     }),
     {
       name: 'nx-workspace-handoff-v1',
+      storage: createStoreManagerStorage<WorkspaceHandoffStore>(),
       partialize: (state) => ({
         mode: state.mode,
         lastAction: state.lastAction,
@@ -115,6 +117,7 @@ export const useWorkspaceHandoff = create<WorkspaceHandoffStore>()(
         lastCounts: state.lastCounts,
         lastRiskLevel: state.lastRiskLevel,
         confidence: state.confidence,
+        checkpoint: state.checkpoint,
       }),
     },
   ),

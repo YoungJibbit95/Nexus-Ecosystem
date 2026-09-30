@@ -38,6 +38,7 @@ const ensureArray = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : []
 
 const normalizeWorkspace = (workspace: Partial<Workspace> & { id: string; name: string; icon: string; color: string }): Workspace => ({
+  ...workspace,
   id: workspace.id,
   name: workspace.name,
   icon: workspace.icon,
@@ -136,7 +137,7 @@ export const useWorkspaces = create<WorkspaceStore>()(
           ...persisted,
         }
         const sourceWorkspaces =
-          Array.isArray(persisted.workspaces) && persisted.workspaces.length > 0
+          Array.isArray(persisted.workspaces)
             ? persisted.workspaces
             : currentState.workspaces
         return {

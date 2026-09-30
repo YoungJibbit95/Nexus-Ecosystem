@@ -9,7 +9,7 @@ const timeout = setTimeout(() => { console.error('Persistence browser smoke time
 app.whenReady().then(async () => {
   const window = new BrowserWindow({ show: false, webPreferences: { partition: `persistence-test-${process.pid}`, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } })
   try {
-    for (const stage of ['write', 'reload']) {
+    for (const stage of (process.env.NEXUS_PERSISTENCE_SMOKE_STAGES || 'write,reload,handoff-main,handoff-main-reload,handoff-main-rollback-fail,handoff-main-recover,handoff-main-loose,handoff-mobile,handoff-mobile-reload,handoff-mobile-interrupt,handoff-mobile-recover,characterize-empty,empty-reload').split(',')) {
       await window.loadURL(`${process.env.NEXUS_PERSISTENCE_SMOKE_URL}?stage=${stage}`)
       const result = await window.webContents.executeJavaScript(`new Promise((resolve, reject) => {
         const check = () => window.persistenceTestResult ? resolve(window.persistenceTestResult) : setTimeout(check, 20);

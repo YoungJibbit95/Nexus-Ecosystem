@@ -1,7 +1,7 @@
 /** Compensating multi-store transaction with a durable recovery point before any mutation.
  * The journal remains until either application or rollback has durably completed.
  */
-export async function applySnapshotTransaction<T>(target: T, ports: {
+export async function applySnapshotTransaction<T>(target: T | ((before: T) => T), ports: {
   prepare: (snapshot: T) => T
   capture: () => T
   journal: (before: T, after: T) => Promise<void>
@@ -11,9 +11,11 @@ export async function applySnapshotTransaction<T>(target: T, ports: {
   beforeCapture?: () => void
   invalidateDrafts?: () => void
 }) {
-  const after = ports.prepare(target)
+  // Partial imports are composed from the flushed preimage, never stale render props.
+  const prepared = typeof target === 'function' ? undefined : ports.prepare(target)
   ports.beforeCapture?.()
   const before = ports.prepare(ports.capture())
+  const after = typeof target === 'function' ? ports.prepare((target as (before: T) => T)(before)) : prepared!
   await ports.journal(before, after)
   try {
     ports.apply(after)

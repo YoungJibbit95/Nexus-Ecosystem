@@ -2,6 +2,8 @@ import { persistenceRegistry } from '@nexus/core/storage/browserPersistence'
 import { projectCanvasPlanning } from '@nexus/core/canvas/planningCompatibility'
 import { draftRegistry } from '@nexus/core/storage/draftRegistry'
 import { applySnapshotTransaction } from '@nexus/core/storage/snapshotTransaction'
+import { workspaceOperation } from '@nexus/core/storage/workspaceOperation'
+import { awaitHydration } from '@nexus/core/storage/awaitHydration'
 import { useApp } from '../store/appStore'
 import { useCanvas } from '../store/canvasStore'
 import { useTerminal } from '../store/terminalStore'
@@ -10,12 +12,13 @@ import { useWorkspaceFs } from '../store/workspaceFsStore'
 import { useWorkspaces } from '../store/workspaceStore'
 import { applyThemeTransferPayload, buildThemeTransferPayload } from '../views/settings/themeTransfer'
 import { createWorkspaceBackupSnapshot, parseWorkspaceBackupSnapshot, saveWorkspaceBackup, type WorkspaceBackupSnapshot } from './workspaceBackup'
-import { clearWorkspaceRestoreJournal, readWorkspaceRestoreJournal, writeWorkspaceRestoreJournal } from './workspaceRestoreJournal'
+import { clearWorkspaceRestoreJournal, hasPendingWorkspaceRestore, readWorkspaceRestoreJournal, writeWorkspaceRestoreJournal } from './workspaceRestoreJournal'
 
 export const captureWorkspaceSources = () => ({
   app: useApp.getState(), canvas: useCanvas.getState(), terminal: useTerminal.getState(),
   workspaces: useWorkspaces.getState(), workspaceFs: useWorkspaceFs.getState(), theme: buildThemeTransferPayload(useTheme.getState()),
 })
+export const hydrateWorkspaceSources = () => awaitHydration([useApp, useCanvas, useWorkspaces, useWorkspaceFs, useTerminal, useTheme])
 function prepare(snapshot: WorkspaceBackupSnapshot) {
   const parsed = parseWorkspaceBackupSnapshot(snapshot)
   if (!parsed.ok) throw new Error(parsed.message)
@@ -30,28 +33,32 @@ function apply(snapshot: WorkspaceBackupSnapshot) {
   useTerminal.setState(snapshot.data.terminal as Partial<ReturnType<typeof useTerminal.getState>>)
   if (snapshot.data.theme) applyThemeTransferPayload(useTheme.getState(), snapshot.data.theme, { includeReleaseFrozen: false })
 }
-let restoring = false
-export async function restoreWorkspaceBackup(snapshot: WorkspaceBackupSnapshot) {
-  if (restoring) throw new Error('Workspace restore is already running')
-  restoring = true
-  try {
-    await applySnapshotTransaction(snapshot, {
-      prepare,
-      beforeCapture: draftRegistry.flush,
-      capture: () => createWorkspaceBackupSnapshot({ ...captureWorkspaceSources(), label: `Before restore ${new Date().toLocaleString()}`, reason: 'before-restore' }),
-      journal: async (before, after) => { await saveWorkspaceBackup(before); await writeWorkspaceRestoreJournal(before, after) },
-      clearJournal: clearWorkspaceRestoreJournal,
-      apply, flush: persistenceRegistry.flush, invalidateDrafts: draftRegistry.invalidate,
-    })
-  } finally { restoring = false }
+export async function restoreWorkspaceBackup(snapshot: WorkspaceBackupSnapshot | ((before: WorkspaceBackupSnapshot) => WorkspaceBackupSnapshot)) {
+  return workspaceOperation.run(async () => {
+    try {
+      await hydrateWorkspaceSources()
+      await applySnapshotTransaction(snapshot, {
+        prepare,
+        beforeCapture: draftRegistry.flush,
+        capture: () => createWorkspaceBackupSnapshot({ ...captureWorkspaceSources(), label: `Before restore ${new Date().toLocaleString()}`, reason: 'before-restore' }),
+        journal: async (before, after) => { await saveWorkspaceBackup(before); await writeWorkspaceRestoreJournal(before, after) },
+        clearJournal: clearWorkspaceRestoreJournal,
+        apply, flush: persistenceRegistry.flush, invalidateDrafts: draftRegistry.invalidate,
+      })
+    } catch (error) {
+      if (hasPendingWorkspaceRestore()) workspaceOperation.requireRecovery('Die Übernahme benötigt Wiederherstellung. Gespeicherte Daten und Recovery-Punkt wurden beibehalten.')
+      throw error
+    }
+  })
 }
 
 /** Run before mounting any interactive UI. An interrupted restore rolls back all slices. */
 export async function recoverWorkspaceRestore() {
+  await hydrateWorkspaceSources()
   const journal = await readWorkspaceRestoreJournal()
   if (!journal) return false
   // Await hydration before replacing state, so a late old read cannot undo recovery.
-  await Promise.all([useApp, useCanvas, useWorkspaces, useWorkspaceFs, useTerminal, useTheme].map(store => store.persist.rehydrate()))
+  await hydrateWorkspaceSources()
   apply(journal.before)
   draftRegistry.invalidate()
   if (!await persistenceRegistry.flush()) throw new Error('Recovery could not be saved; journal retained. Free storage and reload.')

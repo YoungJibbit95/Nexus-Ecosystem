@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
+import { canHandleViewKeyboardEvent, hasPlainShortcutModifiers, isEditableShortcutTarget, useActiveViewCommandScope } from "../app/ViewCommandScope";
 import {
   Plus,
   Bell,
@@ -42,16 +43,10 @@ import {
 const REMINDER_FILTER_STORAGE_KEY = "nx-reminders-filter-v1";
 const REMINDER_SEARCH_STORAGE_KEY = "nx-reminders-search-v1";
 
-const isEditableTarget = (target: EventTarget | null) => {
-  const el = target as HTMLElement | null;
-  if (!el) return false;
-  const tag = el.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
-};
-
 export function RemindersView({
   setView,
 }: { setView?: (viewId: string) => void } = {}) {
+  const activeCommandScope = useActiveViewCommandScope();
   const t = useTheme();
   const rgb = hexToRgb(t.accent);
   const { reminders, tasks, updateReminder, delRem, addRem } = useApp();
@@ -296,17 +291,18 @@ export function RemindersView({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!canHandleViewKeyboardEvent(event, activeCommandScope) || isEditableShortcutTarget(event.target) || newOpen) return;
       const key = event.key.toLowerCase();
       const cmd = event.metaKey || event.ctrlKey;
 
-      if (cmd && key === "f") {
+      if (cmd && !event.altKey && !event.shiftKey && key === "f") {
         event.preventDefault();
         searchInputRef.current?.focus();
         searchInputRef.current?.select();
         return;
       }
 
-      if (isEditableTarget(event.target)) return;
+      if (hasPlainShortcutModifiers(event)) return;
 
       if (key === "n") {
         event.preventDefault();
@@ -346,7 +342,7 @@ export function RemindersView({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [activeCommandScope, newOpen]);
 
   // Group by day for 'all'/'upcoming'
   const grouped = useMemo(() => {
