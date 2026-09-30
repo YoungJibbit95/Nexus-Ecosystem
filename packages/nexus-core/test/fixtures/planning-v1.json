@@ -1,0 +1,6 @@
+{
+  "format": "nexus-planning", "schemaVersion": 1, "generation": "cross-client-fixture", "revision": 3,
+  "events": [{ "id": "event-uid", "title": "Synthetic fixed event", "start": "2026-10-01T09:00:00Z", "end": "2026-10-01T10:00:00Z", "timeZone": "Europe/Berlin", "allDay": false, "revision": 1, "source": { "kind": "ics", "uid": "fixture@example.invalid", "rule": "FREQ=YEARLY;BYMONTH=10;BYSETPOS=1", "raw": "BEGIN:VEVENT\nUID:fixture@example.invalid\nRRULE:FREQ=YEARLY;BYMONTH=10;BYSETPOS=1\nEND:VEVENT", "futureSource": { "keep": true } }, "futureEvent": "preserve" }],
+  "blocks": [{ "id": "block-task", "taskId": "task-fixture", "start": "2026-10-01T10:00:00Z", "end": "2026-10-01T10:30:00Z", "timeZone": "Europe/Berlin", "revision": 1, "provenance": "manual", "locked": false, "state": "active", "acceptedIssues": [{ "code": "unknown-coverage", "message": "Fixture coverage is explicitly unknown" }], "futureBlock": ["preserve"] }],
+  "durations": { "task-fixture": 30 }, "availability": null, "receipts": {}, "futurePlanning": { "keep": "on both clients" }
+}

@@ -1,4 +1,4 @@
-import { parseRuntimeSnapshot as parseSharedRuntimeSnapshot } from '@nexus/core/workspace/runtimeSnapshot'
+import { parseRuntimeExchange, type RuntimeExchange } from '@nexus/core/workspace/runtimeExchange'
 import { Bell, CheckSquare, Code2, FileText, PenSquare } from 'lucide-react'
 import type { FC } from 'react'
 import type { CodeFile, Note, Reminder, Task } from '../../store/appStore'
@@ -25,11 +25,7 @@ export interface FileItem {
   pinned?: boolean
 }
 
-export type WorkspaceRuntimeSnapshot = {
-  version: 1
-  exportedAt: string
-  app: string
-  state: {
+export type WorkspaceRuntimeState = {
     notes: Note[]
     openNoteIds: string[]
     activeNoteId: string | null
@@ -43,8 +39,8 @@ export type WorkspaceRuntimeSnapshot = {
     activeCanvasId: string | null
     workspaces: Workspace[]
     activeWorkspaceId: string | null
-  }
 }
+export type WorkspaceRuntimeSnapshot = RuntimeExchange<WorkspaceRuntimeState>
 
 export const TYPE_META: Record<ItemType, { icon: FC<any>; color: string; label: string }> = {
   note:     { icon: FileText,    color: '#007AFF', label: 'Note' },
@@ -55,4 +51,4 @@ export const TYPE_META: Record<ItemType, { icon: FC<any>; color: string; label: 
 }
 
 export const parseRuntimeSnapshot = (raw: string): WorkspaceRuntimeSnapshot | null =>
-  parseSharedRuntimeSnapshot(raw) as WorkspaceRuntimeSnapshot | null
+  parseRuntimeExchange(raw) as WorkspaceRuntimeSnapshot | null

@@ -1,7 +1,7 @@
 import { createRuntimeSnapshot, type RuntimeState } from './runtimeSnapshot'
 
 export type SnapshotSection = 'notes' | 'codes' | 'tasks' | 'reminders' | 'canvases' | 'workspaces'
-export type HandoffSelection = Record<SnapshotSection, boolean>
+export type HandoffSelection = Record<SnapshotSection, boolean> & { planning?: boolean }
 const sections: SnapshotSection[] = ['notes', 'codes', 'tasks', 'reminders', 'canvases', 'workspaces']
 const mergeById = <T extends { id: string }>(current: T[], incoming: T[]) => {
   const result = new Map(current.map(item => [item.id, item]))

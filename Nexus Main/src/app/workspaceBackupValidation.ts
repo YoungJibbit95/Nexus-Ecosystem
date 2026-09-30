@@ -1,3 +1,6 @@
+import { preparePlanningDocument } from '../../../packages/nexus-core/src/planning/formats'
+import { emptyReminderLedger, importReminderPortable, type ReminderSource } from '../../../packages/nexus-core/src/reminders/reminderDomain'
+
 const record = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 const strings = (value: unknown) => Array.isArray(value) && value.every(item => typeof item === 'string')
 const nullableString = (value: unknown) => value === null || typeof value === 'string'
@@ -19,8 +22,9 @@ function slice(value: unknown, path: string, keys: string[]): Record<string, unk
 }
 
 /** Strict at state boundaries, preserving unknown metadata inside valid entities. */
-export function validateWorkspaceBackupData(value: unknown) {
-  const data = slice(value, 'data', ['app', 'canvas', 'workspaces', 'workspaceFs', 'terminal', 'theme'])
+export function validateWorkspaceBackupData(value: unknown, version: 1 | 2 = 1) {
+  const data = slice(value, 'data', ['app', 'canvas', 'workspaces', 'workspaceFs', 'terminal', 'theme', ...(version === 2 ? ['planning', 'reminderOccurrences'] : [])])
+  if (version === 2) preparePlanningDocument(data.planning)
   const app = slice(data.app, 'app', ['notes', 'openNoteIds', 'activeNoteId', 'codes', 'openCodeIds', 'activeCodeId', 'tasks', 'reminders', 'folders', 'activities'])
   for (const key of ['openNoteIds', 'openCodeIds']) requireValue(strings(app[key]), `app.${key}`)
   for (const key of ['activeNoteId', 'activeCodeId']) requireValue(nullableString(app[key]), `app.${key}`)
@@ -43,6 +47,7 @@ export function validateWorkspaceBackupData(value: unknown) {
     for (const key of ['title', 'msg', 'datetime']) requireValue(typeof rem[key] === 'string', `reminders.${key}`)
     requireValue(typeof rem.done === 'boolean' && ['none', 'daily', 'weekly', 'monthly'].includes(String(rem.repeat)), 'reminders.done/repeat')
   }
+  if (version === 2 && data.reminderOccurrences !== undefined) importReminderPortable(emptyReminderLedger(), data.reminderOccurrences, app.reminders as ReminderSource[])
   for (const folder of records(app.folders, 'folders')) requireValue(typeof folder.name === 'string' && nullableString(folder.parentId), 'folders.name/parentId')
   for (const activity of records(app.activities, 'activities')) {
     for (const key of ['type', 'action', 'targetName', 'timestamp']) requireValue(typeof activity[key] === 'string', `activities.${key}`)

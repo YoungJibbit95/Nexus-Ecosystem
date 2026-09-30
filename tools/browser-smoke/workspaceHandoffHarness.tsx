@@ -6,6 +6,7 @@ import { persistenceRegistry } from '../../packages/nexus-core/src/storage/brows
 import { workspaceOperation } from '../../packages/nexus-core/src/storage/workspaceOperation'
 import { WorkspaceMutationGuard } from '../../packages/nexus-core/src/storage/WorkspaceMutationGuard'
 import { createRuntimeSnapshot } from '../../packages/nexus-core/src/workspace/runtimeSnapshot'
+import { createRuntimeExchange, runtimePlanning } from '../../packages/nexus-core/src/workspace/runtimeExchange'
 
 const selected = { notes: true, codes: true, tasks: true, reminders: true, canvases: true, workspaces: true }
 const empty = () => ({ notes: [], codes: [], tasks: [], reminders: [], folders: [], canvases: [], workspaces: [], openNoteIds: [], activeNoteId: null, openCodeIds: [], activeCodeId: null, activeCanvasId: null, activeWorkspaceId: null })
@@ -74,7 +75,7 @@ export async function runHandoffStage(stage: string, assert: Assert) {
       try {
         assert(await rejects(() => importWorkspaceState(state('main-rollback-after')), /needs recovery/), 'Main failed commit plus failed rollback reports recovery required')
         const journal = await readWorkspaceRestoreJournal()
-        assert(journal?.before.data.app.notes[0].content === 'main-rollback-before' && journal.after.data.app.notes[0].content === 'main-rollback-after', 'failed Main rollback retains both complete generations')
+        assert(journal?.before.snapshot.data.app.notes[0].content === 'main-rollback-before' && journal.after.snapshot.data.app.notes[0].content === 'main-rollback-after', 'failed Main rollback retains both complete generations')
         assert(workspaceOperation.getSnapshot().kind === 'recovery', 'failed Main rollback freezes further application commands')
       } finally { failure.restore() }
       return
@@ -185,8 +186,8 @@ export async function runHandoffStage(stage: string, assert: Assert) {
   }
   if (stage === 'handoff-mobile-interrupt') {
     await apply('mobile-interruption-before')
-    const before = captureMobileRecovery()
-    await mobileHandoffJournal.write(before, { ...before, runtime: createRuntimeSnapshot('Synthetic', state('mobile-interruption-after')) })
+    const before = await captureMobileRecovery()
+    await mobileHandoffJournal.write(before, { ...before, runtime: createRuntimeExchange('Synthetic', state('mobile-interruption-after'), runtimePlanning(before.runtime)!, { format: 'nexus-reminder-occurrence-transfer', version: 1, cadence: 'UTC', occurrences: [] }) })
     useApp.setState({ notes: state('mobile-interruption-after').notes })
     assert(await persistenceRegistry.flush(), 'Mobile interruption persists a partial generation with its preimage still journaled')
     return

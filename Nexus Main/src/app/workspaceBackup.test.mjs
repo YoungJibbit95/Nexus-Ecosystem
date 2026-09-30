@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWorkspaceBackupSnapshot, parseWorkspaceBackupSnapshot, hashWorkspaceBackupText } from './workspaceBackup.ts'
+import { emptyPlanningDocument } from '../../../packages/nexus-core/src/planning/domain.ts'
 
 const note = { id: 'note', title: 'Keep', content: 'Text ü', tags: [], dirty: false, created: '2026-01-01', updated: '2026-01-01', extension: { preserve: true } }
 const create = () => createWorkspaceBackupSnapshot({ app: { notes: [note] }, canvas: {}, workspaces: {}, workspaceFs: {}, terminal: {} })
@@ -49,4 +50,18 @@ test('empty collections remain authoritative', () => {
   const parsed = parseWorkspaceBackupSnapshot(resign(backup))
   assert.equal(parsed.ok, true)
   assert.deepEqual(parsed.snapshot.data.app.notes, [])
+})
+
+test('version-2 backup binds planning and retains compatible metadata without changing schema-1 readers', () => {
+  const document = { ...emptyPlanningDocument('planning-g'), future: { retained: true } }
+  const backup = createWorkspaceBackupSnapshot({ app: {}, canvas: {}, workspaces: {}, workspaceFs: {}, terminal: {}, planning: document })
+  document.future.retained = false
+  assert.equal(backup.schemaVersion, 2)
+  assert.equal(parseWorkspaceBackupSnapshot(JSON.parse(JSON.stringify(backup))).snapshot.data.planning.future.retained, true)
+  const altered = structuredClone(backup); altered.data.planning.revision++
+  assert.match(parseWorkspaceBackupSnapshot(altered).message, /checksum/)
+  for (const change of [v => { delete v.data.planning }, v => { v.schemaVersion = 1 }, v => { v.data.planning.schemaVersion = 2 }]) {
+    const value = structuredClone(backup); change(value)
+    assert.equal(parseWorkspaceBackupSnapshot(resign(value)).ok, false)
+  }
 })

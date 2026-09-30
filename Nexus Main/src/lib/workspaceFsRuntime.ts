@@ -1,4 +1,5 @@
-import { createRuntimeSnapshot, parseRuntimeSnapshot as parseSharedRuntimeSnapshot } from '@nexus/core/workspace/runtimeSnapshot'
+import { createRuntimeSnapshot } from '@nexus/core/workspace/runtimeSnapshot'
+import { parseRuntimeExchange, type RuntimeExchange } from '@nexus/core/workspace/runtimeExchange'
 import type { Note, CodeFile, Task, Reminder, Folder } from '../store/appStore'
 import type { Workspace } from '../store/workspaceStore'
 import type { Canvas } from '../store/canvasStore'
@@ -11,11 +12,7 @@ export type FsApi = {
   write?: (path: string, content: string) => Promise<{ ok: boolean; error?: string }>
 }
 
-export type WorkspaceRuntimeSnapshot = {
-  version: 1
-  exportedAt: string
-  app: string
-  state: {
+export type WorkspaceRuntimeState = {
     notes: Note[]
     openNoteIds: string[]
     activeNoteId: string | null
@@ -29,8 +26,8 @@ export type WorkspaceRuntimeSnapshot = {
     activeCanvasId: string | null
     workspaces: Workspace[]
     activeWorkspaceId: string | null
-  }
 }
+export type WorkspaceRuntimeSnapshot = RuntimeExchange<WorkspaceRuntimeState>
 
 const stripTrailingSeparators = (value: string) => value.replace(/[\\/]+$/, '')
 
@@ -90,7 +87,7 @@ export const buildWorkspaceRuntimeFingerprint = (snapshot: WorkspaceRuntimeSnaps
 }
 
 export const parseRuntimeSnapshot = (raw: string): WorkspaceRuntimeSnapshot | null =>
-  parseSharedRuntimeSnapshot(raw) as WorkspaceRuntimeSnapshot | null
+  parseRuntimeExchange(raw) as WorkspaceRuntimeSnapshot | null
 
 function requireRuntimeSnapshot(raw: string): WorkspaceRuntimeSnapshot {
   const snapshot = parseRuntimeSnapshot(raw)
