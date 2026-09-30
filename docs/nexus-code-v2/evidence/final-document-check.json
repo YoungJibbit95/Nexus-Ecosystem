@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "requiredDocuments": 12,
+  "markdownDocuments": 24,
+  "checkedLocalLinks": 108,
+  "subsystems": 41,
+  "fieldsPerSubsystem": 12,
+  "decisionRecords": 6,
+  "retainedScreenshots": 8,
+  "runtimeDependencies": 86,
+  "developmentDependencies": 24,
+  "overridePins": 12,
+  "primaryStatusUnchanged": true,
+  "errors": []
+}

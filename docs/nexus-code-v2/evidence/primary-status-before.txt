@@ -1,0 +1,23 @@
+M  .github/workflows/contract-parity-e2e.yml
+M  .github/workflows/release-gate.yml
+M  "Nexus Code Mobile/package-lock.json"
+M  "Nexus Code/package-lock.json"
+M  "Nexus Main/package-lock.json"
+M  "Nexus Main/package.json"
+M  "Nexus Main/src/views/files-flux-settings-hardening.test.mjs"
+M  "Nexus Mobile/package-lock.json"
+M  "Nexus Wiki/package-lock.json"
+AA docs/architecture/implementation-status.md
+AA docs/architecture/next-session.md
+A  docs/architecture/storage-release-validation.md
+UU package.json
+A  tools/install-public-packages.mjs
+A  tools/lib/lockfile-contract.mjs
+A  tools/lib/public-packages.mjs
+A  tools/lib/release-gate-plan.mjs
+A  tools/lockfile-contract.test.mjs
+A  tools/public-packages.test.mjs
+A  tools/release-gate-plan.test.mjs
+M  tools/release-gate.mjs
+M  tools/release-hardening.test.mjs
+A  tools/verify-lockfiles.mjs
