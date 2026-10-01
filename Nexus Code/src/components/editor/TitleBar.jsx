@@ -20,11 +20,11 @@ import {
   X,
 } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { getRendererPlatform } from '../../platform/platform.ts';
 
-/** @type {any} */
-const win = typeof window !== "undefined" ? window : {};
-const isElectron = !!win.electronAPI;
-const isMacOS = isElectron && win.electronAPI?.platform === "darwin";
+const platform = getRendererPlatform();
+const isElectron = platform.kind === "electron";
+const isMacOS = isElectron && platform.os === "darwin";
 const MACOS_TRAFFIC_LIGHT_SAFE_WIDTH = 78;
 const COMPACT_MENU_ID = "__compact_menu__";
 const TITLEBAR_OVERFLOW_ID = "__titlebar_overflow__";
@@ -306,9 +306,10 @@ export default function TitleBar({
 
   useEffect(() => {
     if (!isElectron) return undefined;
-    win.electronAPI.isMaximized().then(setIsMaximized).catch(() => {});
-    const unsub1 = win.electronAPI.onMaximized(setIsMaximized);
-    return () => unsub1?.();
+    let active = true;
+    void platform.window.isMaximized().then(result => { if (active && result.ok) setIsMaximized(result.data); });
+    const subscription = platform.window.onMaximized(setIsMaximized);
+    return () => { active = false; if (subscription.ok) subscription.data(); };
   }, []);
 
   useEffect(() => {
@@ -347,9 +348,9 @@ export default function TitleBar({
   const safeOpenSettings = onOpenSettings || (() => {});
   const safeCommandPalette = onOpenCommandPalette || (() => {});
   const safeFocusEditor = onFocusEditor || (() => {});
-  const safeClose = () => win.electronAPI?.close?.();
-  const safeMinimize = () => win.electronAPI?.minimize?.();
-  const safeMaximize = () => win.electronAPI?.maximize?.();
+  const safeClose = () => { void platform.window.close(); };
+  const safeMinimize = () => { void platform.window.minimize(); };
+  const safeMaximize = () => { void platform.window.maximize(); };
   const showWindowControls = !isMacOS;
   const windowControls = [
     { id: "min", label: "Minimieren", icon: Minus, color: "#f59e0b", action: safeMinimize },

@@ -1,6 +1,8 @@
 # Nexus Code V2 — Wave 0 baseline
 
-Audit date: 2026-09-30 (Europe/Berlin). This packet is Phase 0 / Wave 0 only. No Wave 1 implementation or UI migration has started.
+Historical audit date: 2026-09-30 (Europe/Berlin). The snapshot below is Phase 0 / Wave 0. The [2026-10-01 Wave 1 foundation](12-wave-1-foundation.md) is complete; UI redesign has not started.
+
+Historical snapshot: retain the evidence below. On 2026-10-01, [current-main reconciliation](11-main-reconciliation.md) established `0cb408b` as the Wave 1 base and verified the original native harness at 10/10. The historical Windows quoting failure is subsequently fixed; other unverified acceptance remains explicitly open.
 
 ## Starting point and isolation
 

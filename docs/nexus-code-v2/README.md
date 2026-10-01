@@ -1,6 +1,6 @@
 # Nexus Code V2 — audit and continuation packet
 
-Phase 0 / Wave 0, 2026-09-30. Start with [current state](00-current-state.md), [feature truth](feature-status.md), [test results](09-test-strategy.md) and [next session](10-next-session.md). Production migration has not started.
+Historical Phase 0 / Wave 0 (2026-09-30), reconciled current main and completed Wave 1 foundation (2026-10-01). Start with [reconciliation](11-main-reconciliation.md), [Wave 1 implementation](12-wave-1-foundation.md), [diagnostics](13-diagnostics.md), [test results](09-test-strategy.md) and [next session](10-next-session.md). Wave 2/UI redesign has not started.
 
 - [01 Problem inventory and exact classes](01-problem-inventory.md)
 - [02 Target product](02-target-product.md)

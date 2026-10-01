@@ -4,7 +4,7 @@ Status: Accepted staging decision; PTY implementation choice pending platform fe
 
 ## Context
 
-Current native commands use child_process stdio and real output/input/exit. They are one-shot runners with ANSI stripping; no PTY, interactive shell persistence or resize exists. Browser responses are canned. Windows quoted absolute paths fail the new characterization. Native dependencies are currently not rebuilt by packaging.
+Current native commands use child_process stdio and real output/input/exit. They are one-shot runners with ANSI stripping; no PTY, interactive shell persistence or resize exists. Browser responses are canned. The historical Windows quoted absolute-path failure was subsequently fixed in main `0cb408b`, verified 10/10 with the original harness. Native dependencies are currently not rebuilt by packaging.
 
 ## Decision
 
@@ -12,4 +12,4 @@ Preserve the real runner and its manual command/cwd/environment protections. Rem
 
 ## Consequences and verification
 
-Do not insert node-pty into Wave 1 or weaken manual command restrictions. Agent-generated commands receive a separate future policy. Wave 8 must fix real quoting behavior, validate output flood/cancel/process trees/cwd, and either accept the PTY platform matrix or document the limited Runner. PTY support requires shell continuity, resize/control sequences and packaged launch; none is claimed now.
+Do not insert node-pty into Wave 1 or weaken manual command restrictions. Agent-generated commands receive a separate future policy. Wave 8 retains the already fixed quoting regression, validates output flood/cancel/process trees/cwd, and either accepts the PTY platform matrix or documents the limited Runner. PTY support requires shell continuity, resize/control sequences and packaged launch; none is claimed now.

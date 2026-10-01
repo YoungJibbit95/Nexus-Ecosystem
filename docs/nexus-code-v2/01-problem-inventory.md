@@ -2,6 +2,8 @@
 
 Evidence base: `10f8684`; source observations are not reproduced vulnerabilities. Priorities express migration risk/value, not CVSS. No production fix or dependency removal belongs to Wave 0.
 
+Historical inventory. P04 is subsequently fixed in current main `0cb408b`, verified using the unchanged native harness (10/10). See [reconciliation](11-main-reconciliation.md) for current versus historical status and refreshed diagnostics; do not replay the old runner fix.
+
 ## Ranked problems
 
 | ID | Priority | Evidence and consequence | Resolution packet |
@@ -9,7 +11,7 @@ Evidence base: `10f8684`; source observations are not reproduced vulnerabilities
 | P01 | Highest | Full JS typecheck exits 2 with 4,353 diagnostics, reproduced in the primary checkout. Build uses a different, permissive configuration. Architectural contracts cannot currently rely on a green type gate. | Wave 1 strict new boundaries; retain full failing gate and tracked inventory |
 | P02 | Highest | Editor owns files, tabs, layout, settings, commands and platform access; CodeEditor also owns provider/process lifecycles. Multiple owners make extraction and async identity mistakes likely. | Waves 1/4/5/6, compatible seams and revision tests |
 | P03 | Highest | DebugPanel fabricates variables, stacks and timer-driven pauses without DAP or a real target process. Extension installation is a local record update, not a package/host operation. | Capability labels at foundation; debugger/extension reconception in 11/12 |
-| P04 | Highest | Windows real terminal IPC fails `node "<absolute path with spaces>"`; relative `node runner.cjs` passes stdout/stderr/stdin/exit 7. | Wave 8 shell invocation contract; keep red characterization |
+| P04 | Subsequently fixed | Historical Windows IPC failed `node "<absolute path with spaces>"`; merged main `0cb408b` passes the unchanged harness 10/10. | Retain original evidence and passing regression; do not fix again |
 | P05 | High | Native file writes use direct UTF-8 `fs.writeFile`, not atomic replacement/fsync. Installed upgrade, full-process restart, force-kill and multi-window durability are unverified. Current revision-bound save/restore repairs are valuable and must remain. | Separate hardening in 4/14; preserve shared owners/readers |
 | P06 | High | Main IPC handlers generally ignore sender events; central senderFrame validation is absent. Canonical path/protected metadata guards are present and passed native characterization. | Wave 1 typed adapter; bounded main validation/hardening with attack regressions |
 | P07 | High | GitHub encrypted fallback derives a machine/user/path key with stored salt. This is not equivalent to OS-protected secret storage; safeStorage backend grade also matters. | Wave 10 graded capability/memory fallback; retain compatible readers |

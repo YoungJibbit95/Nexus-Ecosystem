@@ -2,6 +2,8 @@
 
 Run date: 2026-09-30. Implementation base `10f8684`, isolated audit worktree. Host Windows, Node 26.3.1/npm 11.3.0; Electron 42.11.3 embeds Node 24.19.0. Reused installed dependencies through junctions, not a clean Node-24 CI install. Commands run from the ecosystem audit root unless noted. Logs/elapsed times: [fast](evidence/baseline-fast.json), [renderer/public](evidence/baseline-renderer.json).
 
+Historical results below are immutable. [2026-10-01 reconciliation](11-main-reconciliation.md) verifies the original harness at 10/10 against current main `0cb408b`; quoting is fixed by merged V7 work. Fresh pre-Wave-1 build/typecheck results and later foundation gates are stored separately under `evidence/wave-1/`.
+
 ## Actual results
 
 | Gate | Exit | Result and coverage boundary |

@@ -2,6 +2,8 @@
 
 Date: 2026-09-30. Base: `10f8684`. REAL = actual implementation; PARTIAL = limited/incomplete; SIMULATED = generated behavior without claimed runtime; BROKEN = reproduced failure; NOT PRESENT = no path found. A REAL row still needs platform/live acceptance where stated. The V2 product labels are supported, limited, experimental or unavailable; source status must never be inferred from a visible panel.
 
+Current addendum (2026-10-01): [main `0cb408b`](11-main-reconciliation.md) contains the later Windows quoting fix. The original quoted-script native assertion now passes; this historical table does not describe it as a current open defect. PTY/debug/marketplace and installed/live acceptance gaps remain.
+
 | Feature | Status | Evidence / current limit | Allowed product description |
 | --- | --- | --- | --- |
 | App boot/routing | REAL | App/boot hook; production signed-out launch captured | Account-gated desktop app |
@@ -26,7 +28,7 @@ Date: 2026-09-30. Base: `10f8684`. REAL = actual implementation; PARTIAL = limit
 | Workspace text search | REAL, LIMITED | Loaded-node SearchPanel caps 1,400 files/500 matches/32 per-file/1m chars | Search loaded scope; visible cap needed |
 | Recursive quick open/Spotlight search | REAL, LIMITED | Separate ignored/capped recursive scan | Bounded quick open; scope differs from Search |
 | Replace across workspace | NOT PRESENT | SearchPanel has no real replacement pipeline | Unavailable |
-| Real command execution | REAL, BROKEN quoted Windows path | Native stdio test passes relative command; quoted absolute path fails | Runner; spaces bug tracked |
+| Real command execution | REAL, quoted-path finding subsequently fixed | Historical 9/10 retained; current original harness 10/10 and adapter runner passes | Limited stdio Runner; PTY/tasks/process-tree acceptance remain open |
 | Browser terminal responses | SIMULATED | Explicit SIMULATED_RESPONSES | Demo/test only, never production terminal success |
 | PTY/persistent interactive shell/resize | NOT PRESENT | child_process stdio, no xterm/node-pty | No interactive terminal promise |
 | Task templates | REAL, LIMITED | Fixed command definitions, not package-script discovery | Preset tasks |

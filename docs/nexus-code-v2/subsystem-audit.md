@@ -2,6 +2,8 @@
 
 Base `10f8684`, 2026-09-30. Each record states all twelve requested audit fields. “None found” is an inspection result, not proof of absence; “unverified” is deliberately distinct from broken. File paths below are relative to `Nexus Code` unless prefixed `packages/`. Class meanings and wave sequence: [inventory](01-problem-inventory.md), [roadmap](04-migration-roadmap.md). No production behavior changes were made in this packet.
 
+Historical records below remain for provenance. [Current-main reconciliation](11-main-reconciliation.md) marks the quoted-path finding as subsequently fixed (original native harness 10/10). [Wave 1 implementation](12-wave-1-foundation.md) records the bounded adapter/command/settings changes and remaining legacy owners; references below to unimplemented foundations describe the original audit state.
+
 ## 1. Application boot — PRESERVE + CLEANUP
 
 - **Current purpose:** mount a policy-valid desktop application. **Actual implementation:** `src/main.jsx`, `App.jsx`, `app/useNexusCodeBoot.js`, lazy Editor, HashRouter, error boundary, shared runtime/API lifecycle.

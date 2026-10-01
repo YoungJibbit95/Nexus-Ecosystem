@@ -2,6 +2,7 @@ export { loadFilesFromStorage, saveFilesToStorage } from './localFileStorage';
 import React from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { createQueuedStorageManager } from './storageManager';
+import { normalizeInitialSettings, preserveCompatibleKeybindings } from '../../settings/settingsSchema.ts';
 import {
   BACKGROUND_MAP,
   DEFAULT_THEME_ID,
@@ -11,6 +12,7 @@ import {
 import { normalizeThemeSelectionId } from './themeOptionsModel.js';
 import {
   KEYBINDING_SETTING_KEY,
+  DEFAULT_KEYBINDINGS,
   normalizeKeybindingSettings,
 } from './keybindingModel.js';
 
@@ -41,10 +43,11 @@ const LEGACY_SECONDARY_ACCENTS = new Set([
   "#14b8a6",
   "#22c55e",
 ]);
+const KNOWN_KEYBINDING_IDS = new Set(DEFAULT_KEYBINDINGS.map(binding => binding.id));
 
 export const DEFAULT_SETTINGS = {
   theme: DEFAULT_THEME_ID,
-  background: null,
+  background: /** @type {string|null} */(null),
   visual_performance_profile: "balanced",
   panel_background_mode: "blur",
   glow_renderer: "css",
@@ -146,7 +149,10 @@ function normalizeEditorSettings(settings) {
   if (!["system", "powershell", "bash", "cmd"].includes(next.terminal_default_profile)) {
     next.terminal_default_profile = "system";
   }
-  return normalizeKeybindingSettings(next);
+  const normalized = normalizeKeybindingSettings(next);
+  // Keep compatible future/extension command IDs instead of erasing unknown bindings.
+  const keybinding_overrides = preserveCompatibleKeybindings(next.keybinding_overrides, normalized.keybinding_overrides, KNOWN_KEYBINDING_IDS);
+  return normalizeInitialSettings({ ...normalized, keybinding_overrides }, DEFAULT_SETTINGS);
 }
 
 /* ─── Error Boundary ─────────────────────────────────────────────────── */

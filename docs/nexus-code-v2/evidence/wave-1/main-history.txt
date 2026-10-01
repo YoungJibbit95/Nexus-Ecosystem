@@ -1,0 +1,8 @@
+0cb408b02f4ba54f0626b4031d73541b8cb94287 2026-10-01T03:24:27+02:00 Add acknowledged planning, reminder lifecycle and V7 qualification fixes (#425)
+71a235d40237d3489b2fa2d1ae730627c7f9e8f9 2026-09-30T14:29:13+02:00 Codex/v7 data time interaction (#424)
+6458915ba3c5c1e4c71f2e07280dc4d7f9357f38 2026-09-30T11:22:49+02:00 fix(ci): restore clean installs and unblock public release gates (#418)
+7b15c6936fb53b18c3a99f24f0b0190baa979e93 2026-09-27T14:41:00+02:00 fix: preserve workspace data and acknowledge durable editor saves (#396)
+6f5b6e03fb3c3015532c93e913f562cd77da63c3 2026-09-22T00:13:57+02:00 Agent/nexus v7 foundation (#395)
+9e831a4e1d2f8d054fedb7c353cf309c220f590a 2026-09-18T19:00:34+02:00 fixed 2 build errors involving build script errors and new directory for icons.
+293ba4ff1b3c14ce248f8ec66a4117dd512594a8 2026-09-15T13:54:01+02:00 Agent/release readiness 20260909 (#393)
+50c0c24a16e82fbb89e510cb05bea8e4cc3a7561 2026-08-13T13:45:57+02:00 Polish release UX and harden the Nexus ecosystem (#374)

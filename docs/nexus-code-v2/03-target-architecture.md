@@ -2,6 +2,8 @@
 
 Decision: strangler migration around existing contracts. Folder names below express ownership; move code only with a bounded behavior migration. Existing wrappers remain adapters until consumers and tests have moved. Keep shared persistence in `@nexus/core`; do not create another save queue or file writer inside V2.
 
+Current implementation and seven-domain current/derived/persistence/platform/command/UI ownership matrix: [Wave 1 foundation](12-wave-1-foundation.md). Target owners below do not imply every service has already been extracted.
+
 ```mermaid
 flowchart TD
   Boot[App boot / account / release policy] --> Workbench[Workbench composition]
@@ -56,7 +58,7 @@ No single global store is necessary. Start with focused React hooks/controllers 
 
 ## Stable contracts
 
-`PlatformResult<T>` is a discriminated result: `{ok:true,data:T}` or `{ok:false,error:{code,message,retryable,diagnosticId?}}`. Detailed native errors are scrubbed and kept outside ordinary copy. Existing filesystem throws/primitives and Git/GitHub/LSP result objects need **adapters**, not a breaking preload change. Capability groups: window, workspace, runner, git, github, lsp. Unsupported browser operations return structured unavailable results, never success samples.
+`PlatformResult<T>` is a discriminated result: `{ok:true,data:T}` or `{ok:false,error:{code,message,operation,retryable,technical?}}`. Optional technical detail is allowlisted kind/native code, not raw cause text. Existing filesystem throws/primitives and Git/GitHub/LSP result objects use **adapters**, not a breaking preload change. Implemented groups: window, workspace, terminal, git, github, lsp. Unsupported browser operations return structured unavailable results, never success samples.
 
 Events include domain/session/document identity, monotonically increasing revision/generation and a disposer. No raw IPC object crosses into UI. Avoid adding global CustomEvents; adapt existing events temporarily and remove them when every consumer uses explicit commands. Native sender and payload validation must be applied at main as well as preload.
 

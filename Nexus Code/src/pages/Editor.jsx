@@ -3,6 +3,9 @@ import { renameFileNodes } from '@nexus/core/code/fileTree';
 import { useEditorPersistence } from '@nexus/core/storage/useEditorPersistence';
 import { LocalFileStorageNotice } from '@nexus/core/storage/LocalFileStorageNotice';
 import { fileRepository } from './editor/localFileStorage';
+import { getRendererPlatform } from '../platform/platform.ts';
+import { requirePlatformData } from '../platform/errors.ts';
+import { createWorkbenchCommandController } from '../workbench/commands/workbenchCommandController.ts';
 import React, { Suspense, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   AlertCircle,
@@ -135,9 +138,9 @@ export default function Editor({
   onClearAccountSession,
   onTestAccountConnection,
 } = {}) {
-  // @ts-ignore
-  const isElectron = typeof window !== "undefined" && !!window.electronAPI;
-  const [activePanel, setActivePanel] = useState("explorer");
+  const platform = useMemo(getRendererPlatform, []);
+  const isElectron = platform.kind === "electron";
+  const [activePanel, setActivePanel] = useState(/** @type {string | null} */ ("explorer"));
   const [showSettings, setShowSettings] = useState(false);
   const [isCompactViewport, setIsCompactViewport] = useState(
     getIsCompactCodeViewport,
@@ -147,7 +150,7 @@ export default function Editor({
   const [extensionCommands, setExtensionCommands] = useState(() =>
     createExtensionCommandPaletteEntries(loadExtensionRegistryState().records),
   );
-  const [extensionCommandStatus, setExtensionCommandStatus] = useState(null);
+  const [extensionCommandStatus, setExtensionCommandStatus] = useState(/** @type {string|null} */(null));
   const lastShiftTime = useRef(0);
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [bottomTab, setBottomTab] = useState("terminal"); // "terminal" | "problems"
@@ -177,7 +180,7 @@ export default function Editor({
   const [workspaceError, setWorkspaceError] = useState("");
   const { editorCode, setEditorCode, editorCodeRef, activeTabIdRef, filesRef, commitBufferToFile, flushEditorBuffer, handleCodeChange, handleSaveAll, saveFile, saveError, runFileMutation, isMutating } = useEditorPersistence({
     files, setFiles, activeTabId, setOpenTabs, workspacePath, autoSave: settings.auto_save, repository: fileRepository,
-    writeFile: (path, content) => window.electronAPI.writeFile(path, content),
+    writeFile: async (path, content) => requirePlatformData(await platform.workspace.writeFile(path, content)),
   });
   const fileTreeRequestIdRef = useRef(0);
   const initialPanelRef = useRef("explorer");
@@ -315,20 +318,6 @@ export default function Editor({
     }));
   }, []);
 
-  const handleToggleSidebar = useCallback(() => {
-    setShowSettings(false);
-    setSettings((prev) =>
-      prev.sidebar_visible
-        ? prev
-        : {
-            ...prev,
-            sidebar_visible: true,
-            zen_mode: false,
-          },
-    );
-    setActivePanel((prev) => (prev ? null : "explorer"));
-  }, []);
-
   const getCurrentWorkbenchDockState = useCallback(
     () => ({
       activePanel,
@@ -353,27 +342,16 @@ export default function Editor({
     }));
   }, []);
 
-  const handleToggleTerminalPanel = useCallback(() => {
-    setShowSettings(false);
-    applyWorkbenchDockState(
-      toggleWorkbenchDockPanel(
-        getCurrentWorkbenchDockState(),
-        "terminal",
-        workbenchLayout,
-      ),
-    );
-  }, [applyWorkbenchDockState, getCurrentWorkbenchDockState, workbenchLayout]);
-
-  const handleOpenTerminalPanel = useCallback(() => {
-    setShowSettings(false);
-    applyWorkbenchDockState(
-      openWorkbenchDockPanel(
-        getCurrentWorkbenchDockState(),
-        "terminal",
-        workbenchLayout,
-      ),
-    );
-  }, [applyWorkbenchDockState, getCurrentWorkbenchDockState, workbenchLayout]);
+  const workbenchCommands = useMemo(() => createWorkbenchCommandController({
+    setActivePanel, setShowSettings, setSettings,
+    readDockState: getCurrentWorkbenchDockState,
+    writeDockState: applyWorkbenchDockState,
+    movePanel: (state, panelId, mode) => (mode === "toggle" ? toggleWorkbenchDockPanel : openWorkbenchDockPanel)(state, panelId, workbenchLayout),
+  }), [applyWorkbenchDockState, getCurrentWorkbenchDockState, workbenchLayout]);
+  const handleToggleSidebar = useCallback(() => { void workbenchCommands.registry.execute("workbench.toggleSidebar"); }, [workbenchCommands]);
+  const handleToggleTerminalPanel = useCallback(() => { void workbenchCommands.registry.execute("terminal.toggle"); }, [workbenchCommands]);
+  const handleOpenTerminalPanel = useCallback(() => { void workbenchCommands.registry.execute("terminal.open"); }, [workbenchCommands]);
+  const handleOpenSettingsPanel = useCallback(() => { void workbenchCommands.registry.execute("workbench.openSettings"); }, [workbenchCommands]);
 
   const handleOpenProblemsPanel = useCallback(() => {
     setShowSettings(false);
@@ -718,16 +696,10 @@ export default function Editor({
     setActivePanel(null);
   }, []);
 
-  const handleOpenSettingsPanel = useCallback(() => {
-    setActivePanel(null);
-    setShowSettings(true);
-  }, []);
-
   const readDirectoryNodes = useCallback(
     async (targetPath, parentId = null, options = {}) => {
       if (!isElectron || !targetPath) return [];
-      // @ts-ignore
-      const entries = await window.electronAPI.readDir(targetPath);
+      const entries = requirePlatformData(await platform.workspace.readDir(targetPath));
       await waitForFileTreeFrame();
       const existingIds =
         options.existingIds instanceof Set
@@ -742,7 +714,7 @@ export default function Editor({
         existingIds,
       }).map((node) => mergeFileTreeNode(node, previousById, { openTabIds }));
     },
-    [isElectron],
+    [isElectron, platform],
   );
 
   const handleRefreshWorkspace = useCallback(async () => {
@@ -848,8 +820,7 @@ export default function Editor({
         fileTreeRequestIdRef.current = requestId;
         setWorkspaceError("");
         try {
-          // @ts-ignore
-          const path = await window.electronAPI.openFolder();
+          const path = requirePlatformData(await platform.workspace.openFolder());
           if (!path) return;
 
           setWorkspaceLoading(true);
@@ -950,7 +921,7 @@ export default function Editor({
     const panelBlur = Number(settings.panel_blur_strength || 22);
 
     // Core Layout (Background from Theme or Override)
-    const bgOverride = BACKGROUNDS && BACKGROUNDS[settings.background];
+    const bgOverride = settings.background && BACKGROUNDS[settings.background];
     const bgType = bgOverride ? bgOverride.type : theme.bg_type || "solid";
     let bgValue = bgOverride ? bgOverride.value : theme.bg_value;
 
@@ -1227,7 +1198,7 @@ export default function Editor({
       // Ctrl+Shift+F - open workspace search
       if (hasPrimaryMod && e.shiftKey && key === "f") {
         e.preventDefault();
-        handleOpenWorkbenchPanel("search");
+        void workbenchCommands.registry.execute("workbench.openSearch");
         return;
       }
 
@@ -1325,6 +1296,7 @@ export default function Editor({
     handleTabClose,
     handleToggleSidebar,
     handleToggleTerminalPanel,
+    workbenchCommands,
     saveFile,
   ]);
 
@@ -1337,11 +1309,9 @@ export default function Editor({
       if (workspacePath && isElectron) {
         const parent = files.find((f) => f.id === parentId);
         const basePath = parent?.fsPath || workspacePath;
-        // @ts-ignore
-        const sep = window.electronAPI.platform === "win32" ? "\\" : "/";
+        const sep = platform.os === "win32" ? "\\" : "/";
         fsPath = `${basePath}${sep}${name}`;
-        // @ts-ignore
-        await window.electronAPI.writeFile(fsPath, "");
+        requirePlatformData(await platform.workspace.writeFile(fsPath, ""));
       }
 
       const newFile = {
@@ -1420,11 +1390,9 @@ export default function Editor({
       if (workspacePath && isElectron) {
         const parent = files.find((f) => f.id === parentId);
         const basePath = parent?.fsPath || workspacePath;
-        // @ts-ignore
-        const sep = window.electronAPI.platform === "win32" ? "\\" : "/";
+        const sep = platform.os === "win32" ? "\\" : "/";
         fsPath = `${basePath}${sep}${name}`;
-        // @ts-ignore
-        await window.electronAPI.mkdir(fsPath);
+        requirePlatformData(await platform.workspace.mkdir(fsPath));
       }
 
       const newFolder = {
@@ -1448,16 +1416,14 @@ export default function Editor({
         let newFsPath = null;
 
         if (file && file.fsPath && isElectron) {
-          // @ts-ignore
-          const sep = window.electronAPI.platform === "win32" ? "\\" : "/";
+          const sep = platform.os === "win32" ? "\\" : "/";
           const parentPath = file.fsPath.substring(
             0,
             file.fsPath.lastIndexOf(sep),
           );
           newFsPath = `${parentPath}${sep}${newName}`;
           try {
-            // @ts-ignore
-            await window.electronAPI.rename(file.fsPath, newFsPath);
+            requirePlatformData(await platform.workspace.rename(file.fsPath, newFsPath));
           } catch (err) {
             console.error("Rename failed", err);
             throw err;
@@ -1479,8 +1445,7 @@ export default function Editor({
         const file = files.find((f) => f.id === id);
         if (file && file.fsPath && isElectron) {
           try {
-            // @ts-ignore
-            await window.electronAPI.delete(file.fsPath);
+            requirePlatformData(await platform.workspace.delete(file.fsPath));
           } catch (err) {
             console.error("Delete failed", err);
             throw err;
@@ -1526,8 +1491,7 @@ export default function Editor({
 
         let fileToOpen = { ...file };
         if (file.fsPath && !file.content && isElectron) {
-          // @ts-ignore
-          const content = await window.electronAPI.readFile(file.fsPath);
+          const content = requirePlatformData(await platform.workspace.readFile(file.fsPath));
           fileToOpen.content = content;
         }
 
@@ -1660,20 +1624,19 @@ export default function Editor({
 
   const handleCommandPaletteAction = useCallback(
     (actionId, payload) => {
+      if (workbenchCommands.registry.has(actionId)) {
+        void workbenchCommands.registry.execute(actionId);
+        return;
+      }
+      /** @type {Record<string, () => unknown>} */
       const commandHandlers = {
         "open-file": () => handleFileSelect(payload),
         "new-file": () => handleCreateFileRequest("typescript", "language"),
         "open-folder": handleOpenFolder,
-        "open-explorer": () => handleOpenWorkbenchPanel("explorer"),
-        "open-search": () => handleOpenWorkbenchPanel("search"),
-        "change-theme": handleOpenSettingsPanel,
-        "toggle-terminal": handleToggleTerminalPanel,
         "open-problems": handleOpenProblemsPanel,
         "open-extensions": () => handleOpenWorkbenchPanel("extensions"),
         "open-account": () => handleOpenWorkbenchPanel("account"),
         "toggle-zen": handleToggleZenMode,
-        "open-settings": handleOpenSettingsPanel,
-        "toggle-sidebar": handleToggleSidebar,
         "github-sync": () => handleOpenWorkbenchPanel("git"),
         "open-github-issues": () => handleOpenWorkbenchPanel("issues"),
         "open-pull-requests": () => handleOpenWorkbenchPanel("prs"),
@@ -1706,6 +1669,7 @@ export default function Editor({
       handleExtensionCommandAction(actionId);
     },
     [
+      workbenchCommands,
       handleCreateFileRequest,
       handleExtensionCommandAction,
       handleFileSelect,
@@ -2346,6 +2310,7 @@ export default function Editor({
         isOpen={commandPaletteOpen}
         onClose={handleCloseCommandPalette}
         onAction={handleCommandPaletteAction}
+        commandRegistry={workbenchCommands.registry}
         extensionCommands={extensionCommands}
       />
 
@@ -2353,6 +2318,7 @@ export default function Editor({
         isOpen={spotlightOpen}
         onClose={handleCloseSpotlight}
         onAction={handleCommandPaletteAction}
+        commandRegistry={workbenchCommands.registry}
         files={files}
         extensionCommands={extensionCommands}
         workspacePath={workspacePath}

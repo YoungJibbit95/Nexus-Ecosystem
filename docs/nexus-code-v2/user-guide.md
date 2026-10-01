@@ -16,7 +16,7 @@ Workspace Search (Ctrl/Command+Shift+F outside inputs) scans loaded files with l
 
 ## Run commands
 
-The desktop runner executes real commands in the selected workspace with stdout/stderr/input/exit events and bounded output. It is not a persistent interactive PTY terminal. Task entries are templates, not automatic project discovery. Windows quoted absolute script paths containing spaces currently fail through this bridge; relative commands such as `node runner.cjs` passed characterization. Browser canned responses are demonstrations, not actual execution. Existing manual command restrictions remain enforced.
+The desktop runner executes real commands in the selected workspace with stdout/stderr/input/exit events and bounded output. It is not a persistent interactive PTY terminal. Task entries are templates, not automatic project discovery. The historical Windows quoted absolute script-path failure was fixed in merged main and passes the original characterization; a new adapter-native check also passes. Browser canned responses are demonstrations, not actual execution. Existing manual command restrictions remain enforced.
 
 ## Git and GitHub
 

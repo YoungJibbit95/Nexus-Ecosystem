@@ -1,6 +1,6 @@
 # Migration roadmap
 
-Preserve the requested wave order. The blocking dependency is the primary checkout's pending merge and the obsolete baseline CI tooling: reconcile the user-owned branch/checkpoint explicitly before integrating future implementation. The isolated audit branch can continue independently. Do not silently cherry-pick or resolve the other session's work.
+Preserve the requested wave order. Current-main reconciliation established `0cb408b` as the implementation base; later authorized workspace consolidation resolved the primary checkout's old merge through its owning workflow. Preserve foreign work and use the main Nexus-Ecosystem folder for continuation. [Historical comparison](11-main-reconciliation.md) and [implemented Wave 1](12-wave-1-foundation.md) retain provenance.
 
 | Wave | Bounded change | Required evidence / exit |
 | --- | --- | --- |
@@ -21,7 +21,9 @@ Preserve the requested wave order. The blocking dependency is the primary checko
 | 14 | Performance/accessibility/install/platform compatibility | Real repos/files/process sessions/crashes, keyboard/zoom/reduced-motion, Windows/macOS/Linux; STOP |
 | 15 | Proven dead code/CSS/events/flags/scaffolds removal | Import/dynamic/config audit, all regression gates, supported format readers retained; STOP |
 
-## Wave 1 exact scope — not implemented
+## Wave 1 exact scope — historical plan
+
+The user's 2026-10-01 Wave 1 instruction superseded the larger suggested command set below with one bounded panel/settings slice. The completed scope is in [12](12-wave-1-foundation.md); file/save/format/rename/definition command migration remains for later domain waves. Wave 2 starts only after a new `weiter`.
 
 1. Read this checkpoint and recheck branch/status/PR #418 integration. Establish which merge result becomes the implementation base; never reset the primary merge implicitly. Keep the current audit base fixed for comparison.
 2. Add a strict TypeScript boundary configuration with `noEmit`. Introduce result/error/capability interfaces and adapters over **existing** window/filesystem/runner/Git/GitHub/LSP API shapes. Replace bridge capability inference only in migrated consumers. Characterize missing bridge, thrown filesystem errors, structured native errors, oversize payloads and event disposal. No IPC bypass or weakened path guards.

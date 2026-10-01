@@ -1,0 +1,5 @@
+{
+  "command": "npm --prefix \"./Nexus Code\" run typecheck",
+  "exitCode": 2,
+  "durationMs": 15100.0
+}
