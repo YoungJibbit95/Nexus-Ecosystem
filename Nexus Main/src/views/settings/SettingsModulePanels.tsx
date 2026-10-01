@@ -2,6 +2,7 @@ import React from "react";
 import { applyMotionProfile } from "../../lib/motionEngine";
 import { buildBackground, buildPanelSurfaceTokens } from "../../lib/visualUtils";
 import type { BgMode, PanelBgMode, Theme } from "../../store/themeStore";
+import { applyThemeTransferPayload } from "./themeTransfer";
 import { MODULES, MOTION_PROFILES, EXPERIENCE_PRESETS } from "./settingsConstants";
 import {
   FontLibrary,
@@ -509,12 +510,13 @@ export function SettingsModulePanels({
 
                 <ModuleCard
                   title="Theme-Auswahl"
-                  desc="Fertige Looks mit klarer Vorschau"
+                  desc="Nexus-Presets und deine gespeicherten Themes"
                 >
                   <ThemeLibraryGrid
                     presetNames={showAdvancedSettings ? undefined : CORE_THEME_PRESETS}
-                    onApply={(name) => {
-                      t.preset(name);
+                    onApply={(name, payload) => {
+                      if (payload) applyThemeTransferPayload(t, payload, { includeReleaseFrozen: true });
+                      else t.preset(name);
                       toast(`Theme aktiv: ${name}`);
                     }}
                   />

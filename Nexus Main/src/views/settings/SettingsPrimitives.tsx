@@ -1,6 +1,8 @@
 import React from "react";
 import { GLOBAL_FONTS, PRESETS, PRESET_DETAILS, PRESET_PREVIEWS, useTheme } from "../../store/themeStore";
 import { hexToRgb } from "../../lib/utils";
+import { useSavedThemes } from "./savedThemes";
+import type { ThemeTransferPayload } from "./themeTransfer";
 
 export function ModuleCard({
   title,
@@ -167,26 +169,42 @@ export function ThemeLibraryGrid({
   onApply,
   presetNames,
 }: {
-  onApply: (presetName: string) => void;
+  onApply: (presetName: string, payload?: Partial<ThemeTransferPayload>) => void;
   presetNames?: string[];
 }) {
   const visiblePresets = presetNames ?? PRESETS;
+  const savedThemes = useSavedThemes();
+  const entries = [
+    ...savedThemes.map(theme => ({ name: theme.name, saved: theme })),
+    ...visiblePresets.map(name => ({ name, saved: undefined })),
+  ];
   return (
     <div
+      className="nx-settings-theme-library"
       style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))",
         gap: 8,
       }}
     >
-      {visiblePresets.map((name) => {
-        const preview = PRESET_PREVIEWS[name] || {
+      {entries.map(({ name, saved }) => {
+        const preview = saved ? {
+          mode: saved.payload.mode ?? "dark",
+          accent: saved.payload.accent ?? "#007AFF",
+          accent2: saved.payload.accent2 ?? "#5E5CE6",
+          bg: saved.payload.bg ?? "#12141f",
+        } : PRESET_PREVIEWS[name] || {
           mode: "dark" as const,
           accent: "#007AFF",
           accent2: "#5E5CE6",
           bg: "#12141f",
         };
-        const detail = PRESET_DETAILS[name] || {
+        const detail = saved ? {
+          emoji: "🎨",
+          description: "Dein gespeichertes Theme. Jederzeit wieder auswählen.",
+          mood: "Eigenes Theme",
+          surface: String(saved.payload.background?.panelBgMode ?? "glass"),
+        } : PRESET_DETAILS[name] || {
           emoji: preview.mode === "light" ? "☀️" : "🌙",
           description: "Abgestimmtes Nexus v6 Theme.",
           mood: "v6",
@@ -194,8 +212,10 @@ export function ThemeLibraryGrid({
         };
         return (
           <button
-            key={name}
-            onClick={() => onApply(name)}
+            key={saved ? `saved:${saved.id}` : `preset:${name}`}
+            aria-label={`Theme auswählen: ${name}`}
+            data-saved-theme={saved?.id}
+            onClick={() => onApply(name, saved?.payload)}
             style={{
               minHeight: 132,
               borderRadius: 14,

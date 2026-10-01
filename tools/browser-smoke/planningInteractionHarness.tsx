@@ -20,6 +20,7 @@ import { useCanvas as mainCanvas } from '../../Nexus Main/src/store/canvasStore'
 import { useCanvas as mobileCanvas } from '../../Nexus Mobile/src/store/canvasStore'
 import { requestEntityNavigation } from '../../packages/nexus-core/src/planning/entityNavigation'
 import { requestPlanningNavigation } from '../../packages/nexus-core/src/planning/planningNavigation'
+import { useTheme } from '../../Nexus Main/src/store/themeStore'
 
 const stage = new URLSearchParams(location.search).get('stage') || 'forms'
 const checks: string[] = []
@@ -88,6 +89,43 @@ async function switchView(next: string) {
 
 async function run() {
   await Promise.all([mainApp.persist.rehydrate(), mobileApp.persist.rehydrate(), mainCanvas.persist.rehydrate(), mobileCanvas.persist.rehydrate()])
+  if (stage === 'theme-save' || stage === 'theme-reload') {
+    if (stage === 'theme-save') localStorage.setItem('nx-theme-legacy-saved', JSON.stringify({ version: 'v6', mode: 'dark', accent: '#c97541' }))
+    await useTheme.persist.rehydrate()
+    layoutFrame = true; view = 'settings'; render()
+    await wait(() => active()?.querySelector('.nx-settings-theme-library'), 'actual Settings Theme library')
+    const library = () => active().querySelector('.nx-settings-theme-library')!
+    const choose = (name: string) => flushSync(() => library().querySelector<HTMLButtonElement>(`[aria-label="Theme auswählen: ${name}"]`)!.click())
+    const savedName = 'Mein Nächtliches Theme'
+    assert(Boolean(library().querySelector('[aria-label="Theme auswählen: legacy-saved"]')), 'Previously saved standalone Themes are recovered in Settings without advanced options')
+    if (stage === 'theme-reload') {
+      assert(library().querySelectorAll('[data-saved-theme]').length === 2, 'Saved Theme library survives a fresh page load without duplicate entries')
+      assert(useTheme.getState().accent === '#998877', 'The selected custom Theme remains active after a fresh page load')
+      choose('Graphite Pro'); choose(savedName)
+      assert(useTheme.getState().accent === '#998877' && useTheme.getState().glow.mode === 'focus' && useTheme.getState().background.mode === 'noise', 'A persisted custom Theme restores colors, glow and background after another preset is selected')
+      return { ok: true, checks, evidence }
+    }
+    const theme = useTheme.getState()
+    choose('legacy-saved')
+    assert(useTheme.getState().accent === '#c97541' && useTheme.getState().accent2 === theme.accent2 && useTheme.getState().bg === theme.bg, 'A recovered partial Theme preserves colors that were not present in its saved payload')
+    flushSync(() => { theme.setColors({ accent: '#f06595', accent2: '#6655dd', bg: '#171921' }); theme.setGlow({ mode: 'focus', color: '#f06595' }); theme.setBackground({ mode: 'noise' }) })
+    click('Theme speichern'); change(field('Theme-Name'), savedName); click('Speichern')
+    assert(Boolean(library().querySelector(`[aria-label="Theme auswählen: ${savedName}"]`)), 'Saving a Theme immediately adds a selectable card with its original Unicode name')
+    choose('Graphite Pro'); choose(savedName)
+    assert(useTheme.getState().accent === '#f06595' && useTheme.getState().glow.mode === 'focus', 'Selecting a custom Theme restores its colors and glow instead of a built-in preset')
+    flushSync(() => useTheme.getState().setColors({ accent: '#998877' }))
+    click('Theme speichern'); change(field('Theme-Name'), ` ${savedName} `); click('Speichern')
+    assert(library().querySelectorAll('[data-saved-theme]').length === 2 && JSON.parse(localStorage.getItem('nx-saved-themes-v1')!).themes.find((entry: any) => entry.name === savedName).payload.accent === '#998877', 'Saving the same name updates its durable library entry without a duplicate')
+    const originalSet = Storage.prototype.setItem
+    try {
+      Storage.prototype.setItem = function(key, value) { if (key === 'nx-saved-themes-v1') throw new DOMException('Synthetic quota failure', 'QuotaExceededError'); originalSet.call(this, key, value) }
+      click('Theme speichern'); change(field('Theme-Name'), 'Cannot persist'); click('Speichern')
+      assert(Boolean(active().querySelector('[aria-label="Theme-Name"]')) && !library().querySelector('[aria-label="Theme auswählen: Cannot persist"]') && active().textContent?.includes('Theme konnte nicht gespeichert werden'), 'A failed write keeps the save editor open, reports failure and adds no unsaved Theme card')
+      click('Abbrechen')
+    } finally { Storage.prototype.setItem = originalSet }
+    assert(await persistenceRegistry.flush(), 'The selected Theme is flushed through the actual persistence owner before reload')
+    return { ok: true, checks, evidence }
+  }
   const day = zonedDate(new Date().toISOString(), 'Europe/Berlin'), tomorrow = nextCivilDay(day)
   if (stage === 'calendar-entry') {
     await mainCommands.ready(); view = 'calendar'; render()
