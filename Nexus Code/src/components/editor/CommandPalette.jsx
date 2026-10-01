@@ -94,6 +94,7 @@ export default function CommandPalette({
   onClose,
   onAction,
   extensionCommands = EMPTY_EXTENSION_COMMANDS,
+  commandRegistry = /** @type {import('../../workbench/commands/commandRegistry.ts').CommandRegistry | undefined} */ (undefined),
 }) {
   const reduceMotion = useNexusReducedMotion();
   const [query, setQuery] = useState("");
@@ -106,8 +107,9 @@ export default function CommandPalette({
       getEditorCommandPaletteCommands({
         extensionCommands,
         surface: "palette",
+        commandRegistry,
       }),
-    [extensionCommands],
+    [extensionCommands, commandRegistry],
   );
   const filtered = useMemo(
     () => rankCommandPaletteItems(commands, query),
@@ -153,7 +155,7 @@ export default function CommandPalette({
   };
 
   const runCommand = (command) => {
-    if (!command) return;
+    if (!command || command.enabled === false) return;
     onAction?.(command.actionId || command.id);
     onClose?.();
   };
@@ -296,7 +298,8 @@ export default function CommandPalette({
                                   optionRefs.current[index] = node;
                                 }}
                                 type="button"
-                                title={command.description || command.label}
+                                title={command.disabledReason || command.description || command.label}
+                                disabled={command.enabled === false}
                                 data-action-id={command.actionId || command.id}
                                 onMouseDown={(event) => event.preventDefault()}
                                 onMouseEnter={() => setSelectedIndex(index)}

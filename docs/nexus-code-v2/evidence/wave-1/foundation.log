@@ -1,0 +1,35 @@
+
+> nexus-code@1.0.0 typecheck:foundation
+> tsc -p ./tsconfig.foundation.json
+
+
+> nexus-code@1.0.0 test:foundation
+> node --test src/platform/*.test.mjs src/workbench/commands/*.test.mjs src/settings/*.test.mjs
+
+✔ browser/missing and partial bridges expose truthful capabilities (3.5384ms)
+✔ workspace adapter preserves arguments, picker cancellation, bytes and receiver (0.4683ms)
+✔ throws, denied/oversize failures and malformed successes normalize once without leaking details (1.3049ms)
+✔ native envelopes stay distinct from fire-and-forget runner dispatch (0.8087ms)
+✔ subscriptions filter invalid payloads and dispose once, ignoring late events (0.7209ms)
+✔ renderer selection never treats a browser fixture object as production Electron (0.3864ms)
+✔ false or missing filesystem acknowledgments cannot clear a dirty save (0.5506ms)
+✔ subscription teardown errors are safe results and still suppress late events (0.4202ms)
+✔ GitHub device-flow compatibility accepts both existing string and options payloads (0.2942ms)
+✔ stored keys/extension themes/future compatible keys survive schema round trips (2.2771ms)
+✔ legacy numeric bounds/default merge and invalid-setting issues are explicit (0.5654ms)
+✔ legacy shortcut validation/default handling survives while future command IDs persist (0.8941ms)
+✔ registry aliases dispatch once and use current availability with safe errors (2.1492ms)
+✔ palette/Spotlight metadata follows authority without changing legacy ranking identities (0.7883ms)
+✔ actual palette and Spotlight models share availability and preserve aliases/labels (12.6442ms)
+✔ handler and availability failures cannot escape structured command results (0.614ms)
+✔ sidebar toggle preserves legacy visibility/zen/draft-independent effects (1.5351ms)
+✔ terminal open/toggle respects current docking and settings command aliases (2.2658ms)
+✔ custom side-docked terminal uses the existing model without forcing rail visibility (0.641ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 540.8737

@@ -1,0 +1,5 @@
+
+> nexus-ecosystem@1.0.0 verify:single-react
+> node ./tools/verify-single-react.mjs
+
+verify-single-react: OK

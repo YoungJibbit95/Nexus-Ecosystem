@@ -221,7 +221,7 @@ export function buildThemeEditorResetPatch() {
   return Object.fromEntries(
     THEME_EDITOR_SETTING_KEYS
       .filter((key) => Object.prototype.hasOwnProperty.call(DEFAULT_SETTINGS, key))
-      .map((key) => [key, DEFAULT_SETTINGS[key]]),
+      .map((key) => [key, DEFAULT_SETTINGS[/** @type {keyof typeof DEFAULT_SETTINGS} */(key)]]),
   );
 }
 

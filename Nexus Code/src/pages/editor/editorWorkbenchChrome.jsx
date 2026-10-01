@@ -61,12 +61,13 @@ const DOCK_MENU_LABELS = Object.freeze({
   [WORKBENCH_SNAP_ZONES.hidden]: "Ausblenden",
 });
 
+/** @param {{icon?: import('lucide-react').LucideIcon, label: string, value?: import('react').ReactNode, tone?: string, onClick?: import('react').MouseEventHandler<HTMLElement>, title?: string, iconOnly?: boolean, className?: string}} props */
 export function StatusItem({
   icon: Icon,
   label,
   value,
   tone = "muted",
-  onClick,
+  onClick = undefined,
   title,
   iconOnly = false,
   className = "",
