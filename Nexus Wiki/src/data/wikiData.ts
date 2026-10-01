@@ -22,6 +22,8 @@ export type GuideStep = {
   detail: string
 }
 
+export type WikiAudience = 'user' | 'developer' | 'operator'
+
 export type MarkdownSnippet = {
   label: string
   description: string
@@ -33,6 +35,7 @@ export type WikiEntry = {
   title: string
   app: AppId
   category: CategoryId
+  audience?: WikiAudience
   summary: string
   guide: GuideStep[]
   points: string[]

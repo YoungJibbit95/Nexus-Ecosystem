@@ -92,6 +92,40 @@
   font-weight: 760;
 }
 
+#root .nx-app-shell[data-nx-color-mode="light"] .nx-flux-v6 :is(.nx-flux-hero, .nx-flux-queue-panel, .nx-flux-activity-panel, .nx-flux-metric-card) {
+  background:
+    radial-gradient(460px circle at 4% 0%, rgba(var(--flux-accent-rgb), 0.08), transparent 68%),
+    var(--nx-ui-surface-elevated, rgba(255, 255, 255, 0.92)) !important;
+}
+
+#root .nx-app-shell[data-nx-color-mode="light"] .nx-flux-v6 :is(.nx-flux-metric-detail, .nx-flux-source-caption, .nx-flux-source-label, .nx-flux-preset-select, .nx-flux-low-activity, .nx-flux-caught-up) {
+  color: var(--nx-ui-text-muted, rgba(16, 21, 34, 0.62));
+}
+
+#root .nx-app-shell[data-nx-color-mode="light"] .nx-flux-v6 :is(.nx-flux-low-activity, .nx-flux-caught-up) strong {
+  color: var(--nx-ui-text, #101522);
+}
+
+#root .nx-app-shell[data-nx-color-mode="light"] .nx-flux-v6 .nx-flux-preset-select select,
+#root .nx-app-shell[data-nx-color-mode="light"] .nx-flux-v6 .nx-flux-activity-entry {
+  color: var(--nx-ui-text, #101522);
+  background: var(--nx-ui-surface-elevated, rgba(255, 255, 255, 0.92)) !important;
+}
+
+#root .nx-app-shell[data-nx-color-mode="light"] .nx-flux-v6 .nx-flux-metric-card > div {
+  color: var(--nx-ui-text, #101522);
+  opacity: 1 !important;
+}
+
+#root .nx-app-shell[data-nx-color-mode="light"] .nx-flux-v6 .nx-flux-metric-card > div > div:first-child {
+  color: var(--nx-ui-text, #101522);
+  opacity: 0.78 !important;
+}
+
+#root .nx-app-shell[data-nx-color-mode="light"] .nx-flux-v6 .nx-flux-metric-card > div > div:nth-child(2) {
+  filter: brightness(0.58);
+}
+
 @media (max-width: 760px) {
   .nx-flux-v6 .nx-flux-metric-grid {
     display: grid !important;

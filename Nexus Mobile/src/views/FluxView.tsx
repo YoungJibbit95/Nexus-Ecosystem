@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { MobilePlanningTodayCard } from './planning/MobilePlanningTodayCard'
 import {
   Activity as ActivityIcon,
   AlertTriangle,
@@ -644,6 +645,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
       className="nx-mobile-view-screen nx-mobile-scroll-root"
       style={{ display: 'flex', flexDirection: 'column', gap: isCompactMobile ? 8 : 12, height: '100%', padding: compactPadding, minHeight: 0 }}
     >
+      <div style={{ maxHeight: 240, overflowY: 'auto', flexShrink: 0 }}><MobilePlanningTodayCard setView={setView} /></div>
       <Glass style={{ padding: isCompactMobile ? '10px 12px' : '14px 16px', flexShrink: 0 }} glow>
         <div className="nx-mobile-tight-stack" style={{ gap: 10 }}>
           <div>

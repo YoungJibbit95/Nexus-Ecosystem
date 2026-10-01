@@ -4,7 +4,7 @@ import { Download, RotateCcw, ShieldCheck, Trash2, Upload } from "lucide-react";
 import { useApp } from "../../store/appStore";
 import { useCanvas } from "../../store/canvasStore";
 import { useTerminal } from "../../store/terminalStore";
-import { captureWorkspaceSources, restoreWorkspaceBackup } from "../../app/workspaceRestore";
+import { captureWorkspaceBackup, captureWorkspaceSources, restoreWorkspaceBackup } from "../../app/workspaceRestore";
 import { draftRegistry } from "@nexus/core/storage/draftRegistry";
 import { useTheme } from "../../store/themeStore";
 import { useWorkspaces } from "../../store/workspaceStore";
@@ -118,12 +118,7 @@ export function SettingsBackupRestorePanel({ toast }: SettingsBackupRestorePanel
   const createBackup = async (download: boolean) => {
     setBusy(true);
     try {
-      draftRegistry.flush();
-      const snapshot = createWorkspaceBackupSnapshot({
-        ...currentSources(),
-        label: labelDraft || undefined,
-        reason: "manual",
-      });
+      const snapshot = await captureWorkspaceBackup(labelDraft || undefined);
       await saveWorkspaceBackup(snapshot);
       if (download) downloadWorkspaceBackup(snapshot);
       setLabelDraft("");

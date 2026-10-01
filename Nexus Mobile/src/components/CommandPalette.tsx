@@ -9,6 +9,7 @@ import { View } from './Sidebar'
 import { hexToRgb } from '../lib/utils'
 import { haptic } from '../lib/haptics'
 import { createCaptureIntent, parseCaptureIntentFromQuery, type CaptureIntent } from '@nexus/core'
+import { openApplicationCapture } from '@nexus/core/application/captureNavigation'
 
 type PaletteAction = {
   id: string
@@ -63,23 +64,17 @@ export function CommandPalette({
   const runCaptureIntent = useCallback((intent: CaptureIntent) => {
     switch (intent.type) {
       case 'note': {
-        app.addNote()
-        const latest = useApp.getState().notes[0]
-        const title = intent.title?.trim()
-        if (latest?.id && title) {
-          useApp.getState().updateNote(latest.id, { title })
-        }
-        setView((intent.targetView || 'notes') as View)
+        openApplicationCapture('mobile', 'note', setView, intent.title)
         return
       }
       case 'task':
-        app.addTask(intent.title?.trim() || 'Neue Aufgabe', 'todo', '', 'mid')
-        setView((intent.targetView || 'tasks') as View)
+        openApplicationCapture('mobile', 'task', setView, intent.title)
+        return
+      case 'event':
+        openApplicationCapture('mobile', 'event', setView, intent.title)
         return
       case 'reminder': {
-        const inOneHour = new Date(Date.now() + 60 * 60 * 1000).toISOString()
-        app.addRem({ title: intent.title?.trim() || 'Neue Erinnerung', msg: '', datetime: inOneHour, repeat: 'none' })
-        setView((intent.targetView || 'reminders') as View)
+        openApplicationCapture('mobile', 'reminder', setView, intent.title)
         return
       }
       case 'code': {
@@ -114,16 +109,20 @@ export function CommandPalette({
 
     const create: PaletteAction[] = [
       {
-        id: 'create-note', title: 'Neue Notiz', subtitle: 'Legt eine Note an und öffnet Notes', group: 'Create', keywords: 'new note notiz create',
-        run: () => { runCaptureIntent(createCaptureIntent('note', { title: 'Neue Notiz', targetView: 'notes' })); onClose() },
+        id: 'create-note', title: 'Neue Notiz', subtitle: 'Öffnet ungespeicherte Notiz-Erfassung', group: 'Create', keywords: 'new note notiz create',
+        run: () => { runCaptureIntent(createCaptureIntent('note')); onClose() },
       },
       {
-        id: 'create-task', title: 'Neuer Task', subtitle: 'Schnellaufgabe in To Do', group: 'Create', keywords: 'new task todo',
-        run: () => { runCaptureIntent(createCaptureIntent('task', { title: 'Neue Aufgabe', targetView: 'tasks' })); onClose() },
+        id: 'create-task', title: 'Neuer Task', subtitle: 'Öffnet ungespeicherte Planungs-Erfassung', group: 'Create', keywords: 'new task todo',
+        run: () => { runCaptureIntent(createCaptureIntent('task')); onClose() },
       },
       {
-        id: 'create-reminder', title: 'Neuer Reminder in 1h', subtitle: 'Erstellt Erinnerung in einer Stunde', group: 'Create', keywords: 'new reminder erinnerung',
-        run: () => { runCaptureIntent(createCaptureIntent('reminder', { title: 'Neue Erinnerung', targetView: 'reminders' })); onClose() },
+        id: 'create-event', title: 'Feste Verpflichtung erfassen', subtitle: 'Öffnet ungespeicherte Event-Erfassung', group: 'Create', keywords: 'new event calendar',
+        run: () => { runCaptureIntent(createCaptureIntent('event')); onClose() },
+      },
+      {
+        id: 'create-reminder', title: 'Reminder erfassen', subtitle: 'Zeitpunkt prüfen; Vorgabe eine Stunde nach Öffnen', group: 'Create', keywords: 'new reminder erinnerung',
+        run: () => { runCaptureIntent(createCaptureIntent('reminder')); onClose() },
       },
       {
         id: 'create-code', title: 'Neue Code-Datei', subtitle: 'Erstellt untitled.ts', group: 'Create', keywords: 'new code file',

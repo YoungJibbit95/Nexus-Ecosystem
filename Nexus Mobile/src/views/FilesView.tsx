@@ -19,8 +19,8 @@ import { useApp } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
 import { useWorkspaces, Workspace } from '../store/workspaceStore'
 import { useCanvas } from '../store/canvasStore'
-import { applyWorkspaceHandoff, captureMobileRuntime, hydrateMobileSources, restoreMobileCheckpoint } from '../app/workspaceHandoff'
-import type { SnapshotSection } from '@nexus/core/workspace/runtimeHandoff'
+import { applyWorkspaceHandoff, captureMobileExchange, hydrateMobileSources, restoreMobileCheckpoint } from '../app/workspaceHandoff'
+import type { HandoffSelection, SnapshotSection } from '@nexus/core/workspace/runtimeHandoff'
 import { useWorkspaceHandoff } from '../store/workspaceHandoffStore'
 import { hexToRgb } from '../lib/utils'
 import { useMobile } from '../lib/useMobile'
@@ -141,13 +141,14 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   const [mobileWorkspaceSheetOpen, setMobileWorkspaceSheetOpen] = useState(false)
   const [mobileHandoffSheetOpen, setMobileHandoffSheetOpen] = useState(false)
   const [mobileFilterSheetOpen, setMobileFilterSheetOpen] = useState(false)
-  const [mergeSelection, setMergeSelection] = useState<Record<SnapshotSection, boolean>>({
+  const [mergeSelection, setMergeSelection] = useState<HandoffSelection>({
     notes: true,
     codes: true,
     tasks: true,
     reminders: true,
     canvases: true,
     workspaces: true,
+    planning: true,
   })
   const [pendingSnapshot, setPendingSnapshot] = useState<{
     snapshot: WorkspaceRuntimeSnapshot
@@ -183,12 +184,12 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     window.setTimeout(() => setHandoffMsg(''), 3200)
   }
 
-  const buildRuntimeSnapshot = captureMobileRuntime
+  const buildRuntimeSnapshot = captureMobileExchange
 
   const exportRuntimeSnapshot = async () => {
     try {
     await hydrateMobileSources()
-    const snapshot = buildRuntimeSnapshot()
+    const snapshot = await buildRuntimeSnapshot()
     const payload = JSON.stringify(snapshot, null, 2)
     const blob = new Blob([payload], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -210,7 +211,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   const shareRuntimeSnapshot = async () => {
     try {
       await hydrateMobileSources()
-      const snapshot = buildRuntimeSnapshot()
+      const snapshot = await buildRuntimeSnapshot()
       const payload = JSON.stringify(snapshot, null, 2)
       const file = new File([payload], 'runtime.json', { type: 'application/json' })
       const canShareFiles = typeof navigator !== 'undefined'
@@ -352,6 +353,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
         reminders: true,
         canvases: true,
         workspaces: true,
+        planning: true,
       })
       setHandoffMenuOpen(false)
     }
@@ -364,7 +366,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     await applyWorkspaceHandoff(pendingSnapshot.snapshot, mode, mergeSelection)
     setHandoffStatus(
       mode === 'replace'
-        ? 'runtime.json vollständig ersetzt'
+        ? pendingSnapshot.snapshot.version === 2 ? 'Workspace und Planung übernommen' : 'Workspace übernommen; bestehende Planung beibehalten'
         : 'runtime.json selektiv gemerged',
       {
         sourceApp: pendingSnapshot.snapshot.app,
@@ -503,7 +505,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
   return (
     <div
-      className="nx-mobile-view-screen"
+      className="nx-mobile-view-screen nx-mobile-files-screen"
       style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}
     >
       <div style={{ padding: compactHeaderPadding }}>
@@ -703,7 +705,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
         </div>
       )}
 
-      <div style={{ display:'flex', flex:1, minHeight:0, overflow:'hidden' }}>
+      <div className="nx-mobile-files-body" style={{ display:'flex', flex:1, minHeight:0, overflow:'hidden' }}>
         {/* ── Left: Workspace panel ────────────────────────── */}
         {!mob.isMobile ? (
         <div style={{ width: 260, flexShrink:0, display:'flex', flexDirection:'column', borderRight:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.12)', overflow:'hidden' }}>
@@ -769,7 +771,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
         {/* ── Right: File list ──────────────────────────────── */}
         <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0 }}>
-          <div className="nx-mobile-row-scroll" style={{ gap:isCompactMobile ? 8 : 10, padding: mob.isMobile ? (isCompactMobile ? '6px 8px' : '10px 10px') : '10px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)' }}>
+          <div className="nx-mobile-files-toolbar nx-mobile-row-scroll" style={{ gap:isCompactMobile ? 8 : 10, padding: mob.isMobile ? (isCompactMobile ? '6px 8px' : '10px 10px') : '10px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)' }}>
             {activeWs ? (
               <div style={{ display:'flex', alignItems:'center', gap:8, flex:1 }}>
                 <span style={{ fontSize:20 }}>{activeWs.icon}</span>
@@ -909,7 +911,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
           </div>
           ) : null}
 
-          <div style={{ flex:1, overflowY:'auto', padding: mob.isMobile ? (isCompactMobile ? '8px' : '10px') : 12 }}>
+          <div className="nx-mobile-files-items" style={{ flex:1, overflowY:'auto', padding: mob.isMobile ? (isCompactMobile ? '8px' : '10px') : 12 }}>
             {displayItems.length === 0 ? (
               <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'60%', gap:12, opacity:0.4 }}>
                 <Layers size={48} strokeWidth={1} style={{ color:t.accent, opacity:0.4 }}/>
@@ -992,7 +994,16 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                         {section}
                       </label>
                     ))}
+                    {pendingSnapshot.snapshot.version === 2 && <label style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', fontSize: 12 }}>
+                      <input type="checkbox" checked={Boolean(mergeSelection.planning)} onChange={event => setMergeSelection(previous => ({ ...previous, planning: event.target.checked }))} />
+                      Planung ({pendingSnapshot.snapshot.state.planning.events.length} Events · {pendingSnapshot.snapshot.state.planning.blocks.length} Arbeitsblöcke)
+                    </label>}
                   </div>
+                  <p style={{ fontSize: 12, lineHeight: 1.5 }}>
+                    {pendingSnapshot.snapshot.version === 1
+                      ? 'Dieser ältere Snapshot enthält keine Kalenderplanung. Bestehende Events und Arbeitsblöcke bleiben erhalten; fehlende Task-Verknüpfungen werden zur Reparatur angezeigt.'
+                      : 'Replace übernimmt die gesamte Planung. Bei Merge gewinnt die ausgewählte eingehende Planung bei gleicher ID; ihre Verfügbarkeit wird unverändert übernommen. Der vorherige Stand bleibt als Checkpoint erhalten.'}
+                  </p>
                 </div>
 
                 {(pendingSnapshot.ageMinutes != null && pendingSnapshot.ageMinutes > 7 * 24 * 60) || Object.values(pendingSnapshot.counts).every((value) => value === 0) ? (

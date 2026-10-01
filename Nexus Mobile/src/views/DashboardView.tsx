@@ -35,9 +35,12 @@ import { MobileDashboardWidgetEditChrome } from './dashboard/MobileDashboardWidg
 import { MobileRuntimeSummaryCard } from './dashboard/MobileRuntimeSummaryCard'
 import { useMobileDashboardLayoutEditing } from './dashboard/useMobileDashboardLayoutEditing'
 import { useMobileDashboardDerivedData } from './dashboard/useMobileDashboardDerivedData'
+import { MobilePlanningTodayCard } from './planning/MobilePlanningTodayCard'
+import { usePlanningToday } from './planning/usePlanningToday'
 import { buildMobileDashboardWidgetContent } from './dashboard/mobileDashboardWidgetContent'
 
 export function DashboardView({ setView }: { setView?: (v: string) => void }) {
+  const planningToday = usePlanningToday()
   const t = useTheme()
   const mob = useMobile()
   const rgb = hexToRgb(t.accent)
@@ -331,11 +334,12 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
           </DashboardActionButton>
         </div>
         <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.5, opacity: 0.8 }}>
-          {todaySummary.dueTodayCount > 0 ? `${todaySummary.dueTodayCount} heute fällig` : 'Heute nichts fällig'}
-          {todaySummary.overdueCount > 0 ? (
-            <span style={{ color: t.mode === 'dark' ? '#ff9d94' : '#ab241c', fontWeight: 650 }}> · {todaySummary.overdueCount} überfällig</span>
+          {planningToday.dueTaskCount} Aufgabenfristen heute · {planningToday.dueReminderCount} Erinnerungspunkte heute
+          {planningToday.overdueTaskCount > 0 ? (
+            <span style={{ color: t.mode === 'dark' ? '#ff9d94' : '#ab241c', fontWeight: 650 }}> · {planningToday.overdueTaskCount} überfällige Aufgabenfristen</span>
           ) : null}
         </p>
+        <MobilePlanningTodayCard setView={setView} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
           <DashboardActionButton
             onClick={() => setMobileUtilitySheet('capture')}
@@ -519,9 +523,10 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
         <div style={{ padding: '10px 10px 14px', display: 'grid', gap: 8 }}>
           <dl style={{ margin: '0 0 4px', display: 'grid', gap: 8, fontSize: 13 }}>
             {[
-              ['Offene Aufgaben', todaySummary.openTaskCount],
-              ['Heute fällig', todaySummary.dueTodayCount],
-              ['Überfällig', todaySummary.overdueCount],
+              ['Offene Aufgaben heute', planningToday.openTaskCount],
+              ['Aufgabenfristen heute', planningToday.dueTaskCount],
+              ['Erinnerungspunkte heute', planningToday.dueReminderCount],
+              ['Überfällige Aufgabenfristen', planningToday.overdueTaskCount],
               ['Erledigte Aufgaben', doneTasks],
             ].map(([label, value]) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>

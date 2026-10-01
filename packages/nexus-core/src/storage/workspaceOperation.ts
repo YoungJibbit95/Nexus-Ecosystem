@@ -7,9 +7,9 @@ export const workspaceOperation = {
   isActive: () => status.kind !== 'idle',
   subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
   requireRecovery(message: string) { update({ kind: 'recovery', message }) },
-  async run<T>(operation: () => Promise<T>): Promise<T> {
+  async run<T>(operation: () => Promise<T>, message = 'Workspace wird sicher übernommen …'): Promise<T> {
     if (status.kind !== 'idle') throw new Error('A workspace operation is already running or requires recovery')
-    update({ kind: 'applying', message: 'Workspace wird sicher übernommen …' })
+    update({ kind: 'applying', message })
     try { return await operation() }
     finally { if (workspaceOperation.getSnapshot().kind === 'applying') update({ kind: 'idle', message: '' }) }
   },

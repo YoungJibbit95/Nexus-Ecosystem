@@ -1,7 +1,10 @@
 import type { ThemeTransferPayload } from "../views/settings/themeTransfer";
 import { validateWorkspaceBackupData } from "./workspaceBackupValidation";
+import { preparePlanningDocument } from "../../../packages/nexus-core/src/planning/formats";
+import type { PlanningDocument } from "../../../packages/nexus-core/src/planning/domain";
+import { prepareReminderPortable, type ReminderPortableState } from "../../../packages/nexus-core/src/reminders/reminderDomain";
 
-export const WORKSPACE_BACKUP_SCHEMA_VERSION = 1;
+export const WORKSPACE_BACKUP_SCHEMA_VERSION = 2;
 export const WORKSPACE_BACKUP_DB_NAME = "nexus-main-workspace-backups-v1";
 export const WORKSPACE_BACKUP_STORE_NAME = "snapshots";
 export const WORKSPACE_BACKUP_MAX_LOCAL = 8;
@@ -9,7 +12,7 @@ export const WORKSPACE_BACKUP_MAX_LOCAL = 8;
 export type WorkspaceBackupReason = "manual" | "before-restore" | "import-preview";
 
 export type WorkspaceBackupSnapshot = {
-  schemaVersion: typeof WORKSPACE_BACKUP_SCHEMA_VERSION;
+  schemaVersion: 1 | 2;
   id: string;
   label: string;
   reason: WorkspaceBackupReason;
@@ -54,6 +57,8 @@ export type WorkspaceBackupSnapshot = {
       redoStack: string[];
     };
     theme?: ThemeTransferPayload;
+    planning?: PlanningDocument;
+    reminderOccurrences?: ReminderPortableState;
   };
 };
 
@@ -99,6 +104,8 @@ type SnapshotSources = {
   workspaceFs: any;
   terminal: any;
   theme?: ThemeTransferPayload;
+  planning?: PlanningDocument;
+  reminderOccurrences?: ReminderPortableState;
   label?: string;
   reason?: WorkspaceBackupReason;
 };
@@ -169,6 +176,8 @@ export const createWorkspaceBackupSnapshot = ({
   workspaceFs,
   terminal,
   theme,
+  planning,
+  reminderOccurrences,
   label,
   reason = "manual",
 }: SnapshotSources): WorkspaceBackupSnapshot => {
@@ -209,11 +218,13 @@ export const createWorkspaceBackupSnapshot = ({
       redoStack: strArr(terminal?.redoStack).slice(-120),
     },
     theme,
+    ...(planning === undefined ? {} : { planning: preparePlanningDocument(planning) }),
+    ...(reminderOccurrences === undefined ? {} : { reminderOccurrences: prepareReminderPortable(reminderOccurrences) }),
   };
 
   const detachedData = JSON.parse(JSON.stringify(data)) as WorkspaceBackupSnapshot["data"];
   const base = {
-    schemaVersion: WORKSPACE_BACKUP_SCHEMA_VERSION as typeof WORKSPACE_BACKUP_SCHEMA_VERSION,
+    schemaVersion: (planning === undefined ? 1 : WORKSPACE_BACKUP_SCHEMA_VERSION) as 1 | 2,
     id: makeId(),
     label: label?.trim() || `Nexus Backup ${new Date().toLocaleString()}`,
     reason,
@@ -235,19 +246,19 @@ export const createWorkspaceBackupSnapshot = ({
 export const parseWorkspaceBackupSnapshot = (raw: unknown) => {
   try {
     if (!isRecord(raw)) throw new Error("Backup JSON object expected.");
-    if (raw.schemaVersion !== WORKSPACE_BACKUP_SCHEMA_VERSION) throw new Error("Unsupported backup schema version.");
+    if (raw.schemaVersion !== 1 && raw.schemaVersion !== WORKSPACE_BACKUP_SCHEMA_VERSION) throw new Error("Unsupported backup schema version.");
     for (const key of ["id", "label", "createdAt", "appVersion", "checksum"]) {
       if (typeof raw[key] !== "string" || !raw[key]) throw new Error(`Invalid backup metadata: ${key}`);
     }
     if (!["manual", "before-restore", "import-preview"].includes(String(raw.reason))) throw new Error("Invalid backup reason.");
     if (!isRecord(raw.stats)) throw new Error("Backup statistics are missing.");
-    validateWorkspaceBackupData(raw.data);
+    validateWorkspaceBackupData(raw.data, raw.schemaVersion);
     const snapshot = raw as WorkspaceBackupSnapshot;
     // Schema 1 computed the checksum before filling the informational byte count.
     const base = { ...snapshot, checksum: "", stats: { ...snapshot.stats, bytes: 0 } };
     const checksums = [hashWorkspaceBackupText(stableJson(base))];
     // Earlier writers included an undefined optional theme before JSON export.
-    if (!Object.prototype.hasOwnProperty.call(snapshot.data, "theme")) {
+    if (snapshot.schemaVersion === 1 && !Object.prototype.hasOwnProperty.call(snapshot.data, "theme")) {
       checksums.push(hashWorkspaceBackupText(stableJson({ ...base, data: { ...base.data, theme: undefined } })));
     }
     if (!checksums.includes(snapshot.checksum)) throw new Error("Backup checksum mismatch; no data was changed.");
@@ -297,7 +308,7 @@ const collectConflicts = (
 
 export const createWorkspaceBackupPreview = (
   snapshot: WorkspaceBackupSnapshot,
-  current: Pick<SnapshotSources, "app" | "canvas" | "workspaces" | "workspaceFs" | "terminal" | "theme">,
+  current: Pick<SnapshotSources, "app" | "canvas" | "workspaces" | "workspaceFs" | "terminal" | "theme" | "planning">,
 ): WorkspaceBackupPreview => {
   const currentSnapshot = createWorkspaceBackupSnapshot({ ...current, reason: "import-preview", label: "current" });
   const groups = [
@@ -318,6 +329,9 @@ export const createWorkspaceBackupPreview = (
       "Restore replaces local Notes, Code files, Tasks, Reminders, Canvas boards and Workspace mappings.",
       "Auth/session tokens, passwords and API credentials are not part of backups.",
       "A before-restore backup is created automatically before applying imported data.",
+      snapshot.schemaVersion === 2
+        ? "Version 2 also replaces fixed events, work blocks, duration estimates and explicit availability."
+        : "Version 1 contains no planning. Existing planning is retained; links to replaced tasks may require repair.",
     ],
   };
 };

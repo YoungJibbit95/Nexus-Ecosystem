@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { captureWorkspaceRuntime, importWorkspaceState } from '../../app/workspaceImport'
+import { captureWorkspaceExchange, importWorkspaceExchange, importWorkspaceState } from '../../app/workspaceImport'
 import { hydrateWorkspaceSources } from '../../app/workspaceRestore'
 import type { CodeFile, Note, Reminder, Task } from '../../store/appStore'
 import { useApp } from '../../store/appStore'
@@ -156,7 +156,7 @@ export function useWorkspaceSync(_sources: WorkspaceSyncArgs) {
     try {
       const runtimeSnapshot = await readWorkspaceRuntimeSnapshot(root, fsApi)
       if (runtimeSnapshot) {
-        await importWorkspaceState(runtimeSnapshot.state)
+        await importWorkspaceExchange(runtimeSnapshot)
         markWorkspaceSync('runtime-import')
         toast('Workspace Runtime gespeichert und geladen.')
         return
@@ -387,7 +387,7 @@ export function useWorkspaceSync(_sources: WorkspaceSyncArgs) {
     setSyncing(true)
     try {
     await hydrateWorkspaceSources()
-    const runtimeSnapshot = captureWorkspaceRuntime()
+    const runtimeSnapshot = await captureWorkspaceExchange()
     const { notes, codes, tasks, reminders, canvases, workspaces, activeWorkspaceId } = runtimeSnapshot.state
     const exportedAt = new Date().toISOString()
     const exportRoot = joinFsPath(root, WORKSPACE_EXPORT_DIRNAME)

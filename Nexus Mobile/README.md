@@ -7,17 +7,36 @@
 Nexus Mobile ist die mobile Workspace-App im Nexus Ecosystem.
 Sie bildet die Main-Workflows mobil ab, mit eigener Navigation und mobile-spezifischer Runtime-Steuerung.
 
+## Nutzung
+
+Nutze die für dein Gerät sichtbare Navigation für Dashboard, Notes, Tasks/Reminders, Canvas und Files. Native Funktionen und Navigation unterscheiden sich von Desktop; vollständige Parität ist nicht zugesagt. Der [User Guide](../docs/USER_GUIDE.md) beschreibt die Bedienung, der [Developer Guide](../docs/DEVELOPER_GUIDE.md) die Entwicklung.
+
+**Code ist ein Archiv:** Suche vorhandene Code-Dateien nach Namen, lies den Quelltext und lade einzelne Dateien oder Code- und Ordnerdaten als JSON herunter. Der Export löscht die bestehenden Daten nicht; Code-Daten bleiben auch in unterstützten Workspace-Snapshots erhalten. Das Archiv bearbeitet oder startet keine Programme. Archiv-JSON ist kein automatischer Projektimport in Nexus Code.
+
+Editing belongs in the separate desktop Nexus Code app: CodeMirror, local files and a simple stdio runner. The quoted absolute Windows-path regression is corrected and covered by actual IPC probes. PTY, connected debugging and executable marketplace support remain unqualified; language servers and GitHub need external prerequisites. The desktop app requires a validated compatible account.
+
 ## View Overview
+
+### Manual agenda and workspace transfer
+
+Open **Agenda** (`calendar`) to choose a day and IANA timezone, capture a task or fixed event, and explicitly schedule or move a work block. Planning preserves the task deadline. Unknown duration must be entered; unknown coverage and overlaps stay visible and require explicit consent. Dashboard and Flux use the same task, commitment and reminder projection as Main.
+
+Shell and Dashboard capture open shared unsaved forms. Confirm to save; a cancelled form creates nothing. Note/Canvas promotion retains its source and reuses the canonical task on repetition. Broken context links stay visible for explicit repair.
+
+The ICS preview preserves original text and unsupported recurrence/exception/alarm/timezone semantics as raw provenance. It does not execute a recurrence or turn an event into a reminder series. Complete workspace exports/backups use Runtime V2 for planning and portable reminder occurrence state; local native notification IDs are not transferred. The separate legacy V1 downgrade reports omitted planning/history. No automatic migration or native device-delivery acceptance follows from these browser workflows.
+
+Cerebri production assistance remains disabled; manual Agenda works independently. See the [User Guide](../docs/USER_GUIDE.md#manual-agenda-and-capture), [Developer Guide](../docs/DEVELOPER_GUIDE.md#planning-and-workspace-contracts) and [shared planning contract](../packages/nexus-core/src/planning/README.md).
 
 | View | Purpose | Highlights |
 | --- | --- | --- |
 | `dashboard` | mobile workspace center | Today context, quick capture, workspace confidence |
+| `calendar` | local manual Agenda | day selection, distinct deadlines/events/blocks, explicit schedule/move and ICS preview |
 | `notes` | markdown workflow | editor/preview, templates, linking helpers |
 | `tasks` | planning execution | kanban + focus workflows on touch surfaces |
 | `reminders` | schedule control | native reminder service integration + fallback states |
 | `canvas` | visual planning | mobile board interactions, templates, inspector flows |
 | `files` | workspace handoff | runtime snapshot import/export + workspace controls |
-| `code` | mobile code workflow | integrated lightweight coding surface |
+| `code` | compatibility archive | read/search/export existing code files; no embedded editing or execution |
 | `devtools` | local diagnostics | performance and development helpers |
 | `settings` | personalization/system | appearance and runtime controls |
 | `info` | in-app docs | architecture, diagnostics, guides |
@@ -34,7 +53,7 @@ Main shell modules:
 - `src/app/mobileViewHost.tsx`
 - `src/app/mobileAppConfig.ts`
 
-## Render + Motion
+## Developer reference: Render + Motion
 
 Nexus Mobile uses the same core runtime principles as Main:
 

@@ -1,5 +1,6 @@
 import {
   Bell,
+  CalendarDays,
   CheckSquare,
   Code2,
   FileText,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react";
 import { useApp, type CodeFile, type Note, type Reminder, type Task } from "../../store/appStore";
 import { MOBILE_TOOLBAR_VIEW_ITEMS } from "./viewItems";
+import { openApplicationCapture } from '@nexus/core/application/captureNavigation';
 
 type SetView = ((view: any) => void) | undefined;
 
@@ -54,8 +56,7 @@ export function buildMobileToolbarCommands({
       label: "New Note",
       icon: FileText,
       action: () => {
-        useApp.getState().addNote();
-        setView?.("notes");
+        openApplicationCapture('mobile', 'note', setView);
       },
     },
     {
@@ -63,23 +64,20 @@ export function buildMobileToolbarCommands({
       label: "New Task",
       icon: CheckSquare,
       action: () => {
-        useApp.getState().addTask("Neue Aufgabe", "todo", "", "mid");
-        setView?.("tasks");
+        openApplicationCapture('mobile', 'task', setView);
       },
     },
     {
       id: "new-reminder",
-      label: "New Reminder (+1h)",
+      label: "Capture Reminder",
       icon: Bell,
       action: () => {
-        useApp.getState().addRem({
-          title: "Neue Erinnerung",
-          msg: "",
-          datetime: new Date(Date.now() + 3600000).toISOString(),
-          repeat: "none",
-        });
-        setView?.("reminders");
+        openApplicationCapture('mobile', 'reminder', setView);
       },
+    },
+    {
+      id: 'new-event', label: 'Capture Fixed Event', icon: CalendarDays,
+      action: () => openApplicationCapture('mobile', 'event', setView),
     },
     {
       id: "new-code",

@@ -54,6 +54,8 @@ import {
 import { useCanvasPanAndWheel } from "./canvas/useCanvasPanAndWheel";
 import { useCanvasKeyboardShortcuts } from "./canvas/useCanvasKeyboardShortcuts";
 import { useCanvasNodeActions } from "./canvas/useCanvasNodeActions";
+import { useEntityNavigationTarget } from '@nexus/core/planning/entityNavigation';
+import { planningStore } from '../store/planningStore';
 
 const CANVAS_UI_PREFS_KEY = "nexus-main-canvas-ui-v2";
 
@@ -489,6 +491,13 @@ export function CanvasView() {
     },
     [resolveFocusViewport, runViewportTransition],
   );
+  useEntityNavigationTarget('main', 'canvas-node', useCallback(ref => {
+    if (ref.kind !== 'canvas-node') return false;
+    const state = useCanvas.getState(), targetCanvas = state.canvases.find(item => item.id === ref.canvasId);
+    if (!targetCanvas?.nodes.some(node => node.id === ref.id)) { showCanvasNotice('Verknüpfter Canvas-Knoten fehlt. Referenz bleibt zur Reparatur erhalten.'); return true; }
+    if (state.activeCanvasId !== ref.canvasId || canvas?.id !== ref.canvasId) { state.setActiveCanvas(ref.canvasId); return false; }
+    setSelectedNodeId(ref.id); focusNode(ref.id); return true;
+  }, [canvas?.id, focusNode, showCanvasNotice]));
 
   const zoomFromCenterBy = useCallback(
     (delta: number) => {
@@ -890,6 +899,11 @@ export function CanvasView() {
         />
 
         <CanvasInspector
+          onPromoteNode={async () => {
+            if (!canvas || !selectedNode) return;
+            try { const result = await planningStore.promoteEntity({ kind: 'canvas-node', canvasId: canvas.id, id: selectedNode.id }); showCanvasNotice(result.ok === true ? `Aufgabe dauerhaft bestätigt: ${result.ids.join(', ')}.` : result.message); }
+            catch (error) { showCanvasNotice(String(error instanceof Error ? error.message : error)); }
+          }}
           node={shouldShowInspector ? selectedNode : null}
           mode={t.mode}
           accent={t.accent}

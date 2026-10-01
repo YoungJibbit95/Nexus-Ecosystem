@@ -2,6 +2,8 @@
 
 This document describes the public client security model for Nexus. It does not document private Nexus Cloud implementation details.
 
+Audience: developers and operators of public client releases. App users should start with the [User Guide](USER_GUIDE.md). Operational examples here describe public responsibilities, not private deployment procedures or production qualification.
+
 ## Principles
 
 - Client configuration is public.
@@ -38,7 +40,19 @@ Required expectations:
 - Keep terminal execution visible and workspace-bound.
 - Avoid logging `.env` values, tokens or credentials.
 - Prevent file operations from silently reading sensitive home, keychain or credential paths.
-- Keep Monaco workers and editor integrations local to the client.
+- Keep CodeMirror and editor integrations local to the client.
+
+The active Main/Mobile Code archive reads and exports existing files; it does not execute them. The standalone desktop runner executes explicit commands through child-process stdio and is not a PTY. A quoted absolute Windows path with spaces has a known failing native test. A visible simulated browser terminal, debug panel or marketplace record is not evidence of process execution, DAP support or an extension runtime.
+
+Language-server capabilities require external servers and a ready desktop bridge. GitHub operations require explicit connection and still need live acceptance. Preserve existing native/file/account boundaries while testing those integrations; client capability labels must report missing prerequisites and unsupported methods accurately.
+
+## Public operator responsibilities
+
+- Verify the published client package, checksum/signature metadata and supported platform before recommending a release.
+- Keep private account/payment/admin configuration and credentials in their owning private environment.
+- Distinguish local build/tests from installed-client, native upgrade/recovery and live-service acceptance.
+- Collect visible errors and sanitized diagnostics; do not request tokens or private workspace content in public issues.
+- Preserve existing user records and export/recovery paths during a client migration. A dormant editor module does not make its persisted code data disposable.
 
 ## Mobile Clients
 

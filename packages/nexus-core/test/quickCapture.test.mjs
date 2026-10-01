@@ -14,6 +14,7 @@ test('quick capture preserves supported prefixes and title normalization', () =>
     title: undefined,
     targetView: 'reminders',
   })
+  assert.deepEqual(parseCaptureIntentFromQuery('event: User appointment'), { type: 'event', title: 'User appointment', targetView: 'calendar' })
   assert.equal(parseCaptureIntentFromQuery('unknown: value'), null)
 })
 

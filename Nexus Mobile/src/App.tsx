@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useTheme, GLOBAL_FONTS } from './store/themeStore'
+import { useReminderApplication } from './lib/mobileReminderService'
 import { Sidebar, View } from './components/Sidebar'
 import { TitleBar } from './components/TitleBar'
 import { BootSequenceScreen } from './components/BootSequenceScreen'
@@ -109,6 +110,7 @@ const describePublicBootstrapResource = (resource: string) => {
 }
 
 export default function App() {
+  const reminderOverlay = useReminderApplication()
   const [view, setView] = useState<View>('dashboard')
   const [availableViews, setAvailableViews] = useState<View[]>(
     withDevDiagnosticsView(MOBILE_SAFE_STARTUP_VIEWS),
@@ -1200,6 +1202,7 @@ export default function App() {
           ? (isTinyMobile ? 'var(--nx-font-size, 12px)' : 'var(--nx-font-size, 13px)')
           : (isTinyMobile ? 'var(--nx-font-size, 13px)' : 'var(--nx-font-size, 14px)')}
       >
+        {reminderOverlay}
         <div
           className='nx-mobile-frame'
           style={{
@@ -1393,6 +1396,7 @@ export default function App() {
         accent2Rgb={hexToRgb(t.accent2)}
         fontSize='var(--nx-font-size, 14px)'
       >
+      {reminderOverlay}
       <TitleBar
         showDiagnosticsButton={Boolean((import.meta as any).env?.DEV)}
         onOpenDiagnostics={() => { void requestViewChange('diagnostics') }}

@@ -5,6 +5,7 @@ import { SurfaceHighlight } from "../../components/render/SurfaceHighlight";
 import { useTheme } from "../../store/themeStore";
 import { hexToRgb } from "../../lib/utils";
 import { useInteractiveSurfaceMotion } from "../../render/useInteractiveSurfaceMotion";
+import { useActiveViewCommandScope } from '../../app/ViewCommandScope';
 
 export type DashboardActionButtonProps =
   React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -29,6 +30,7 @@ export function DashboardActionButton({
   ...rest
 }: DashboardActionButtonProps) {
   const t = useTheme();
+  const active = useActiveViewCommandScope();
   const isLiquidGlass =
     false;
   const accent = liquidColor || t.accent;
@@ -47,6 +49,7 @@ export function DashboardActionButton({
     budgetPriority: "normal",
     areaHint: liquidSize === "lg" ? 108 : liquidSize === "md" ? 86 : 72,
     family: "micro",
+    visibilityState: active ? 'visible' : 'hidden',
   });
 
   const interactionEvents = {

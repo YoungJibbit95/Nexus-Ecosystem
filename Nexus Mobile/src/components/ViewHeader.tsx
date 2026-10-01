@@ -26,13 +26,13 @@ export function ViewHeader({
 
   return (
     <Glass style={{ padding: `${paddingY}px ${paddingX}px`, marginBottom: isCompact ? (isTight ? 3 : (isTiny ? 4 : 5)) : 10, borderRadius: Math.max(isTiny ? 9 : 11, t.visual.panelRadius + 2), overflow: 'hidden' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: isCompact ? (isTiny ? 6 : 8) : 10, flexWrap: isCompact ? 'nowrap' : 'wrap' }}>
-        <div style={{ minWidth: 0 }}>
+      <div className="nx-mobile-view-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: isCompact ? (isTiny ? 6 : 8) : 10, flexWrap: isCompact ? 'nowrap' : 'wrap' }}>
+        <div className="nx-mobile-view-header-copy" style={{ minWidth: 0 }}>
           <div style={{ fontSize: isCompact ? (isTight ? (isTiny ? 10.5 : 11.5) : (isTiny ? 11 : 12)) : 16, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.15, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{title}</div>
           {subtitle && <div style={{ fontSize: isTight ? (isTiny ? 8.5 : 9.5) : (isTiny ? 9 : 10), opacity: 0.58, marginTop: 1, lineHeight: 1.2, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{subtitle}</div>}
         </div>
         {right && (
-          <div className={isCompact ? 'nx-mobile-row-scroll' : undefined} style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: isCompact ? '56%' : undefined, justifyContent: 'flex-end' }}>
+          <div className={isCompact ? 'nx-mobile-view-header-actions nx-mobile-row-scroll' : 'nx-mobile-view-header-actions'} style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: isCompact ? '56%' : undefined, justifyContent: 'flex-end' }}>
             {right}
           </div>
         )}

@@ -1,5 +1,3 @@
-import { useEffect, useRef } from "react";
-import { useApp } from "../../store/appStore";
 import {
   REMINDER_TEMPLATES as CORE_REMINDER_TEMPLATES,
   REMINDER_SNOOZE_PRESETS,
@@ -104,52 +102,4 @@ export function playNotifSound(freq = 880) {
     play(freq, 0, 0.4);
     play(freq * 1.25, 0.25, 0.35);
   } catch {}
-}
-
-export function useChecker(
-  setToasts: React.Dispatch<React.SetStateAction<Toast[]>>,
-) {
-  const { reminders, doneRem, snoozeRem } = useApp();
-  const fired = useRef(new Set<string>());
-
-  useEffect(() => {
-    const check = () => {
-      const now = new Date();
-      reminders
-        .filter((reminder) => !reminder.done)
-        .forEach((reminder) => {
-          const dueDate = new Date(reminder.snoozeUntil || reminder.datetime);
-          if (dueDate <= now && !fired.current.has(reminder.id)) {
-            const quietHours = readQuietHours();
-            if (isNowWithinQuietHours(now, quietHours)) {
-              return;
-            }
-            fired.current.add(reminder.id);
-            playNotifSound();
-            setToasts((toasts) => [
-              ...toasts,
-              { id: reminder.id, title: reminder.title, msg: reminder.msg },
-            ]);
-            try {
-              (window as any).api?.notify(reminder.title, reminder.msg);
-            } catch {}
-          }
-        });
-    };
-    check();
-    const id = setInterval(check, 15_000);
-    return () => clearInterval(id);
-  }, [reminders, setToasts]);
-
-  const dismiss = (id: string) => {
-    doneRem(id);
-    fired.current.delete(id);
-    setToasts((toasts) => toasts.filter((toast) => toast.id !== id));
-  };
-  const snooze = (id: string, minutes: number) => {
-    snoozeRem(id, minutes);
-    fired.current.delete(id);
-    setToasts((toasts) => toasts.filter((toast) => toast.id !== id));
-  };
-  return { dismiss, snooze };
 }

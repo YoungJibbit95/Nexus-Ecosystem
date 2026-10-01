@@ -51,6 +51,8 @@ import {
     WIDGET_TYPES,
 } from './canvas/mobileCanvasConfig'
 import { useCanvasWheelGestures } from './canvas/useCanvasWheelGestures'
+import { useEntityNavigationTarget } from '@nexus/core/planning/entityNavigation'
+import { planningStore } from '../store/planningStore'
 
 const CANVAS_UI_PREFS_KEY = 'nexus-mobile-canvas-ui-v2'
 
@@ -536,6 +538,14 @@ export function CanvasView() {
         setPan(nextPanX, nextPanY)
         if (options?.recordTrail !== false) commitFocusTrail(nodeId)
     }, [canvasSize.h, canvasSize.w, commitFocusTrail, setPan, viewport.zoom])
+    const [promotionMessage, setPromotionMessage] = useState('')
+    useEntityNavigationTarget('mobile', 'canvas-node', useCallback(ref => {
+        if (ref.kind !== 'canvas-node') return false
+        const state = useCanvas.getState(), target = state.canvases.find(item => item.id === ref.canvasId)
+        if (!target?.nodes.some(node => node.id === ref.id)) { setPromotionMessage('Verknüpfter Canvas-Knoten fehlt. Referenz bleibt zur Reparatur erhalten.'); return true }
+        if (state.activeCanvasId !== ref.canvasId || canvas?.id !== ref.canvasId) { state.setActiveCanvas(ref.canvasId); return false }
+        jumpToNode(ref.id); return true
+    }, [canvas?.id, jumpToNode]))
 
     const navigateFocusTrail = useCallback((direction: -1 | 1) => {
         setFocusTrailIndex((currentIndex) => {
@@ -1650,6 +1660,10 @@ export function CanvasView() {
                             {selectedNode && (
                                 <div style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: 10, marginBottom: 10, background: 'rgba(255,255,255,0.04)' }}>
                                     <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 8 }}>Selected: {selectedNode.title}</div>
+                                    <button type="button" onClick={() => {
+                                        void planningStore.promoteEntity({ kind: 'canvas-node', canvasId: canvas.id, id: selectedNode.id }).then(result => setPromotionMessage(result.ok === true ? `Aufgabe dauerhaft bestätigt: ${result.ids.join(', ')}.` : result.message)).catch(error => setPromotionMessage(String(error)))
+                                    }}>Als Aufgabe dauerhaft übernehmen</button>
+                                    {promotionMessage && <p role="status">{promotionMessage}</p>}
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                                         <select value={selectedNode.pm?.status || 'idea'} onChange={e => useCanvas.getState().updateNode(selectedNode.id, { pm: { ...(selectedNode.pm || {}), status: e.target.value as ProjectStatus } })} style={{ fontSize: 11, padding: '6px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', color: 'inherit' }}>
                                             {PM_STATUS_ORDER.map(st => <option key={st} value={st}>{st}</option>)}
