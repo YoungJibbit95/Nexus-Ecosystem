@@ -1,6 +1,0 @@
-{
-  "command": "git diff --cached --check",
-  "exitCode": 0,
-  "scope": "Wave 0 evidence/native harness",
-  "note": "Lint log trailing blank line normalized for repository whitespace rules; output content preserved"
-}

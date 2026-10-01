@@ -1,5 +1,0 @@
-
-> nexus-code@1.0.0 test:security
-> node ./scripts/security-attack-regression.mjs
-
-[security-attack-regression] navigation attacks and disk-backed Nexus token persistence rejected
