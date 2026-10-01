@@ -10,7 +10,7 @@ app.whenReady().then(async () => {
   const window = new BrowserWindow({ show: false, width: 1440, height: 1100, webPreferences: { partition: 'persist:planning-smoke', contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } })
   const stages = []
   try {
-    for (const stage of ['forms', 'calendar-entry', 'agenda-clarity', 'agenda-accessibility', 'reload', 'fault', 'reload', 'inject-unsupported', 'unsupported']) {
+    for (const stage of process.env.NEXUS_PLANNING_STAGES?.split(',') || ['forms', 'calendar-entry', 'agenda-clarity', 'agenda-accessibility', 'reload', 'fault', 'reload', 'inject-unsupported', 'unsupported']) {
       if (stage === 'agenda-accessibility') window.setContentSize(390, 844)
       await window.loadURL(`${process.env.NEXUS_PLANNING_URL}?stage=${stage}`)
       window.webContents.focus()

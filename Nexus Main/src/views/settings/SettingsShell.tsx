@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   safeJsonParse,
   safeStorageRemove,
-  safeStorageSet,
   type SettingsResetScope,
 } from "@nexus/core/settings";
 import { AnimatePresence, motion } from "framer-motion";
@@ -34,6 +33,7 @@ import {
   resetThemeSettingsSection,
 } from "./settingsBridge";
 import "./SettingsPolish.css";
+import { saveTheme } from "./savedThemes";
 type ThemeTransferFeedback = {
   kind: "success" | "partial" | "error";
   title: string;
@@ -297,22 +297,18 @@ export function SettingsShell({
   };
   const commitSaveThemeSlot = () => {
     const name = presetNameDraft.trim();
-    if (!name) return;
-    const safeName = name.toLowerCase().replace(/[^a-z0-9-_\s]/g, "").trim();
-    if (!safeName) {
-      toast("Ungültiger Preset-Name");
+    if (!name) {
+      toast("Bitte gib einen Theme-Namen ein");
       return;
     }
-    const key = `nx-theme-${safeName}`;
-    const payload = JSON.stringify(buildThemeTransferPayload(t));
-    const stored = safeStorageSet(key, payload);
+    const stored = saveTheme(name, t);
     if (!stored) {
-      toast("Preset konnte nicht gespeichert werden");
+      toast("Theme konnte nicht gespeichert werden");
       return;
     }
     setPresetEditorOpen(false);
     setPresetNameDraft("");
-    toast(`Preset gespeichert: ${safeName}`);
+    toast(`Theme gespeichert: ${name}`);
   };
 
   const openSaveThemeSlot = () => {
@@ -646,7 +642,7 @@ export function SettingsShell({
               cursor: "pointer",
             }}
           >
-            <Save size={12} /> Preset speichern
+            <Save size={12} /> Theme speichern
           </button>
           <button
             onClick={exportTheme}
@@ -770,9 +766,10 @@ export function SettingsShell({
               }}
             >
               <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.8 }}>
-                Preset Name
+                Theme-Name
               </div>
               <input
+                aria-label="Theme-Name"
                 value={presetNameDraft}
                 onChange={(event) => setPresetNameDraft(event.target.value)}
                 placeholder="z. B. focus-laptop"
