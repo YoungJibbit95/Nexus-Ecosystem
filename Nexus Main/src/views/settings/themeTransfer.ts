@@ -659,11 +659,11 @@ export function applyThemeTransferPayload(
 
   if (payload.mode) theme.setMode(payload.mode);
   if (payload.accent || payload.accent2 || payload.bg) {
-    theme.setColors({
-      accent: payload.accent,
-      accent2: payload.accent2,
-      bg: payload.bg,
-    });
+    const colors: Partial<Pick<Theme, "accent" | "accent2" | "bg">> = {};
+    for (const key of ["accent", "accent2", "bg"] as const) {
+      if (payload[key]) colors[key] = payload[key];
+    }
+    theme.setColors(colors);
   }
   if (payload.globalFont) theme.setGlobalFont(payload.globalFont);
   if (payload.blur && Object.keys(payload.blur).length > 0) {
