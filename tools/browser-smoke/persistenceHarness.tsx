@@ -55,6 +55,39 @@ function EditorFixture() {
 
 async function run() {
   const stage = new URLSearchParams(location.search).get('stage') ?? 'write'
+  if (stage === 'legacy-segments') {
+    const name = 'legacy-app'
+    const state = { notes: [{ id: 'welcome-v6-release', content: 'Retained legacy note' }], activeNoteId: 'welcome-v6-release', activeCodeId: 'true', activeCanvasId: 'canvas-welcome', selection: null }
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('nexus-legacy-segments-smoke', 1)
+      request.onupgradeneeded = () => request.result.createObjectStore('persist')
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result)
+    })
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction('persist', 'readwrite')
+        tx.oncomplete = () => resolve()
+        tx.onerror = tx.onabort = () => reject(tx.error)
+        tx.objectStore('persist').put({ version: 0 }, `${name}::__meta`)
+        for (const [key, item] of Object.entries(state)) tx.objectStore('persist').put(item, `${name}::${key}`)
+      })
+      const legacy = createIndexedDbStorage<typeof state>({ dbName: db.name, segmentStateKeys: Object.keys(state) })
+      try {
+        const saved = await legacy.getItem(name)
+        assert(JSON.stringify(saved) === JSON.stringify({ state, version: 0 }), 'real IndexedDB legacy segments retain raw IDs, JSON-looking strings and null selections')
+        legacy.setItem(name, saved!)
+        assert(await legacy.flush(), 'legacy data can be saved in the current snapshot format')
+        assert(JSON.stringify(await legacy.getItem(name)) === JSON.stringify(saved), 'current snapshots retain the restored legacy data')
+        const request = db.transaction('persist', 'readonly').objectStore('persist').get(`${name}::activeNoteId`)
+        await new Promise<void>((resolve, reject) => {
+          request.onerror = () => reject(request.error)
+          request.onsuccess = () => { assert(request.result === state.activeNoteId, 'legacy records remain available after saving a snapshot'); resolve() }
+        })
+      } finally { legacy.dispose() }
+    } finally { db.close() }
+    return
+  }
   if (stage.startsWith('handoff-') || stage === 'empty-reload') {
     await (await import('./workspaceHandoffHarness')).runHandoffStage(stage, assert)
     return
