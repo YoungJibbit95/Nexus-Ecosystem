@@ -19,6 +19,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { Glass } from "../components/Glass";
 import { useApp, type Reminder, type Task } from "../store/appStore";
 import { useTheme } from "../store/themeStore";
+import { isViewCommandScopeActive, useActiveViewCommandScope } from "../app/ViewCommandScope";
 import { hexToRgb } from "../lib/utils";
 import { mapIcsImport, type IcsImportMode } from "./calendar/icsImport";
 import { MainPlanningSurface } from "./planning/MainPlanningSurface";
@@ -106,7 +107,7 @@ const TYPE_LABEL: Record<CalendarItemType, string> = {
 };
 
 const VIEW_LABEL: Record<CalendarDisplayMode, string> = {
-  agenda: "Agenda / Planen",
+  agenda: "Agenda",
   day: "Tag",
   week: "Woche",
   month: "Monat",
@@ -829,6 +830,36 @@ export function CalendarView({
     useState<CalendarPriorityFilter>("all");
   const [density, setDensity] = useState<CalendarDensity>("comfortable");
   const [calendarMode, setCalendarMode] = useState<CalendarDisplayMode>("agenda");
+  const activeCommandScope = useActiveViewCommandScope();
+  const agendaDialogRef = useRef<HTMLDivElement>(null);
+  const agendaLauncherRef = useRef<HTMLButtonElement>(null);
+  const agendaReturnMode = useRef<CalendarDisplayMode>('day');
+  const closeAgenda = useCallback(() => {
+    setCalendarMode(agendaReturnMode.current);
+    requestAnimationFrame(() => agendaLauncherRef.current?.focus());
+  }, []);
+  useEffect(() => {
+    if (calendarMode !== 'agenda') { agendaReturnMode.current = calendarMode; return; }
+    if (!activeCommandScope) return;
+    const dialog = agendaDialogRef.current;
+    if (!dialog) return;
+    const candidates = () => [...dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), summary, [href], [tabindex]:not([tabindex="-1"])')].filter(element => element.checkVisibility() && element.getClientRects().length > 0);
+    const focusFirst = () => (candidates()[0] || dialog).focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!isViewCommandScopeActive(activeCommandScope) || event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeAgenda(); return; }
+      if (event.key !== 'Tab') return;
+      const controls = candidates(), first = controls[0], last = controls[controls.length - 1];
+      if (!first) { event.preventDefault(); dialog.focus(); }
+      else if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    const onFocus = (event: FocusEvent) => { if (isViewCommandScopeActive(activeCommandScope) && !dialog.contains(event.target as Node)) focusFirst(); };
+    dialog.focus();
+    dialog.addEventListener('keydown', onKeyDown);
+    document.addEventListener('focusin', onFocus);
+    return () => { dialog.removeEventListener('keydown', onKeyDown); document.removeEventListener('focusin', onFocus); };
+  }, [calendarMode, activeCommandScope, closeAgenda]);
   const planningRequest = usePlanningNavigation('main');
   useEffect(() => { if (planningRequest) setCalendarMode('agenda'); }, [planningRequest]);
   const [composerType, setComposerType] = useState<CalendarItemType>("task");
@@ -1056,7 +1087,7 @@ export function CalendarView({
     onImportClick?.();
     requestAnimationFrame(() => {
       const panel = document.querySelector<HTMLDetailsElement>('.nx-planning-ics');
-      if (panel) { panel.open = true; panel.scrollIntoView({ block: 'nearest' }); panel.querySelector<HTMLTextAreaElement>('textarea')?.focus(); }
+      if (panel) { const advanced = panel.closest<HTMLDetailsElement>('.nx-planning-advanced'); if (advanced) advanced.open = true; panel.open = true; panel.scrollIntoView({ block: 'nearest' }); panel.querySelector<HTMLTextAreaElement>('textarea')?.focus(); }
     });
   }, [onImportClick]);
 
@@ -1387,8 +1418,7 @@ export function CalendarView({
     );
   };
 
-  return (
-    <DndProvider backend={HTML5Backend}>
+  const calendarContent = (
       <div
         className={`nx-calendar-view nx-release-view nx-calendar-density-${density} nx-calendar-mode-${calendarMode}`}
         style={
@@ -1440,9 +1470,11 @@ export function CalendarView({
                 {(["agenda", "day", "week", "month"] as const).map((mode) => (
                   <button
                     key={mode}
+                    ref={mode === 'agenda' ? agendaLauncherRef : undefined}
                     type="button"
                     className={calendarMode === mode ? "is-active" : ""}
                     onClick={() => setCalendarMode(mode)}
+                    aria-pressed={calendarMode === mode}
                   >
                     {VIEW_LABEL[mode]}
                   </button>
@@ -1456,8 +1488,8 @@ export function CalendarView({
                 role="group"
                 aria-label="Planung"
               >
-                <span className="nx-calendar-group-label">Planen</span>
-                <button
+                <span className="nx-calendar-group-label">{calendarMode === 'agenda' ? 'Kalender' : 'Planen'}</span>
+                {calendarMode !== 'agenda' && <button
                   type="button"
                   className={`nx-calendar-dayplan-button ${dayPlannerOpen ? "is-active" : ""}`}
                   onClick={openDayPlanner}
@@ -1467,7 +1499,7 @@ export function CalendarView({
                   <Maximize2 size={14} />
                   Tagesplan
                   <strong>{selectedItems.length}</strong>
-                </button>
+                </button>}
                 <button
                   type="button"
                   className={`nx-calendar-import-button ${importOpen ? "is-active" : ""}`}
@@ -1561,6 +1593,8 @@ export function CalendarView({
             </div>
           </div>
 
+          <details className="nx-calendar-quick-entry" open={calendarMode !== 'agenda'}>
+          <summary>Schnelleintrag für Aufgabe oder Erinnerung</summary>
           <form
             className="nx-calendar-composer nx-calendar-quick-composer"
             onSubmit={submitComposer}
@@ -1664,6 +1698,7 @@ export function CalendarView({
               </button>
             </div>
           </form>
+          </details>
         </div>
 
         {importOpen && (
@@ -1737,7 +1772,7 @@ export function CalendarView({
           </div>
         )}
 
-        <div className="nx-calendar-stats nx-release-strip">
+        {calendarMode !== 'agenda' && <div className="nx-calendar-stats nx-release-strip">
           <span>
             <ListFilter size={12} />
             <strong>{filteredItems.length}</strong> sichtbar
@@ -1760,10 +1795,10 @@ export function CalendarView({
               <strong>{filteredHiddenCount}</strong> ausgeblendet
             </span>
           )}
-        </div>
+        </div>}
 
         <div className={`nx-calendar-shell nx-calendar-shell-${calendarMode}`}>
-          {calendarMode === "agenda" ? <div className="custom-scrollbar" style={{ overflowY: 'auto', width: '100%', padding: 8 }}><MainPlanningSurface setView={setView} selectedDay={selectedDateKey} onDayChange={setSelectedDateKey} /></div> : calendarMode === "month" ? (
+          {calendarMode === "agenda" ? <div className="nx-calendar-agenda-surface custom-scrollbar"><DropAgenda dateKey={selectedDateKey} onDropItem={handleDropItem}><MainPlanningSurface setView={setView} selectedDay={selectedDateKey} onDayChange={setSelectedDateKey} /></DropAgenda></div> : calendarMode === "month" ? (
             <Glass className="nx-calendar-month-panel">
               <div className="nx-calendar-panel-head nx-calendar-month-head">
                 <div>
@@ -1848,8 +1883,17 @@ export function CalendarView({
           </div>
         )}
       </div>
-    </DndProvider>
   );
+  return <DndProvider backend={HTML5Backend}>
+    {calendarMode === 'agenda' ? <div className="nx-calendar-agenda-overlay" style={{ '--nx-calendar-accent': theme.accent, '--nx-calendar-accent-rgb': rgb } as React.CSSProperties} onMouseDown={event => { if (event.target === event.currentTarget) closeAgenda(); }}>
+      <div ref={agendaDialogRef} className="nx-calendar-agenda-dialog" role="dialog" aria-modal="true" aria-labelledby="nx-calendar-agenda-title" tabIndex={-1}>
+        <Glass type="modal" glow disablePulse performanceProfile="balanced" className="nx-calendar-agenda-sheet">
+          <header className="nx-calendar-agenda-popup-head"><span className="nx-calendar-agenda-popup-icon"><Calendar size={20} /></span><div><h2 id="nx-calendar-agenda-title">Agenda</h2><p>Dein Tag im Überblick</p></div><button type="button" onClick={closeAgenda} aria-label="Agenda schließen"><X size={20} /></button></header>
+          {calendarContent}
+        </Glass>
+      </div>
+    </div> : calendarContent}
+  </DndProvider>;
 }
 
 export default CalendarView;

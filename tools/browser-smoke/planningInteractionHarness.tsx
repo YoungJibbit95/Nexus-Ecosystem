@@ -19,6 +19,7 @@ import { persistenceRegistry } from '../../packages/nexus-core/src/storage/brows
 import { useCanvas as mainCanvas } from '../../Nexus Main/src/store/canvasStore'
 import { useCanvas as mobileCanvas } from '../../Nexus Mobile/src/store/canvasStore'
 import { requestEntityNavigation } from '../../packages/nexus-core/src/planning/entityNavigation'
+import { requestPlanningNavigation } from '../../packages/nexus-core/src/planning/planningNavigation'
 
 const stage = new URLSearchParams(location.search).get('stage') || 'forms'
 const checks: string[] = []
@@ -32,7 +33,12 @@ const render = () => flushSync(() => root.render(client === 'main'
   ? <MainViewHost view={view as any} mountedViews={['tasks', 'calendar', 'dashboard', 'flux', 'notes', 'canvas']} availableViews={['tasks', 'calendar', 'dashboard', 'flux', 'notes', 'canvas']} reducedMotion onRequestViewChange={next => { view = String(next); render() }} onPrefetchView={() => {}} onOpenWalkthrough={() => {}} />
   : <MobileViewHost view={view as any} mountedViews={['calendar', 'dashboard', 'flux', 'notes', 'canvas']} availableViews={['calendar', 'dashboard', 'flux', 'notes', 'canvas']} reducedMotion onRequestViewChange={next => { view = String(next); render() }} />))
 const active = () => client === 'main' ? document.querySelector(`.nx-v6-view-shell[data-view="${view}"][data-active="true"]`)! : [...document.querySelectorAll('.nx-mobile-view-layer')].find(element => (element as HTMLElement).style.display !== 'none')!
-const field = (label: string) => active().querySelector<HTMLInputElement | HTMLSelectElement>(`[aria-label="${label}"]`)!
+const reveal = (element: Element) => {
+  const parents: HTMLDetailsElement[] = []
+  for (let parent = element.parentElement; parent; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement && !parent.open) parents.unshift(parent)
+  parents.forEach(parent => flushSync(() => parent.querySelector<HTMLElement>(':scope > summary')!.click()))
+}
+const field = (label: string) => { const input = active().querySelector<HTMLInputElement | HTMLSelectElement>(`[aria-label="${label}"]`)!; reveal(input); return input }
 const change = (element: HTMLInputElement | HTMLSelectElement, value: string) => {
   const prototype = element instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype
   const actualPrototype = element instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : prototype
@@ -42,6 +48,7 @@ const change = (element: HTMLInputElement | HTMLSelectElement, value: string) =>
 const click = (text: string, area: Element = active()) => {
   const button = [...area.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent?.trim() === text)!
   assert(Boolean(button), `Actual ${client} control exists: ${text}`)
+  reveal(button)
   flushSync(() => button.click())
 }
 const submit = () => flushSync(() => active().querySelector<HTMLFormElement>('form[aria-label="Manuelle Planungsaktion"]')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
@@ -52,6 +59,90 @@ async function switchView(next: string) { view = next; render(); await wait(() =
 async function run() {
   await Promise.all([mainApp.persist.rehydrate(), mobileApp.persist.rehydrate(), mainCanvas.persist.rehydrate(), mobileCanvas.persist.rehydrate()])
   const day = zonedDate(new Date().toISOString(), 'Europe/Berlin'), tomorrow = nextCivilDay(day)
+  if (stage === 'agenda-clarity') {
+    await mainCommands.ready(); await switchView('calendar')
+    const dialog = active().querySelector<HTMLElement>('.nx-calendar-agenda-dialog')!
+    assert(dialog?.getAttribute('role') === 'dialog' && dialog.getAttribute('aria-modal') === 'true' && Boolean(dialog.querySelector('.nx-calendar-agenda-sheet[data-nx-surface-id]')), 'Entire Agenda uses the existing Nexus Glass modal surface with semantic dialog controls')
+    let panel = active().querySelector<HTMLElement>('.nx-planning-panel--day-first')!
+    let manual = panel.querySelector<HTMLDetailsElement>('.nx-planning-manual')!
+    let advanced = panel.querySelector<HTMLDetailsElement>('.nx-planning-advanced')!
+    assert(Boolean(panel) && !manual.open && !advanced.open, 'Main Agenda starts day-first with manual planning and advanced tools closed')
+    assert(panel.querySelector('h2')?.textContent === 'Agenda' && panel.querySelector('.nx-agenda-date')?.textContent?.includes(panel.querySelector<HTMLInputElement>('[aria-label="Agenda-Tag"]')!.value.slice(0, 4)), 'Agenda names the selected day before planning controls')
+    assert(!active().querySelector('.nx-calendar-stats') && !active().querySelector('.nx-calendar-dayplan-button'), 'Agenda has no competing global stats or day-planner action')
+    assert(!active().querySelector<HTMLDetailsElement>('.nx-calendar-quick-entry')?.open, 'Agenda quick entry is preserved behind a secondary disclosure')
+    let summary = manual.querySelector<HTMLElement>('summary')!; summary.focus({ preventScroll: true })
+    ;(window as any).planningAgendaDisclosureReady = true
+    await new Promise(resolve => { (window as any).resumePlanningAgendaDisclosure = resolve })
+    assert(manual.open, 'Native Enter opens the semantic manual-planning disclosure')
+    flushSync(() => summary.click()); await wait(() => !manual.open, 'manual editor closes again')
+    const originalDay = field('Agenda-Tag').value
+    flushSync(() => active().querySelector<HTMLButtonElement>('[aria-label="Naechster Tag"]')!.click()); await pause()
+    assert(field('Agenda-Tag').value !== originalDay, 'Calendar period navigation updates the selected Agenda day')
+    flushSync(() => active().querySelector<HTMLButtonElement>('[aria-label="Vorheriger Tag"]')!.click()); await pause()
+    assert(field('Agenda-Tag').value === originalDay, 'Calendar navigation returns to the original Agenda day')
+    for (const mode of ['Tag', 'Woche', 'Monat']) {
+      click(mode, active().querySelector('[aria-label="Kalenderansicht"]')!); await pause()
+      assert(Boolean(active().querySelector(mode === 'Monat' ? '.nx-calendar-month-panel' : '.nx-calendar-timeline-panel')), `Existing ${mode} view still renders`)
+      assert(Boolean(active().querySelector('.nx-calendar-stats')), `Existing ${mode} retains generic calendar stats`)
+    }
+    click('Tag', active().querySelector('[aria-label="Kalenderansicht"]')!); await pause()
+    const dragTask = { ...mainApp.getState().tasks[0], id: 'agenda-clarity-drag', title: 'Agenda drag fixture', status: 'todo' as const, deadline: `${originalDay}T09:00:00`, durationMinutes: 30 }
+    flushSync(() => mainApp.setState(state => ({ tasks: [...state.tasks, dragTask] })))
+    await wait(() => [...active().querySelectorAll('.nx-calendar-card-task')].some(card => card.textContent?.includes(dragTask.title)), 'actual draggable Task card')
+    const source = [...active().querySelectorAll<HTMLElement>('.nx-calendar-card-task')].find(card => card.textContent?.includes(dragTask.title))!
+    const target = active().querySelector<HTMLElement>('.nx-calendar-hour-slot[aria-label^="10:00,"]')!
+    assert(source.draggable && Boolean(target), 'Actual Calendar registers the Task drag source and timed drop target')
+    const transfer = new DataTransfer()
+    const drag = (element: HTMLElement, type: string) => { const bounds = element.getBoundingClientRect(); flushSync(() => element.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: transfer, clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height / 2 }))) }
+    source.scrollIntoView({ block: 'center' }); drag(source, 'dragstart'); await pause()
+    target.scrollIntoView({ block: 'center' }); drag(target, 'dragenter'); drag(target, 'dragover'); await pause(); drag(target, 'drop'); drag(source, 'dragend')
+    await wait(() => active().querySelector('.nx-planning-panel--day-first')?.querySelector<HTMLDetailsElement>('.nx-planning-manual')?.open, 'actual HTML5 Task drop opens Agenda editor')
+    assert(field('Aufgabe für Arbeitsblock').value === dragTask.id && field('Planungsbeginn').value === `${originalDay}T10:00`, 'Actual HTML5 Task drag routes to Agenda with exact Task and target time')
+    assert(mainApp.getState().tasks.find(task => task.id === dragTask.id)?.deadline === dragTask.deadline, 'Task drag opens scheduling without changing its deadline')
+    // Returning from other Calendar modes mounts a new planning panel.
+    panel = active().querySelector<HTMLElement>('.nx-planning-panel--day-first')!
+    manual = panel.querySelector<HTMLDetailsElement>('.nx-planning-manual')!
+    advanced = panel.querySelector<HTMLDetailsElement>('.nx-planning-advanced')!
+    summary = manual.querySelector<HTMLElement>('summary')!
+    flushSync(() => summary.click()); await wait(() => !manual.open, 'close drag editor before quick entry')
+    const entry = active().querySelector<HTMLDetailsElement>('.nx-calendar-quick-entry')!
+    flushSync(() => entry.querySelector<HTMLElement>('summary')!.click())
+    change(field('Aufgabe Titel'), 'Agenda clarity quick task'); change(field('Zeit'), '10:30')
+    const quickForm = active().querySelector<HTMLFormElement>('form[aria-label="Schnelleintrag"]')!
+    flushSync(() => quickForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+    await wait(() => mainApp.getState().tasks.some(task => task.title === 'Agenda clarity quick task'), 'quick task acknowledgement')
+    const quickTask = mainApp.getState().tasks.find(task => task.title === 'Agenda clarity quick task')!
+    await wait(() => manual.open && field('Aufgabe für Arbeitsblock').value === quickTask.id, 'quick-created Task opens exact scheduling editor')
+    assert(field('Planungsbeginn').value === `${originalDay}T10:30` && quickTask.deadline === undefined, 'Quick entry opens scheduling with requested start, without inventing a deadline')
+    assert(field('Arbeitsdauer in Minuten').value === '' && panel.textContent?.includes('Dauer nicht festgelegt'), 'Unknown task duration stays visibly unknown and is never estimated')
+    flushSync(() => summary.click()); await wait(() => !manual.open, 'explicitly close quick-task editor')
+    const row = [...panel.querySelectorAll('.nx-agenda-unscheduled .nx-agenda-row')].find(row => row.textContent?.includes(quickTask.title))!
+    click('Planen', row); await wait(() => manual.open, 'task row opens editor')
+    assert(field('Aufgabe für Arbeitsblock').value === quickTask.id, 'Unscheduled-task Plan action opens its exact task')
+    flushSync(() => summary.click()); await wait(() => !manual.open, 'close editor before external intent')
+    requestPlanningNavigation('main', { mode: 'schedule', taskId: quickTask.id, localStart: `${tomorrow}T11:00` })
+    await wait(() => manual.open && field('Planungsbeginn').value === `${tomorrow}T11:00`, 'external scheduling navigation')
+    assert(field('Aufgabe für Arbeitsblock').value === quickTask.id, 'External planning intent reopens the correct editor and requested start')
+    const checkbox = [...manual.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find(input => input.parentElement?.textContent?.includes('Konflikte'))!
+    assert(!checkbox.checked && checkbox.getBoundingClientRect().height > 0, 'Conflict acknowledgement remains visible, explicit and unchecked')
+    change(field('Planungszeitzone'), 'Europe/Berlin'); advanced.open = false
+    change(field('Planungsbeginn'), '2026-10-25T02:30')
+    assert(field('Beginn Uhrzeitvorkommen').getBoundingClientRect().height > 0, 'Ambiguous DST fold choice is surfaced in the open editor when required')
+    change(field('Planungsbeginn'), `${tomorrow}T11:00`)
+    click('Import'); await wait(() => advanced.open && panel.querySelector<HTMLDetailsElement>('.nx-planning-ics')?.open, 'Calendar Import opens advanced ICS tooling')
+    assert(panel.querySelector<HTMLTextAreaElement>('.nx-planning-ics textarea') === document.activeElement, 'Explicit Calendar Import focuses the preserved ICS input')
+    advanced.open = false
+    ;(window as any).verifyPlanningAgendaViewport = async () => {
+      manual.open = true; manual.scrollIntoView({ block: 'start' }); await pause()
+      const overflowing = [...active().querySelectorAll<HTMLElement>('input,select,button,summary')].filter(element => { const bounds = element.getBoundingClientRect(); return bounds.width > 0 && (bounds.left < -1 || bounds.right > innerWidth + 1) }).map(element => element.getAttribute('aria-label') || element.textContent?.trim())
+      const popup = active().querySelector<HTMLElement>('.nx-calendar-agenda-dialog')!, bounds = popup.getBoundingClientRect()
+      assert(overflowing.length === 0 && panel.scrollWidth <= panel.clientWidth + 1 && bounds.left >= 0 && bounds.right <= innerWidth + 1 && bounds.top >= 0 && bounds.bottom <= innerHeight + 1, `Actual Main Agenda popup and controls fit within the viewport without horizontal overflow: ${JSON.stringify({ width: innerWidth, height: innerHeight, bounds, overflowing, panelWidth: panel.clientWidth, panelScrollWidth: panel.scrollWidth })}`)
+      return { width: innerWidth, height: innerHeight, panelWidth: panel.clientWidth, panelScrollWidth: panel.scrollWidth, popupWidth: bounds.width, popupHeight: bounds.height, overflowing }
+    }
+    const expected = JSON.parse(localStorage.getItem('planning-smoke-expected')!)
+    localStorage.setItem('planning-smoke-expected', JSON.stringify({ ...expected, mainPlanning: JSON.stringify(mainPlanning.capturePlanning()) }))
+    return { ok: true, checks, evidence }
+  }
   if (stage === 'agenda-accessibility') {
     await mobileCommands.ready(); client = 'mobile'; await switchView('calendar')
     const panel = active().querySelector<HTMLElement>('.nx-planning-panel')!
@@ -114,6 +205,8 @@ async function run() {
     assert(JSON.stringify(mainApp.getState().tasks) === before, 'Actual form journal failure leaves every canonical Task unchanged')
     assert(workspaceOperation.getSnapshot().kind === 'recovery', 'Actual journal failure publishes application recovery freeze')
     assert(!active().textContent?.includes('Dauerhaft gespeichert'), 'Actual journal failure never displays acknowledged success')
+    const disclosure = active().querySelector<HTMLDetailsElement>('.nx-planning-manual')!; flushSync(() => disclosure.querySelector<HTMLElement>('summary')!.click()); await pause()
+    assert(!disclosure.open && [...active().querySelectorAll<HTMLElement>('[role="alert"]')].some(element => element.getBoundingClientRect().height > 0 && element.textContent?.includes(mainPlanning.getError()!)), 'Storage error remains visibly outside the collapsed manual editor')
     return { ok: true, checks, evidence }
   }
   if (stage === 'unsupported') {
