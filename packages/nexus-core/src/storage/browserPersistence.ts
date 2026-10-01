@@ -110,7 +110,7 @@ function createStorage<T>(options: PersistenceOptions, indexed?: ReturnType<type
       let values: Map<string, unknown>
       try { values = await indexed!.read(legacyKeys(name, segments)) }
       catch { localNames.add(name); return readLocalValue(name) }
-      if (values.size) return readLegacy<T>(name, segments, values)
+      if (values.size) return readLegacy<T>(name, segments, values, 'structured')
       return readLocalValue(name)
     } catch (error) { queue.fail(error, name); throw error }
   }

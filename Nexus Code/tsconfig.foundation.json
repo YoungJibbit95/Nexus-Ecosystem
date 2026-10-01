@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "lib": ["ES2022", "DOM"], "module": "ESNext",
+    "moduleResolution": "Bundler", "strict": true, "noEmit": true,
+    "allowImportingTsExtensions": true, "skipLibCheck": true, "types": []
+  },
+  "include": ["src/platform/**/*.ts", "src/workbench/commands/**/*.ts", "src/settings/**/*.ts"]
+}

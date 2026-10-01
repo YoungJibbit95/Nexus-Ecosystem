@@ -130,6 +130,7 @@ export default function SpotlightSearch({
   files = EMPTY_FILES,
   extensionCommands = EMPTY_EXTENSION_COMMANDS,
   workspacePath = "",
+  commandRegistry = /** @type {import('../../workbench/commands/commandRegistry.ts').CommandRegistry | undefined} */ (undefined),
 }) {
   const reduceMotion = useNexusReducedMotion();
   const [query, setQuery] = useState("");
@@ -147,8 +148,9 @@ export default function SpotlightSearch({
         files,
         query,
         extensionCommands,
+        commandRegistry,
       }),
-    [extensionCommands, files, query],
+    [extensionCommands, files, query, commandRegistry],
   );
   const normalizedQuery = normalizeSearchValue(query);
   const workspaceResults =
@@ -258,7 +260,7 @@ export default function SpotlightSearch({
   };
 
   const runResult = (selected) => {
-    if (!selected) return;
+    if (!selected || selected.enabled === false) return;
     if (selected.resultKind === "file" || selected.resultKind === "symbol") {
       onAction?.("open-file", selected.payload || selected.id);
     } else {
@@ -417,7 +419,8 @@ export default function SpotlightSearch({
                                   resultRefs.current[index] = node;
                                 }}
                                 type="button"
-                                title={detail || result.label || result.name}
+                                disabled={result.enabled === false}
+                                title={result.disabledReason || detail || result.label || result.name}
                                 data-result-kind={result.resultKind}
                                 data-action-id={result.actionId || result.id}
                                 onMouseDown={(event) => event.preventDefault()}

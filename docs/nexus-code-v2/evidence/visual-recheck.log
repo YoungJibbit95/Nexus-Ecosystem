@@ -1,0 +1,12 @@
+
+> nexus-code@1.0.0 smoke:visual
+> node ./scripts/ensure-electron.cjs && node ./scripts/run-electron-visual-smoke.mjs
+
+[ensure-electron] Electron 42.11.3 ready at F:\Coding\Nexus Workspace\Nexus-Code-v2-audit\Nexus Code\node_modules\electron\dist\electron.exe
+[electron-visual-smoke] serving test-only harness at http://127.0.0.1:53532; full preset; 1 scenarios; 1 viewport(s); 1 surface(s); 1 editor language surface(s); timeout 60000ms/scenario; process timeout 180000ms; output F:\Coding\Nexus Workspace\Nexus-Code-v2-audit\.test-artifacts\nexus-code\visual-smoke
+
+[electron-visual-smoke:renderer] level=info react-dom_client.js?v=fc4b03ab:14336 %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[electron-visual-smoke:renderer] level=debug client:859 [vite] connecting...
+[electron-visual-smoke:renderer] level=debug client:968 [vite] connected.
+[electron-visual-smoke] ok editor-scroll@desktop 1440x900 -> F:\Coding\Nexus Workspace\Nexus-Code-v2-audit\.test-artifacts\nexus-code\visual-smoke\editor-scroll-desktop.png (1440x900, 67 color buckets)
+[electron-visual-smoke] 1 scenarios captured across 1 viewports. Summary: F:\Coding\Nexus Workspace\Nexus-Code-v2-audit\.test-artifacts\nexus-code\visual-smoke\summary.json; F:\Coding\Nexus Workspace\Nexus-Code-v2-audit\.test-artifacts\nexus-code\visual-smoke\summary.md

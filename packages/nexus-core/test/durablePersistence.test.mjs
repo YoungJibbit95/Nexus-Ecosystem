@@ -15,6 +15,19 @@ test('legacy formats preserve version, unknown data and current tombstones', () 
   assert.throws(() => readLegacy('app', ['notes'], new Map([['app::notes', '{broken']])) )
 })
 
+test('legacy IndexedDB segments preserve raw IDs, JSON-looking strings and null selections', () => {
+  for (const activeNoteId of ['welcome-v6-release', 'true', 'null', '123', '"quoted"']) {
+    const state = { notes: value('retained').state.notes, activeNoteId, activeCodeId: null }
+    const entries = [['app::__meta', { version: 3 }], ...Object.entries(state).map(([key, item]) => [`app::${key}`, item])]
+    assert.deepEqual(readLegacy('app', Object.keys(state), new Map(entries), 'structured'), { state, version: 3 })
+    const serialized = entries.map(([key, item]) => [key, JSON.stringify(item)])
+    assert.deepEqual(readLegacy('app', Object.keys(state), new Map(serialized)), { state, version: 3 })
+  }
+  assert.deepEqual(readLegacy('canvas', ['canvases', 'activeCanvasId'], new Map([
+    ['canvas::canvases', []], ['canvas::activeCanvasId', 'canvas-welcome'],
+  ]), 'structured'), { state: { canvases: [], activeCanvasId: 'canvas-welcome' }, version: 0 })
+})
+
 test('failed commits retain pending bytes and never acknowledge before transaction success', async () => {
   let fail = true
   const durable = new Map()

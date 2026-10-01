@@ -19,6 +19,7 @@ import { persistenceRegistry } from '../../packages/nexus-core/src/storage/brows
 import { useCanvas as mainCanvas } from '../../Nexus Main/src/store/canvasStore'
 import { useCanvas as mobileCanvas } from '../../Nexus Mobile/src/store/canvasStore'
 import { requestEntityNavigation } from '../../packages/nexus-core/src/planning/entityNavigation'
+import { requestPlanningNavigation } from '../../packages/nexus-core/src/planning/planningNavigation'
 
 const stage = new URLSearchParams(location.search).get('stage') || 'forms'
 const checks: string[] = []
@@ -28,11 +29,26 @@ const pause = () => new Promise(resolve => setTimeout(resolve, 50))
 const wait = async (condition: () => unknown, description: string) => { for (let i = 0; i < 400; i++) { if (condition()) return; await pause() }; throw new Error(`Timed out: ${description}`) }
 const root = createRoot(document.getElementById('root')!)
 let client: 'main' | 'mobile' = 'main', view = 'tasks'
+let layoutFrame = false
 const render = () => flushSync(() => root.render(client === 'main'
-  ? <MainViewHost view={view as any} mountedViews={['tasks', 'calendar', 'dashboard', 'flux', 'notes', 'canvas']} availableViews={['tasks', 'calendar', 'dashboard', 'flux', 'notes', 'canvas']} reducedMotion onRequestViewChange={next => { view = String(next); render() }} onPrefetchView={() => {}} onOpenWalkthrough={() => {}} />
+  ? <div className={layoutFrame ? 'nx-app-shell' : undefined} data-nx-color-mode="dark" style={{ height: '100%' }}><div style={{ height: '100%', width: '100%', minWidth: 0, position: 'relative', zIndex: 1 }}><MainViewHost view={view as any} mountedViews={['tasks', 'calendar', 'dashboard', 'flux', 'notes', 'canvas']} availableViews={['tasks', 'calendar', 'dashboard', 'flux', 'notes', 'canvas']} reducedMotion onRequestViewChange={next => { view = String(next); render() }} onPrefetchView={() => {}} onOpenWalkthrough={() => {}} /></div></div>
   : <MobileViewHost view={view as any} mountedViews={['calendar', 'dashboard', 'flux', 'notes', 'canvas']} availableViews={['calendar', 'dashboard', 'flux', 'notes', 'canvas']} reducedMotion onRequestViewChange={next => { view = String(next); render() }} />))
 const active = () => client === 'main' ? document.querySelector(`.nx-v6-view-shell[data-view="${view}"][data-active="true"]`)! : [...document.querySelectorAll('.nx-mobile-view-layer')].find(element => (element as HTMLElement).style.display !== 'none')!
-const field = (label: string) => active().querySelector<HTMLInputElement | HTMLSelectElement>(`[aria-label="${label}"]`)!
+const reveal = (element: Element) => {
+  if (client === 'main') {
+    const layer = active().querySelector<HTMLElement>('.nx-agenda-editor-layer')
+    if (layer && !layer.contains(element) && !layer.hidden) flushSync(() => active().querySelector<HTMLButtonElement>('[aria-label="Planungseditor schließen"]')!.click())
+    if (layer?.contains(element) && layer.hidden) flushSync(() => active().querySelector<HTMLButtonElement>('[data-agenda-open-editor]')!.click())
+    for (const [name, label] of [['import', 'Import'], ['links', 'Verknüpfungen'], ['settings', 'Einstellungen'], ['quick', 'Schnelleintrag']] as const) {
+      const page = element.closest<HTMLElement>(`.nx-agenda-tool-${name}`)
+      if (page && !page.checkVisibility()) flushSync(() => [...active().querySelectorAll<HTMLButtonElement>('.nx-agenda-tools button')].find(button => button.textContent?.trim() === label)!.click())
+    }
+  }
+  const parents: HTMLDetailsElement[] = []
+  for (let parent = element.parentElement; parent; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement && !parent.open) parents.unshift(parent)
+  parents.forEach(parent => flushSync(() => parent.querySelector<HTMLElement>(':scope > summary')!.click()))
+}
+const field = (label: string) => { const input = active().querySelector<HTMLInputElement | HTMLSelectElement>(`[aria-label="${label}"]`)!; reveal(input); return input }
 const change = (element: HTMLInputElement | HTMLSelectElement, value: string) => {
   const prototype = element instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype
   const actualPrototype = element instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : prototype
@@ -40,18 +56,143 @@ const change = (element: HTMLInputElement | HTMLSelectElement, value: string) =>
   flushSync(() => { setter.call(element, value); element.dispatchEvent(new Event('input', { bubbles: true })); element.dispatchEvent(new Event('change', { bubbles: true })) })
 }
 const click = (text: string, area: Element = active()) => {
-  const button = [...area.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent?.trim() === text)!
+  const editorLabel = client === 'main' ? ({ 'Aufgabe erfassen': 'Neue Aufgabe', 'Feste Verpflichtung': 'Neuer Termin', 'Arbeitsblock': 'Zeit einplanen', 'Verfügbarkeit': 'Verfügbarkeit' } as Record<string, string>)[text] : undefined
+  const buttons = editorLabel ? active().querySelectorAll<HTMLButtonElement>('.nx-planning-editor nav button') : area.querySelectorAll<HTMLButtonElement>('button')
+  const button = [...buttons].find(button => button.textContent?.trim() === (editorLabel || text))!
   assert(Boolean(button), `Actual ${client} control exists: ${text}`)
+  reveal(button)
   flushSync(() => button.click())
 }
 const submit = () => flushSync(() => active().querySelector<HTMLFormElement>('form[aria-label="Manuelle Planungsaktion"]')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
-const ack = () => wait(() => !workspaceOperation.isActive() && [...active().querySelectorAll('[role="status"]')].some(element => element.textContent?.includes('Dauerhaft gespeichert')), 'acknowledged form result')
+const ack = () => wait(() => !workspaceOperation.isActive() && [...active().querySelectorAll('[role="status"]')].some(element => element.textContent?.includes('Dauerhaft gespeichert')), 'acknowledged form result').catch(error => { throw new Error(`${error.message}: ${active().querySelector('form[aria-label="Manuelle Planungsaktion"]')?.textContent}`) })
 const keepConflict = () => flushSync(() => [...active().querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find(input => input.parentElement?.textContent?.includes('Konflikte'))!.click())
-async function switchView(next: string) { view = next; render(); await wait(() => active() && (next === 'calendar' ? active().querySelector('form[aria-label="Manuelle Planungsaktion"]') : next === 'notes' ? active().querySelector('textarea') : next === 'canvas' ? active().querySelector('button') : active().querySelector(next === 'tasks' ? '.nx-task-card' : '.nx-planning-today-card')), `${client} ${next} actual view`); await pause() }
+async function switchView(next: string) {
+  view = next; render()
+  await wait(() => active() && (next === 'calendar' ? active().querySelector(client === 'main' ? '[aria-label="Kalenderansicht"]' : 'form[aria-label="Manuelle Planungsaktion"]') : next === 'notes' ? active().querySelector('textarea') : next === 'canvas' ? active().querySelector('button') : active().querySelector(next === 'tasks' ? '.nx-task-card' : '.nx-planning-today-card')), `${client} ${next} actual view`)
+  await pause()
+  if (next === 'calendar' && client === 'main' && !active().querySelector('.nx-agenda-workspace')) click('Agenda', active().querySelector('[aria-label="Kalenderansicht"]')!)
+  if (next === 'calendar') await wait(() => active().querySelector('form[aria-label="Manuelle Planungsaktion"]'), 'actual planning form')
+  await pause()
+}
+(window as any).inspectMainLayout = async (next: string) => {
+  client = 'main'; layoutFrame = true; await switchView(next)
+  const editor = active().querySelector<HTMLElement>('.nx-agenda-editor-layer')
+  if (editor && !editor.hidden) flushSync(() => active().querySelector<HTMLButtonElement>('[aria-label="Planungseditor schließen"]')!.click())
+  await new Promise(resolve => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(resolve)), 250))
+  const selector = next === 'canvas' ? '.nx-canvas-topbar' : next === 'notes' ? '.nx-notes-workbar' : '.nx-agenda-workspace'
+  const panel = active().querySelector<HTMLElement>(selector)!
+  if (!panel.checkVisibility() || panel.getBoundingClientRect().width < innerWidth / 2) throw new Error(`Missing visible ${next} layout`)
+  const controls = [...panel.querySelectorAll<HTMLElement>('button,input,select,summary')].filter(element => element.checkVisibility() && !element.closest('.nx-canvas-mobile-menu,.nx-notes-more-actions-menu'))
+  return { view: next, width: innerWidth, height: innerHeight, panel: panel.getBoundingClientRect().toJSON(), overflowing: controls.filter(element => { const box = element.getBoundingClientRect(); return box.left < -1 || box.right > innerWidth + 1 }).map(element => element.title || element.textContent?.trim()) }
+}
 
 async function run() {
   await Promise.all([mainApp.persist.rehydrate(), mobileApp.persist.rehydrate(), mainCanvas.persist.rehydrate(), mobileCanvas.persist.rehydrate()])
   const day = zonedDate(new Date().toISOString(), 'Europe/Berlin'), tomorrow = nextCivilDay(day)
+  if (stage === 'calendar-entry') {
+    await mainCommands.ready(); view = 'calendar'; render()
+    await wait(() => active()?.querySelector('.nx-calendar-timeline-panel'), 'Calendar starts in day view')
+    const modes = () => active().querySelector('[aria-label="Kalenderansicht"]')!
+    assert(modes().querySelector('[aria-pressed="true"]')?.textContent === 'Tag', 'Calendar starts in day view with a clearly selected view button')
+    assert(modes().querySelectorAll('button svg').length === 4, 'All four Calendar view buttons have a visible icon and text label')
+    click('Agenda', modes()); await wait(() => active().querySelector('.nx-agenda-workspace'), 'manual Agenda switch')
+    await switchView('notes'); view = 'calendar'; render()
+    await wait(() => active().querySelector('.nx-calendar-timeline-panel'), 'return to day view')
+    assert(modes().querySelector('[aria-pressed="true"]')?.textContent === 'Tag', 'Returning to Calendar resets a previously selected Agenda to day view')
+    requestPlanningNavigation('main', { mode: 'task', initialTitle: 'Explicit planning request' })
+    await wait(() => active().querySelector('.nx-agenda-editor-layer')?.getAttribute('hidden') === null, 'explicit planning request opens Agenda')
+    assert(Boolean(active().querySelector('.nx-agenda-workspace')), 'Explicit planning actions still open the Agenda editor')
+    return { ok: true, checks, evidence }
+  }
+  if (stage === 'agenda-clarity') {
+    await mainCommands.ready(); await switchView('calendar')
+    const workspace = () => active().querySelector<HTMLElement>('.nx-agenda-workspace')!
+    const layer = () => active().querySelector<HTMLElement>('.nx-agenda-editor-layer')!
+    const closeEditor = () => flushSync(() => active().querySelector<HTMLButtonElement>('[aria-label="Planungseditor schließen"]')!.click())
+    assert(Boolean(workspace()) && !active().querySelector('.nx-calendar-agenda-dialog'), 'Agenda is a dedicated Calendar workspace with a visible purpose, rather than a full-screen modal')
+    assert(workspace().querySelector('h1')?.textContent === 'Agenda' && workspace().textContent?.includes('Aufgaben in Zeit verwandeln'), 'Agenda explains that tasks receive work time while fixed appointments stay visible')
+    assert(workspace().querySelectorAll('details').length === 0 && layer().hidden, 'Main Agenda has no accordion menus and its editor starts closed')
+    assert(workspace().querySelectorAll('.nx-agenda-week button').length === 7 && Boolean(workspace().querySelector('.nx-agenda-timeline[data-nx-surface-id]')) && Boolean(workspace().querySelector('.nx-agenda-task-panel[data-nx-surface-id]')), 'A seven-day button strip and separate Nexus Glass day-plan and task panels are available')
+    assert(!active().querySelector('.nx-calendar-stats') && !active().querySelector('.nx-calendar-dayplan-button'), 'Agenda has no competing global stats or day-planner action')
+    flushSync(() => active().querySelector<HTMLButtonElement>('.nx-agenda-task-panel .nx-agenda-segment button:nth-child(2)')!.click())
+    assert(workspace().querySelector('.nx-agenda-task-panel button[aria-pressed="true"]')?.textContent?.includes('Noch zu planen'), 'Task filter visibly identifies the selected unscheduled-work list')
+    active().querySelector<HTMLElement>('[data-agenda-open-editor]')!.focus({ preventScroll: true })
+    ;(window as any).planningAgendaDisclosureReady = true
+    await new Promise(resolve => { (window as any).resumePlanningAgendaDisclosure = resolve })
+    assert(!layer().hidden && active().querySelector('.nx-agenda-editor')?.getAttribute('aria-modal') === 'true', 'Native Enter opens the Nexus entry drawer from the primary planning button')
+    closeEditor(); await wait(() => layer().hidden, 'entry drawer closes')
+    const originalDay = field('Agenda-Tag').value
+    flushSync(() => active().querySelector<HTMLButtonElement>('[aria-label="Naechster Tag"]')!.click()); await pause()
+    assert(field('Agenda-Tag').value !== originalDay, 'Calendar period navigation updates the selected Agenda day')
+    flushSync(() => active().querySelector<HTMLButtonElement>('[aria-label="Vorheriger Tag"]')!.click()); await pause()
+    assert(field('Agenda-Tag').value === originalDay, 'Calendar navigation returns to the original Agenda day')
+    for (const mode of ['Tag', 'Woche', 'Monat']) {
+      click(mode, active().querySelector('[aria-label="Kalenderansicht"]')!); await pause()
+      assert(Boolean(active().querySelector(mode === 'Monat' ? '.nx-calendar-month-panel' : '.nx-calendar-timeline-panel')), `Existing ${mode} view still renders`)
+      assert(Boolean(active().querySelector('.nx-calendar-stats')), `Existing ${mode} retains generic calendar stats`)
+    }
+    click('Tag', active().querySelector('[aria-label="Kalenderansicht"]')!); await pause()
+    const dragTask = { ...mainApp.getState().tasks[0], id: 'agenda-clarity-drag', title: 'Agenda drag fixture', status: 'todo' as const, deadline: `${originalDay}T09:00:00`, durationMinutes: 30 }
+    flushSync(() => mainApp.setState(state => ({ tasks: [...state.tasks, dragTask] })))
+    await wait(() => [...active().querySelectorAll('.nx-calendar-card-task')].some(card => card.textContent?.includes(dragTask.title)), 'actual draggable Task card')
+    const source = [...active().querySelectorAll<HTMLElement>('.nx-calendar-card-task')].find(card => card.textContent?.includes(dragTask.title))!
+    const target = active().querySelector<HTMLElement>('.nx-calendar-hour-slot[aria-label^="10:00,"]')!
+    assert(source.draggable && Boolean(target), 'Actual Calendar registers the Task drag source and timed drop target')
+    const transfer = new DataTransfer()
+    const drag = (element: HTMLElement, type: string) => { const bounds = element.getBoundingClientRect(); flushSync(() => element.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: transfer, clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height / 2 }))) }
+    source.scrollIntoView({ block: 'center' }); drag(source, 'dragstart'); await pause()
+    target.scrollIntoView({ block: 'center' }); drag(target, 'dragenter'); drag(target, 'dragover'); await pause(); drag(target, 'drop'); drag(source, 'dragend')
+    await wait(() => layer() && !layer().hidden, 'actual HTML5 Task drop opens Agenda editor')
+    assert(field('Aufgabe für Arbeitsblock').value === dragTask.id && field('Planungsbeginn').value === `${originalDay}T10:00`, 'Actual HTML5 Task drag routes to Agenda with exact Task and target time')
+    assert(mainApp.getState().tasks.find(task => task.id === dragTask.id)?.deadline === dragTask.deadline, 'Task drag opens scheduling without changing its deadline')
+    closeEditor(); click('Schnelleintrag')
+    change(field('Aufgabe Titel'), 'Agenda clarity quick task'); change(field('Zeit'), '10:30')
+    const quickForm = active().querySelector<HTMLFormElement>('form[aria-label="Schnelleintrag"]')!
+    flushSync(() => quickForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+    await wait(() => mainApp.getState().tasks.some(task => task.title === 'Agenda clarity quick task'), 'quick task acknowledgement')
+    const quickTask = mainApp.getState().tasks.find(task => task.title === 'Agenda clarity quick task')!
+    await wait(() => !layer().hidden && field('Aufgabe für Arbeitsblock').value === quickTask.id, 'quick-created Task opens exact scheduling editor')
+    assert(field('Planungsbeginn').value === `${originalDay}T10:30` && quickTask.deadline === undefined, 'Quick entry opens scheduling with requested start, without inventing a deadline')
+    assert(field('Arbeitsdauer in Minuten').value === '', 'Unknown task duration remains empty and is never estimated')
+    closeEditor(); flushSync(() => active().querySelector<HTMLButtonElement>('.nx-agenda-task-panel .nx-agenda-segment button:nth-child(2)')!.click())
+    change(field('Agenda-Aufgaben suchen'), quickTask.title)
+    const cards = [...workspace().querySelectorAll('.nx-agenda-task-card')]
+    assert(cards.length === 1 && cards[0].textContent?.includes('Dauer nicht festgelegt'), 'Task search finds exact unscheduled work and exposes its unknown duration')
+    click('Planen', cards[0]); await wait(() => !layer().hidden, 'task card opens editor')
+    assert(field('Aufgabe für Arbeitsblock').value === quickTask.id, 'Task-card Plan action opens its exact task')
+    closeEditor(); change(field('Agenda-Aufgaben suchen'), '')
+    requestPlanningNavigation('main', { mode: 'schedule', taskId: quickTask.id, localStart: `${tomorrow}T11:00` })
+    await wait(() => !layer().hidden && field('Planungsbeginn').value === `${tomorrow}T11:00`, 'external scheduling navigation')
+    assert(field('Aufgabe für Arbeitsblock').value === quickTask.id, 'External planning intent reopens the correct editor and requested start')
+    const checkbox = [...active().querySelectorAll<HTMLInputElement>('.nx-planning-editor input[type="checkbox"]')].find(input => input.parentElement?.textContent?.includes('Konflikte'))!
+    assert(!checkbox.checked && checkbox.getBoundingClientRect().height > 0, 'Conflict acknowledgement remains visible, explicit and unchecked')
+    change(field('Planungszeitzone'), 'Europe/Berlin'); click('Arbeitsblock')
+    change(field('Planungsbeginn'), '2026-10-25T02:30')
+    assert(field('Beginn Uhrzeitvorkommen').getBoundingClientRect().height > 0, 'Ambiguous DST fold choice is surfaced in the open editor when required')
+    change(field('Planungsbeginn'), `${tomorrow}T11:00`); closeEditor()
+    click('Neuer Termin')
+    await wait(() => active().querySelector('[aria-label="Planungstitel"]') && active().querySelector('[aria-label="Planungsende"]'), 'new appointment editor mode is visible')
+    assert(field('Planungstitel').value === '' && field('Planungsende').value === '' && field('Planungsbeginn').value === `${originalDay}T09:00`, 'New appointment starts a fresh selected-day draft without stale title or end time')
+    closeEditor(); click('Neue Aufgabe')
+    await wait(() => active().querySelector('[aria-label="Aufgabenfrist"]'), 'new task editor mode is visible')
+    assert(field('Planungstitel').value === '' && field('Aufgabenfrist').value === '' && field('Arbeitsdauer in Minuten').value === '', 'New task starts with an empty title and explicit optional deadline and duration')
+    closeEditor()
+    click('Tag', active().querySelector('[aria-label="Kalenderansicht"]')!); click('Import')
+    await wait(() => workspace()?.querySelector<HTMLTextAreaElement>('.nx-planning-ics textarea') === document.activeElement, 'Calendar Import opens and focuses the real ICS page')
+    assert(workspace().querySelectorAll('details').length === 0 && layer().hidden, 'Import is a full button-selected area without nested disclosures')
+    click('Tagesplan'); flushSync(() => active().querySelector<HTMLButtonElement>('.nx-agenda-task-panel .nx-agenda-segment button:nth-child(2)')!.click())
+    ;(window as any).verifyPlanningAgendaViewport = async () => {
+      if (layer().hidden) flushSync(() => active().querySelector<HTMLButtonElement>('[data-agenda-open-editor]')!.click())
+      await pause()
+      const panel = workspace(), editor = panel.querySelector<HTMLElement>('.nx-agenda-editor')!, bounds = editor.getBoundingClientRect()
+      const overflowing = [...panel.querySelectorAll<HTMLElement>('input,select,button')].filter(element => { const box = element.getBoundingClientRect(); return element.checkVisibility() && box.width > 0 && (box.left < -1 || box.right > innerWidth + 1) }).map(element => element.getAttribute('aria-label') || element.textContent?.trim())
+      assert(overflowing.length === 0 && panel.scrollWidth <= panel.clientWidth + 1 && bounds.left >= 0 && bounds.right <= innerWidth + 1 && bounds.top >= 0 && bounds.bottom <= innerHeight + 1, `Actual Agenda workspace and entry drawer fit the viewport: ${JSON.stringify({ width: innerWidth, height: innerHeight, bounds, overflowing })}`)
+      return { width: innerWidth, height: innerHeight, panelWidth: panel.clientWidth, panelScrollWidth: panel.scrollWidth, editorWidth: bounds.width, editorHeight: bounds.height, overflowing }
+    }
+    const expected = JSON.parse(localStorage.getItem('planning-smoke-expected')!)
+    localStorage.setItem('planning-smoke-expected', JSON.stringify({ ...expected, mainPlanning: JSON.stringify(mainPlanning.capturePlanning()) }))
+    return { ok: true, checks, evidence }
+  }
   if (stage === 'agenda-accessibility') {
     await mobileCommands.ready(); client = 'mobile'; await switchView('calendar')
     const panel = active().querySelector<HTMLElement>('.nx-planning-panel')!
@@ -114,6 +255,8 @@ async function run() {
     assert(JSON.stringify(mainApp.getState().tasks) === before, 'Actual form journal failure leaves every canonical Task unchanged')
     assert(workspaceOperation.getSnapshot().kind === 'recovery', 'Actual journal failure publishes application recovery freeze')
     assert(!active().textContent?.includes('Dauerhaft gespeichert'), 'Actual journal failure never displays acknowledged success')
+    const disclosure = active().querySelector<HTMLElement>('.nx-agenda-editor-layer')!; flushSync(() => active().querySelector<HTMLButtonElement>('[aria-label="Planungseditor schließen"]')!.click()); await pause()
+    assert(disclosure.hidden && [...active().querySelectorAll<HTMLElement>('[role="alert"]')].some(element => element.getBoundingClientRect().height > 0 && element.textContent?.includes(mainPlanning.getError()!)), 'Storage error remains visibly outside the closed entry drawer')
     return { ok: true, checks, evidence }
   }
   if (stage === 'unsupported') {
@@ -146,15 +289,15 @@ async function run() {
   await switchView('tasks')
   flushSync(() => active().querySelector<HTMLButtonElement>('button[aria-label="Schedule Synthetic due work"]')!.click())
   await wait(() => view === 'calendar' && active().querySelector('form[aria-label="Manuelle Planungsaktion"]'), 'accessible task Schedule opens actual Main Calendar form')
-  await wait(() => field('Aufgabe für Arbeitsblock').value === task.id, 'cached Calendar consumes exact Task navigation intent')
+  await wait(() => active().querySelector<HTMLElement>('.nx-agenda-editor-layer')?.hidden === false && active().querySelector<HTMLSelectElement>('[aria-label="Aufgabe für Arbeitsblock"]')?.value === task.id, 'cached Calendar consumes exact Task navigation intent')
   assert(field('Aufgabe für Arbeitsblock').value === task.id, 'Accessible Task action selects exact Task in Main Calendar without changing its deadline')
   change(field('Planungszeitzone'), 'Europe/Berlin')
   click('Feste Verpflichtung'); change(field('Planungstitel'), 'Synthetic fixed event'); change(field('Planungsbeginn'), `${day}T12:00`); change(field('Planungsende'), `${day}T13:00`); submit(); await ack()
   assert(mainPlanning.capturePlanning().events.length === 1, 'Actual Main fixed Event form persists a distinct start/end commitment')
   click('Arbeitsblock'); change(field('Aufgabe für Arbeitsblock'), task.id); change(field('Planungsbeginn'), `${day}T12:15`)
-  submit(); await wait(() => active().textContent?.includes('duration is unknown'), 'unknown duration validation')
+  submit(); await wait(() => active().textContent?.includes('Gib eine Dauer in Minuten ein'), 'unknown duration validation')
   assert(mainPlanning.capturePlanning().blocks.length === 0, 'Actual Main schedule form requires unknown duration without inventing work')
-  change(field('Arbeitsdauer in Minuten'), '30'); submit(); await wait(() => active().textContent?.includes('Overlaps fixed event'), 'concrete overlap shown')
+  change(field('Arbeitsdauer in Minuten'), '30'); submit(); await wait(() => active().textContent?.includes('Überschneidung mit einem Termin'), 'concrete overlap shown')
   assert(mainPlanning.capturePlanning().blocks.length === 0, 'Actual Main overlap/unknown coverage requires explicit keep-conflict choice')
   keepConflict(); submit(); await ack()
   const block = mainPlanning.capturePlanning().blocks[0]
@@ -172,7 +315,7 @@ async function run() {
   assert(active().textContent?.includes('Frist heute'), 'Actual Main Dashboard exposes Task deadline reason in Today')
   await switchView('flux')
   assert(active().querySelector('.nx-planning-today-card')?.textContent?.includes('1 eindeutige offene Aufgaben'), 'Actual Main Flux consumes same Today derivation')
-  await switchView('calendar'); click('Arbeitsblock'); change(field('Aufgabe für Arbeitsblock'), task.id); change(field('Planungsbeginn'), `${tomorrow}T10:00`); change(field('Arbeitsdauer in Minuten'), '30'); keepConflict(); submit(); await ack()
+  await switchView('calendar'); click('Arbeitsblock'); await pause(); change(field('Planungszeitzone'), 'Europe/Berlin'); change(field('Aufgabe für Arbeitsblock'), task.id); change(field('Planungsbeginn'), `${tomorrow}T10:00`); change(field('Arbeitsdauer in Minuten'), '30'); keepConflict(); submit(); await ack()
   const futureId = mainPlanning.capturePlanning().blocks.at(-1)!.id
   flushSync(() => field('Beim Abschluss Erinnerung stoppen: Selected linked point').click())
   click('Abschließen'); await wait(() => mainApp.getState().tasks[0].status === 'done' && !workspaceOperation.isActive(), 'acknowledged completion')
@@ -197,7 +340,8 @@ async function run() {
   assert(mainApp.getState().tasks[0].deadline === deadline && (mainApp.getState().tasks[0] as any).linkedNoteId === 'synthetic-note', 'Completion preserves exact deadline and linked context')
   const ics = `BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:fixed-uid\r\nSUMMARY:Imported fixed interval\r\nDTSTART:${tomorrow.replaceAll('-', '')}T090012Z\r\nDTEND:${tomorrow.replaceAll('-', '')}T100013Z\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:series-uid\r\nSUMMARY:Unsupported fortnightly series\r\nDTSTART:${tomorrow.replaceAll('-', '')}T110000Z\r\nDTEND:${tomorrow.replaceAll('-', '')}T120000Z\r\nRRULE:FREQ=WEEKLY;INTERVAL=2;COUNT=3\r\nEXDATE:${tomorrow.replaceAll('-', '')}T110000Z\r\nEND:VEVENT\r\nEND:VCALENDAR`
   const beforeIcsTasks = JSON.stringify(mainApp.getState().tasks), beforeIcsReminders = JSON.stringify(mainApp.getState().reminders), beforeIcsEvents = mainPlanning.capturePlanning().events.length
-  const icsPanel = active().querySelector<HTMLDetailsElement>('[aria-label="ICS Ereignisimport"]')!; icsPanel.open = true
+  click('Import')
+  const icsPanel = active().querySelector<HTMLElement>('[aria-label="ICS Ereignisimport"]')!
   const transfer = new DataTransfer(); transfer.items.add(new File([ics], 'loss-aware.ics', { type: 'text/calendar' }))
   flushSync(() => { const input = field('ICS Datei') as HTMLInputElement; input.files = transfer.files; input.dispatchEvent(new Event('change', { bubbles: true })) })
   await wait(() => icsPanel.textContent?.includes('Unsupported fortnightly series'), 'actual File.text ICS preview')
@@ -223,12 +367,12 @@ async function run() {
   click('Als Aufgabe dauerhaft übernehmen'); await mainCommands.drain()
   assert(mainApp.getState().tasks.filter(item => item.title === 'Chosen project node').length === 1 && (canvasTask as any).entityLinks[0].canvasId === 'project-b', 'Actual repeated Canvas promotion retains scoped relation and canonical ID without writing backlinks')
   await switchView('calendar')
+  click('Verknüpfungen'); change(field('Aufgabe für Verknüpfungen'), noteTask.id)
   const relationArea = active().querySelector(`[aria-label="Kontextverknüpfungen: ${noteTask.title}"]`)!;
-  const contextContainer = relationArea.parentElement as HTMLDetailsElement; contextContainer.open = true;
-  (relationArea as HTMLDetailsElement).open = true; await wait(() => relationArea.querySelector('select'), 'actual Note context controls opened')
+  await wait(() => relationArea.querySelector('select'), 'actual Note context controls opened')
   click('Ziel fokussieren', relationArea); await wait(() => view === 'notes' && mainApp.getState().activeNoteId === note.id, 'Calendar typed Note context opens exact entity')
   assert(view === 'notes' && mainApp.getState().activeNoteId === note.id, 'Actual Agenda Note context navigation focuses exact existing entity')
-  await switchView('calendar'); mainApp.setState(state => ({ notes: state.notes.filter(item => item.id !== note.id), openNoteIds: [], activeNoteId: null }))
+  await switchView('calendar'); click('Verknüpfungen'); change(field('Aufgabe für Verknüpfungen'), noteTask.id); mainApp.setState(state => ({ notes: state.notes.filter(item => item.id !== note.id), openNoteIds: [], activeNoteId: null }))
   await wait(() => active().textContent?.includes('Verknüpftes Ziel fehlt'), 'deleted Note link visible')
   const brokenArea = active().querySelector(`[aria-label="Kontextverknüpfungen: ${noteTask.title}"]`)!;
   (brokenArea as HTMLDetailsElement).open = true; await wait(() => brokenArea.querySelector('select'), 'actual broken Note context controls opened')

@@ -413,6 +413,7 @@ function getSideSlotSide(activePanel, fallbackSide, layout) {
   return WORKBENCH_SNAP_ZONES.left;
 }
 
+/** @param {{sidebarSide?: string, activePanel?: string|null, bottomPanel?: string|null, layout?: object}} options */
 export function getWorkbenchSlots({
   sidebarSide = "left",
   activePanel = null,

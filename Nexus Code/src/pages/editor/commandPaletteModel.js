@@ -26,6 +26,7 @@ import {
   getEditorCommandCategory,
 } from "./editorFeatureModel.js";
 import { detectLanguageId } from "../../ide/languages/languageIds.js";
+import { applyCommandAuthority } from '../../workbench/commands/commandRegistry.ts';
 
 const COMMAND_ICON_BY_ID = Object.freeze({
   "new-file": FileCode2,
@@ -368,14 +369,15 @@ function isFrequentCommand(command) {
 export function getEditorCommandPaletteCommands({
   extensionCommands = [],
   surface = "palette",
+  commandRegistry = /** @type {import('../../workbench/commands/commandRegistry.ts').CommandRegistry | undefined} */ (undefined),
 } = {}) {
   const safeExtensionCommands = Array.isArray(extensionCommands)
     ? extensionCommands
     : [];
-  return createEditorCommandRegistry([
+  return applyCommandAuthority(createEditorCommandRegistry([
     ...safeExtensionCommands,
     ...WORKBENCH_FOCUS_COMMANDS,
-  ])
+  ]), commandRegistry)
     .filter((command) => !surface || command.surfaces.includes(surface))
     .map((command) => {
       const categoryMeta = getEditorCommandCategory(command);
@@ -1031,10 +1033,11 @@ export function createSpotlightResults({
   maxFiles = 8,
   maxSymbols = 8,
   extensionCommands = [],
+  commandRegistry = /** @type {import('../../workbench/commands/commandRegistry.ts').CommandRegistry | undefined} */ (undefined),
 } = {}) {
   const normalizedQuery = normalizeSearchValue(query);
   const commands = rankCommandPaletteItems(
-    getEditorCommandPaletteCommands({ extensionCommands, surface: "spotlight" }),
+    getEditorCommandPaletteCommands({ extensionCommands, surface: "spotlight", commandRegistry }),
     query,
   )
     .slice(0, normalizedQuery ? maxCommands : Math.min(maxCommands, 6))

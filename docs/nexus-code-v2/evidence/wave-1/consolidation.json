@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-01",
+  "mainFolder": "F:/Coding/Nexus Workspace/Nexus-Ecosystem",
+  "branch": "dev",
+  "integrationBase": "0cb408b02f4ba54f0626b4031d73541b8cb94287",
+  "persistenceCommit": "f58ebbb2c3151ad930aad988de525c9b86ca2807",
+  "foundationCommit": "b0d3fc203054bffed525d901688d5e43c1db4b0c",
+  "finalChange": "Safe technical-code allowlist, final evidence/checkpoint in following commit",
+  "historicalRefsRetained": [
+    "642bde64f2167d5b254f7be05f0a40be52a3aa47",
+    "10352104163c122425ddc412b7deae3f94698af5",
+    "7f63f7b73a0e6a6976ab98d8dfaf1ccaf7080fb1"
+  ],
+  "archiveRoot": "F:/Coding/Nexus Workspace/.workspace-maintenance/2026-10-01/nexus-code-wave-1",
+  "artifactArchives": [
+    {
+      "name": "wave-0-test-artifacts.zip",
+      "sha256": "4D92A67607C37E41C900518A5EAD874FD63FBB2A8105A5F9705255D72FACC778",
+      "entries": 4975,
+      "pngs": 125
+    },
+    {
+      "name": "wave-1-test-artifacts.zip",
+      "sha256": "5B787AEA3A8B5F8FC2EDA819330F75499643D2179331FC961362CAAD1FB05938",
+      "entries": 197,
+      "pngs": 5
+    }
+  ],
+  "foreignPreservation": "Five files backed up as patch/raw/SHA, separately integrated in f58ebbb; equality to worktree checked before restoring its now-redundant edits. Main README/adapter hashes unchanged by Code integration.",
+  "worktreeRegistrationsRemoved": true,
+  "physicalWave1FolderRemoved": true,
+  "physicalAuditFolderRemoved": false,
+  "physicalCleanup": "Git returned Directory not empty. Wave1 residue archived. Audit Move-Item partial failure at fixture escape junction; Directory.Move denied access. No more cleanup attempts after coordinator stop request.",
+  "automaticPolicy": "Remove-Item/junction/directory cleanup rejected: blocked by policy; no further reason returned. No deletion workaround used.",
+  "workspaceCheck": "Final command returned 1 for V7/V7-review worktrees; restored checker at .workspace-maintenance/check-workspace.ps1. Consolidation owner investigates physical audit access; no green workspace claim.",
+  "coordinationChat": "01a0f201-0e60-7d01-a053-1cf05b1c6c29",
+  "wave2Started": false,
+  "managedArtifacts": []
+}

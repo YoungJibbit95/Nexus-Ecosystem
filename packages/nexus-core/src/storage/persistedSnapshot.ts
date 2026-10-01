@@ -33,8 +33,10 @@ export function legacyKeys(name: string, segments: string[]) {
   return [snapshotKey(name), name, `${name}::__meta`, ...segments.map(key => `${name}::${key}`)]
 }
 
-/** Old segmented and monolithic representations remain readable, never deleted by migration. */
-export function readLegacy<T>(name: string, segments: string[], values: Map<string, unknown>): PersistedValue<T> | null {
+/** IndexedDB segments are structured values; localStorage segments are JSON strings.
+ * Old representations remain readable, never deleted by migration.
+ */
+export function readLegacy<T>(name: string, segments: string[], values: Map<string, unknown>, segmentEncoding: 'json' | 'structured' = 'json'): PersistedValue<T> | null {
   if (values.has(snapshotKey(name))) return readSnapshot<T>(values.get(snapshotKey(name)))
   const state: Record<string, unknown> = {}
   const meta = values.has(`${name}::__meta`) ? decode(values.get(`${name}::__meta`)) : undefined
@@ -42,7 +44,8 @@ export function readLegacy<T>(name: string, segments: string[], values: Map<stri
   let hasSegments = meta !== undefined
   for (const key of segments) {
     if (!values.has(`${name}::${key}`)) continue
-    state[key] = decode(values.get(`${name}::${key}`))
+    const value = values.get(`${name}::${key}`)
+    state[key] = segmentEncoding === 'json' ? decode(value) : value
     hasSegments = true
   }
   if (segments.length && hasSegments) return { state: state as T, version: isRecord(meta) ? Number(meta.version) : 0 }

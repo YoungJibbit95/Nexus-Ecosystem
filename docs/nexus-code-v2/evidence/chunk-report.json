@@ -1,0 +1,676 @@
+{
+  "generatedAt": "2026-09-30T11:59:32.735Z",
+  "limits": {
+    "topChunks": 12,
+    "topAssets": 8,
+    "warnRawBytes": 870400,
+    "warnGzipBytes": 286720,
+    "warnModuleCount": 220
+  },
+  "totals": {
+    "rawBytes": 2646439,
+    "gzipBytes": 852636,
+    "moduleCount": 664
+  },
+  "chunkCount": 24,
+  "assetCount": 1,
+  "topChunks": [
+    {
+      "fileName": "assets/cm-lang-cpp-B_81NfRR.js",
+      "name": "cm-lang-cpp",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 445754,
+      "gzipBytes": 143672,
+      "moduleCount": 12,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/Editor-dhSbc87N.js",
+      "name": "Editor",
+      "category": "dynamic-entry",
+      "isEntry": false,
+      "isDynamicEntry": true,
+      "rawBytes": 412908,
+      "gzipBytes": 107910,
+      "moduleCount": 114,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/codemirror-react-DqcYAmvP.js",
+        "assets/editor-search-git-core-DoKMuGg9.js",
+        "assets/index-wpwtHsyp.js",
+        "assets/motion-CB1hFEsd.js",
+        "assets/editor-extension-core-D93bnysP.js",
+        "assets/editor-workbench-core-CRKa1kxC.js",
+        "assets/editor-feature-core-CVqRISux.js",
+        "assets/cm-lang-cpp-B_81NfRR.js",
+        "assets/cm-lang-html-DWl1XY69.js",
+        "assets/codemirror-core-BHxbDUFw.js"
+      ],
+      "dynamicImports": [
+        "assets/cm-lang-html-DWl1XY69.js",
+        "assets/cm-lang-json-Bt6ipAKH.js",
+        "assets/cm-lang-css-Cxjc74j3.js",
+        "assets/cm-lang-legacy-DGuP0e0O.js",
+        "assets/cm-lang-md-kzzMVp4w.js",
+        "assets/cm-lang-python-BHsdPMn7.js",
+        "assets/cm-lang-java-DXrVYcsi.js",
+        "assets/cm-lang-cpp-B_81NfRR.js",
+        "assets/cm-lang-php-DbyQeQi4.js",
+        "assets/cm-lang-rust-Dz6U6Prs.js",
+        "assets/cm-lang-sql-DzKJkWAw.js",
+        "assets/cm-lang-xml-UkId8tyb.js",
+        "assets/SettingsPanel-DKJMrprG.js"
+      ],
+      "facadeModuleId": "F:/Coding/Nexus Workspace/Nexus-Code-v2-audit/Nexus Code/src/pages/Editor.jsx"
+    },
+    {
+      "fileName": "assets/cm-lang-legacy-DGuP0e0O.js",
+      "name": "cm-lang-legacy",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 379889,
+      "gzipBytes": 133319,
+      "moduleCount": 80,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/react-9JyskIji.js",
+      "name": "react",
+      "category": "vendor",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 181753,
+      "gzipBytes": 56525,
+      "moduleCount": 6,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/codemirror-react-DqcYAmvP.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/index-wpwtHsyp.js",
+      "name": "index",
+      "category": "entry",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "rawBytes": 155787,
+      "gzipBytes": 50284,
+      "moduleCount": 59,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/codemirror-react-DqcYAmvP.js",
+        "assets/react-9JyskIji.js",
+        "assets/editor-search-git-core-DoKMuGg9.js"
+      ],
+      "dynamicImports": [
+        "assets/Editor-dhSbc87N.js"
+      ],
+      "facadeModuleId": "F:/Coding/Nexus Workspace/Nexus-Code-v2-audit/Nexus Code/index.html"
+    },
+    {
+      "fileName": "assets/cm-lang-html-DWl1XY69.js",
+      "name": "cm-lang-html",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 148045,
+      "gzipBytes": 56520,
+      "moduleCount": 5,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/cm-lang-cpp-B_81NfRR.js",
+        "assets/cm-lang-css-Cxjc74j3.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/motion-CB1hFEsd.js",
+      "name": "motion",
+      "category": "vendor",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 125368,
+      "gzipBytes": 40526,
+      "moduleCount": 267,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/codemirror-react-DqcYAmvP.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/SettingsPanel-DKJMrprG.js",
+      "name": "SettingsPanel",
+      "category": "dynamic-entry",
+      "isEntry": false,
+      "isDynamicEntry": true,
+      "rawBytes": 118655,
+      "gzipBytes": 28670,
+      "moduleCount": 15,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/codemirror-react-DqcYAmvP.js",
+        "assets/editor-search-git-core-DoKMuGg9.js",
+        "assets/index-wpwtHsyp.js",
+        "assets/motion-CB1hFEsd.js",
+        "assets/editor-extension-core-D93bnysP.js",
+        "assets/editor-workbench-core-CRKa1kxC.js",
+        "assets/Editor-dhSbc87N.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": "F:/Coding/Nexus Workspace/Nexus-Code-v2-audit/Nexus Code/src/components/editor/SettingsPanel.jsx"
+    },
+    {
+      "fileName": "assets/cm-lang-php-DbyQeQi4.js",
+      "name": "cm-lang-php",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 98208,
+      "gzipBytes": 28544,
+      "moduleCount": 2,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/cm-lang-cpp-B_81NfRR.js",
+        "assets/cm-lang-html-DWl1XY69.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/editor-extension-core-D93bnysP.js",
+      "name": "editor-extension-core",
+      "category": "editor-internal",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 83443,
+      "gzipBytes": 25496,
+      "moduleCount": 7,
+      "imports": [],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/editor-feature-core-CVqRISux.js",
+      "name": "editor-feature-core",
+      "category": "editor-internal",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 78901,
+      "gzipBytes": 25343,
+      "moduleCount": 18,
+      "imports": [
+        "assets/editor-extension-core-D93bnysP.js",
+        "assets/cm-lang-cpp-B_81NfRR.js",
+        "assets/cm-lang-html-DWl1XY69.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/cm-lang-rust-Dz6U6Prs.js",
+      "name": "cm-lang-rust",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 70847,
+      "gzipBytes": 25868,
+      "moduleCount": 2,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/cm-lang-cpp-B_81NfRR.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    }
+  ],
+  "topAssets": [
+    {
+      "fileName": "assets/index-w2HqgSe3.css",
+      "rawBytes": 193531
+    }
+  ],
+  "warnings": [
+    {
+      "fileName": "assets/motion-CB1hFEsd.js",
+      "rawBytes": 125368,
+      "gzipBytes": 40526,
+      "moduleCount": 267,
+      "reasons": [
+        "module-count"
+      ]
+    }
+  ],
+  "chunks": [
+    {
+      "fileName": "assets/cm-lang-cpp-B_81NfRR.js",
+      "name": "cm-lang-cpp",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 445754,
+      "gzipBytes": 143672,
+      "moduleCount": 12,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/Editor-dhSbc87N.js",
+      "name": "Editor",
+      "category": "dynamic-entry",
+      "isEntry": false,
+      "isDynamicEntry": true,
+      "rawBytes": 412908,
+      "gzipBytes": 107910,
+      "moduleCount": 114,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/codemirror-react-DqcYAmvP.js",
+        "assets/editor-search-git-core-DoKMuGg9.js",
+        "assets/index-wpwtHsyp.js",
+        "assets/motion-CB1hFEsd.js",
+        "assets/editor-extension-core-D93bnysP.js",
+        "assets/editor-workbench-core-CRKa1kxC.js",
+        "assets/editor-feature-core-CVqRISux.js",
+        "assets/cm-lang-cpp-B_81NfRR.js",
+        "assets/cm-lang-html-DWl1XY69.js",
+        "assets/codemirror-core-BHxbDUFw.js"
+      ],
+      "dynamicImports": [
+        "assets/cm-lang-html-DWl1XY69.js",
+        "assets/cm-lang-json-Bt6ipAKH.js",
+        "assets/cm-lang-css-Cxjc74j3.js",
+        "assets/cm-lang-legacy-DGuP0e0O.js",
+        "assets/cm-lang-md-kzzMVp4w.js",
+        "assets/cm-lang-python-BHsdPMn7.js",
+        "assets/cm-lang-java-DXrVYcsi.js",
+        "assets/cm-lang-cpp-B_81NfRR.js",
+        "assets/cm-lang-php-DbyQeQi4.js",
+        "assets/cm-lang-rust-Dz6U6Prs.js",
+        "assets/cm-lang-sql-DzKJkWAw.js",
+        "assets/cm-lang-xml-UkId8tyb.js",
+        "assets/SettingsPanel-DKJMrprG.js"
+      ],
+      "facadeModuleId": "F:/Coding/Nexus Workspace/Nexus-Code-v2-audit/Nexus Code/src/pages/Editor.jsx"
+    },
+    {
+      "fileName": "assets/cm-lang-legacy-DGuP0e0O.js",
+      "name": "cm-lang-legacy",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 379889,
+      "gzipBytes": 133319,
+      "moduleCount": 80,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/react-9JyskIji.js",
+      "name": "react",
+      "category": "vendor",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 181753,
+      "gzipBytes": 56525,
+      "moduleCount": 6,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/codemirror-react-DqcYAmvP.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/index-wpwtHsyp.js",
+      "name": "index",
+      "category": "entry",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "rawBytes": 155787,
+      "gzipBytes": 50284,
+      "moduleCount": 59,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/codemirror-react-DqcYAmvP.js",
+        "assets/react-9JyskIji.js",
+        "assets/editor-search-git-core-DoKMuGg9.js"
+      ],
+      "dynamicImports": [
+        "assets/Editor-dhSbc87N.js"
+      ],
+      "facadeModuleId": "F:/Coding/Nexus Workspace/Nexus-Code-v2-audit/Nexus Code/index.html"
+    },
+    {
+      "fileName": "assets/cm-lang-html-DWl1XY69.js",
+      "name": "cm-lang-html",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 148045,
+      "gzipBytes": 56520,
+      "moduleCount": 5,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/cm-lang-cpp-B_81NfRR.js",
+        "assets/cm-lang-css-Cxjc74j3.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/motion-CB1hFEsd.js",
+      "name": "motion",
+      "category": "vendor",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 125368,
+      "gzipBytes": 40526,
+      "moduleCount": 267,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/codemirror-react-DqcYAmvP.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/SettingsPanel-DKJMrprG.js",
+      "name": "SettingsPanel",
+      "category": "dynamic-entry",
+      "isEntry": false,
+      "isDynamicEntry": true,
+      "rawBytes": 118655,
+      "gzipBytes": 28670,
+      "moduleCount": 15,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/codemirror-react-DqcYAmvP.js",
+        "assets/editor-search-git-core-DoKMuGg9.js",
+        "assets/index-wpwtHsyp.js",
+        "assets/motion-CB1hFEsd.js",
+        "assets/editor-extension-core-D93bnysP.js",
+        "assets/editor-workbench-core-CRKa1kxC.js",
+        "assets/Editor-dhSbc87N.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": "F:/Coding/Nexus Workspace/Nexus-Code-v2-audit/Nexus Code/src/components/editor/SettingsPanel.jsx"
+    },
+    {
+      "fileName": "assets/cm-lang-php-DbyQeQi4.js",
+      "name": "cm-lang-php",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 98208,
+      "gzipBytes": 28544,
+      "moduleCount": 2,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/cm-lang-cpp-B_81NfRR.js",
+        "assets/cm-lang-html-DWl1XY69.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/editor-extension-core-D93bnysP.js",
+      "name": "editor-extension-core",
+      "category": "editor-internal",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 83443,
+      "gzipBytes": 25496,
+      "moduleCount": 7,
+      "imports": [],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/editor-feature-core-CVqRISux.js",
+      "name": "editor-feature-core",
+      "category": "editor-internal",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 78901,
+      "gzipBytes": 25343,
+      "moduleCount": 18,
+      "imports": [
+        "assets/editor-extension-core-D93bnysP.js",
+        "assets/cm-lang-cpp-B_81NfRR.js",
+        "assets/cm-lang-html-DWl1XY69.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/cm-lang-rust-Dz6U6Prs.js",
+      "name": "cm-lang-rust",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 70847,
+      "gzipBytes": 25868,
+      "moduleCount": 2,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/cm-lang-cpp-B_81NfRR.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/codemirror-core-BHxbDUFw.js",
+      "name": "codemirror-core",
+      "category": "vendor",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 57122,
+      "gzipBytes": 18656,
+      "moduleCount": 3,
+      "imports": [
+        "assets/cm-lang-cpp-B_81NfRR.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/editor-search-git-core-DoKMuGg9.js",
+      "name": "editor-search-git-core",
+      "category": "editor-internal",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 57016,
+      "gzipBytes": 18592,
+      "moduleCount": 35,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/codemirror-react-DqcYAmvP.js",
+        "assets/editor-extension-core-D93bnysP.js",
+        "assets/editor-feature-core-CVqRISux.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/cm-lang-python-BHsdPMn7.js",
+      "name": "cm-lang-python",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 44704,
+      "gzipBytes": 19102,
+      "moduleCount": 2,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/cm-lang-cpp-B_81NfRR.js",
+        "assets/cm-lang-html-DWl1XY69.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/cm-lang-md-kzzMVp4w.js",
+      "name": "cm-lang-md",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 44100,
+      "gzipBytes": 15120,
+      "moduleCount": 2,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/cm-lang-cpp-B_81NfRR.js",
+        "assets/cm-lang-html-DWl1XY69.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/cm-lang-java-DXrVYcsi.js",
+      "name": "cm-lang-java",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 40289,
+      "gzipBytes": 16609,
+      "moduleCount": 2,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/cm-lang-cpp-B_81NfRR.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/cm-lang-css-Cxjc74j3.js",
+      "name": "cm-lang-css",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 26805,
+      "gzipBytes": 12611,
+      "moduleCount": 2,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/cm-lang-cpp-B_81NfRR.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/editor-workbench-core-CRKa1kxC.js",
+      "name": "editor-workbench-core",
+      "category": "editor-internal",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 25286,
+      "gzipBytes": 7733,
+      "moduleCount": 10,
+      "imports": [],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/codemirror-react-DqcYAmvP.js",
+      "name": "codemirror-react",
+      "category": "vendor",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 18214,
+      "gzipBytes": 6888,
+      "moduleCount": 15,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/cm-lang-cpp-B_81NfRR.js",
+        "assets/cm-lang-html-DWl1XY69.js",
+        "assets/codemirror-core-BHxbDUFw.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/cm-lang-sql-DzKJkWAw.js",
+      "name": "cm-lang-sql",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 15983,
+      "gzipBytes": 7007,
+      "moduleCount": 1,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/cm-lang-cpp-B_81NfRR.js",
+        "assets/cm-lang-html-DWl1XY69.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/cm-lang-xml-UkId8tyb.js",
+      "name": "cm-lang-xml",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 14410,
+      "gzipBytes": 5830,
+      "moduleCount": 2,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/cm-lang-cpp-B_81NfRR.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/cm-lang-json-Bt6ipAKH.js",
+      "name": "cm-lang-json",
+      "category": "codemirror-language",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 2051,
+      "gzipBytes": 1301,
+      "moduleCount": 2,
+      "imports": [
+        "assets/rolldown-runtime-B0Z9INg1.js",
+        "assets/cm-lang-cpp-B_81NfRR.js"
+      ],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    },
+    {
+      "fileName": "assets/rolldown-runtime-B0Z9INg1.js",
+      "name": "rolldown-runtime",
+      "category": "shared",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "rawBytes": 901,
+      "gzipBytes": 510,
+      "moduleCount": 1,
+      "imports": [],
+      "dynamicImports": [],
+      "facadeModuleId": ""
+    }
+  ]
+}
