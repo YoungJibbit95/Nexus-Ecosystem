@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Bell,
   Calendar,
+  CalendarDays,
+  CalendarRange,
   CheckSquare,
   ChevronLeft,
   ChevronRight,
@@ -9,6 +11,7 @@ import {
   Flag,
   GripVertical,
   ListFilter,
+  ListChecks,
   Maximize2,
   Plus,
   Upload,
@@ -112,6 +115,7 @@ const VIEW_LABEL: Record<CalendarDisplayMode, string> = {
   week: "Woche",
   month: "Monat",
 };
+const VIEW_ICON = { day: Calendar, week: CalendarDays, month: CalendarRange, agenda: ListChecks };
 
 const PREVIOUS_PERIOD_LABEL: Record<CalendarDisplayMode, string> = {
   agenda: "Vorheriger Tag",
@@ -829,38 +833,14 @@ export function CalendarView({
   const [priorityFilter, setPriorityFilter] =
     useState<CalendarPriorityFilter>("all");
   const [density, setDensity] = useState<CalendarDensity>("comfortable");
-  const [calendarMode, setCalendarMode] = useState<CalendarDisplayMode>("agenda");
-  const activeCommandScope = useActiveViewCommandScope();
-  const agendaDialogRef = useRef<HTMLDivElement>(null);
-  const agendaLauncherRef = useRef<HTMLButtonElement>(null);
-  const agendaReturnMode = useRef<CalendarDisplayMode>('day');
-  const closeAgenda = useCallback(() => {
-    setCalendarMode(agendaReturnMode.current);
-    requestAnimationFrame(() => agendaLauncherRef.current?.focus());
-  }, []);
-  useEffect(() => {
-    if (calendarMode !== 'agenda') { agendaReturnMode.current = calendarMode; return; }
-    if (!activeCommandScope) return;
-    const dialog = agendaDialogRef.current;
-    if (!dialog) return;
-    const candidates = () => [...dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), summary, [href], [tabindex]:not([tabindex="-1"])')].filter(element => element.checkVisibility() && element.getClientRects().length > 0);
-    const focusFirst = () => (candidates()[0] || dialog).focus();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!isViewCommandScopeActive(activeCommandScope) || event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
-      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeAgenda(); return; }
-      if (event.key !== 'Tab') return;
-      const controls = candidates(), first = controls[0], last = controls[controls.length - 1];
-      if (!first) { event.preventDefault(); dialog.focus(); }
-      else if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) { event.preventDefault(); last?.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-    };
-    const onFocus = (event: FocusEvent) => { if (isViewCommandScopeActive(activeCommandScope) && !dialog.contains(event.target as Node)) focusFirst(); };
-    dialog.focus();
-    dialog.addEventListener('keydown', onKeyDown);
-    document.addEventListener('focusin', onFocus);
-    return () => { dialog.removeEventListener('keydown', onKeyDown); document.removeEventListener('focusin', onFocus); };
-  }, [calendarMode, activeCommandScope, closeAgenda]);
+  const [calendarMode, setCalendarMode] = useState<CalendarDisplayMode>("day");
+  const [agendaImportRequest, setAgendaImportRequest] = useState(0);
+  const agendaNavigationCursor = useRef(''), agendaImportCursor = useRef(0);
   const planningRequest = usePlanningNavigation('main');
+  const calendarActive = useActiveViewCommandScope();
+  useEffect(() => {
+    if (!calendarActive) setCalendarMode('day');
+  }, [calendarActive]);
   useEffect(() => { if (planningRequest) setCalendarMode('agenda'); }, [planningRequest]);
   const [composerType, setComposerType] = useState<CalendarItemType>("task");
   const [composerTitle, setComposerTitle] = useState("");
@@ -1084,11 +1064,8 @@ export function CalendarView({
 
   const toggleImport = useCallback(() => {
     setCalendarMode('agenda');
+    setAgendaImportRequest(value => value + 1);
     onImportClick?.();
-    requestAnimationFrame(() => {
-      const panel = document.querySelector<HTMLDetailsElement>('.nx-planning-ics');
-      if (panel) { const advanced = panel.closest<HTMLDetailsElement>('.nx-planning-advanced'); if (advanced) advanced.open = true; panel.open = true; panel.scrollIntoView({ block: 'nearest' }); panel.querySelector<HTMLTextAreaElement>('textarea')?.focus(); }
-    });
   }, [onImportClick]);
 
   const runImport = useCallback(() => {
@@ -1418,6 +1395,111 @@ export function CalendarView({
     );
   };
 
+  const quickEntry = (
+          <form
+            className="nx-calendar-composer nx-calendar-quick-composer"
+            onSubmit={submitComposer}
+            data-entry-type={composerType}
+            aria-label="Schnelleintrag"
+          >
+            <div className="nx-calendar-composer-primary">
+              <div
+                className="nx-calendar-segment nx-calendar-entry-type-switch"
+                aria-label="Eintragstyp"
+              >
+                {(["task", "reminder"] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    className={composerType === type ? "is-active" : ""}
+                    onClick={() => setComposerType(type)}
+                  >
+                    {type === "task" ? <CheckSquare size={13} /> : <Bell size={13} />}
+                    <span>{TYPE_LABEL[type]}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="nx-calendar-composer-date">
+                <Calendar size={13} />
+                <span>{formatShortDate(selectedDate)}</span>
+              </div>
+              <div className="nx-calendar-composer-title-field">
+                <input
+                  ref={composerInputRef}
+                  className="nx-calendar-title-input"
+                  value={composerTitle}
+                  onChange={(event) => setComposerTitle(event.target.value)}
+                  placeholder={`Was steht als ${TYPE_LABEL[composerType].toLowerCase()} an?`}
+                  aria-label={`${TYPE_LABEL[composerType]} Titel`}
+                />
+                {composerTitle && (
+                  <button
+                    type="button"
+                    className="nx-calendar-icon-button nx-calendar-clear-button"
+                    onClick={() => setComposerTitle("")}
+                    aria-label="Titel leeren"
+                    title="Titel leeren"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="nx-calendar-composer-secondary">
+              <input
+                className="nx-calendar-time-input"
+                type="time"
+                value={composerTime}
+                onChange={(event) => setComposerTime(event.target.value)}
+                aria-label="Zeit"
+              />
+              {composerType === "task" && (
+                <select
+                  value={composerPriority}
+                  onChange={(event) =>
+                    setComposerPriority(event.target.value as Task["priority"])
+                  }
+                  aria-label="Aufgabenprioritaet"
+                >
+                  <option value="low">Niedrig</option>
+                  <option value="mid">Mittel</option>
+                  <option value="high">Hoch</option>
+                </select>
+              )}
+              {composerType === "task" ? (
+                <input
+                  className="nx-calendar-tags-input"
+                  value={composerTags}
+                  onChange={(event) => setComposerTags(event.target.value)}
+                  placeholder="Tags, z. B. #fokus"
+                  aria-label="Aufgabentags"
+                />
+              ) : (
+                <select
+                  value={composerRepeat}
+                  onChange={(event) =>
+                    setComposerRepeat(event.target.value as Reminder["repeat"])
+                  }
+                  aria-label="Erinnerung wiederholen"
+                >
+                  <option value="none">Einmalig</option>
+                  <option value="daily">Taeglich</option>
+                  <option value="weekly">Woechentlich</option>
+                  <option value="monthly">Monatlich</option>
+                </select>
+              )}
+              <button
+                type="submit"
+                className="nx-calendar-add-button"
+                disabled={!composerCanSubmit}
+              >
+                <Plus size={14} />
+                Einplanen
+              </button>
+            </div>
+          </form>
+  );
   const calendarContent = (
       <div
         className={`nx-calendar-view nx-release-view nx-calendar-density-${density} nx-calendar-mode-${calendarMode}`}
@@ -1464,18 +1546,19 @@ export function CalendarView({
             <div className="nx-calendar-toolbar-group nx-calendar-view-group">
               <span className="nx-calendar-group-label">Ansicht</span>
               <div
-                className="nx-calendar-segment nx-calendar-mode-switch"
+                className="nx-calendar-segment nx-calendar-mode-switch nx-calendar-view-tabs"
+                role="group"
                 aria-label="Kalenderansicht"
               >
-                {(["agenda", "day", "week", "month"] as const).map((mode) => (
+                {(["day", "week", "month", "agenda"] as const).map((mode) => (
                   <button
                     key={mode}
-                    ref={mode === 'agenda' ? agendaLauncherRef : undefined}
                     type="button"
                     className={calendarMode === mode ? "is-active" : ""}
                     onClick={() => setCalendarMode(mode)}
                     aria-pressed={calendarMode === mode}
                   >
+                    {React.createElement(VIEW_ICON[mode], { size: 15, 'aria-hidden': true })}
                     {VIEW_LABEL[mode]}
                   </button>
                 ))}
@@ -1593,112 +1676,8 @@ export function CalendarView({
             </div>
           </div>
 
-          <details className="nx-calendar-quick-entry" open={calendarMode !== 'agenda'}>
-          <summary>Schnelleintrag für Aufgabe oder Erinnerung</summary>
-          <form
-            className="nx-calendar-composer nx-calendar-quick-composer"
-            onSubmit={submitComposer}
-            data-entry-type={composerType}
-            aria-label="Schnelleintrag"
-          >
-            <div className="nx-calendar-composer-primary">
-              <div
-                className="nx-calendar-segment nx-calendar-entry-type-switch"
-                aria-label="Eintragstyp"
-              >
-                {(["task", "reminder"] as const).map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    className={composerType === type ? "is-active" : ""}
-                    onClick={() => setComposerType(type)}
-                  >
-                    {type === "task" ? <CheckSquare size={13} /> : <Bell size={13} />}
-                    <span>{TYPE_LABEL[type]}</span>
-                  </button>
-                ))}
-              </div>
-              <div className="nx-calendar-composer-date">
-                <Calendar size={13} />
-                <span>{formatShortDate(selectedDate)}</span>
-              </div>
-              <div className="nx-calendar-composer-title-field">
-                <input
-                  ref={composerInputRef}
-                  className="nx-calendar-title-input"
-                  value={composerTitle}
-                  onChange={(event) => setComposerTitle(event.target.value)}
-                  placeholder={`Was steht als ${TYPE_LABEL[composerType].toLowerCase()} an?`}
-                  aria-label={`${TYPE_LABEL[composerType]} Titel`}
-                />
-                {composerTitle && (
-                  <button
-                    type="button"
-                    className="nx-calendar-icon-button nx-calendar-clear-button"
-                    onClick={() => setComposerTitle("")}
-                    aria-label="Titel leeren"
-                    title="Titel leeren"
-                  >
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
-            </div>
+          {quickEntry}
 
-            <div className="nx-calendar-composer-secondary">
-              <input
-                className="nx-calendar-time-input"
-                type="time"
-                value={composerTime}
-                onChange={(event) => setComposerTime(event.target.value)}
-                aria-label="Zeit"
-              />
-              {composerType === "task" && (
-                <select
-                  value={composerPriority}
-                  onChange={(event) =>
-                    setComposerPriority(event.target.value as Task["priority"])
-                  }
-                  aria-label="Aufgabenprioritaet"
-                >
-                  <option value="low">Niedrig</option>
-                  <option value="mid">Mittel</option>
-                  <option value="high">Hoch</option>
-                </select>
-              )}
-              {composerType === "task" ? (
-                <input
-                  className="nx-calendar-tags-input"
-                  value={composerTags}
-                  onChange={(event) => setComposerTags(event.target.value)}
-                  placeholder="Tags, z. B. #fokus"
-                  aria-label="Aufgabentags"
-                />
-              ) : (
-                <select
-                  value={composerRepeat}
-                  onChange={(event) =>
-                    setComposerRepeat(event.target.value as Reminder["repeat"])
-                  }
-                  aria-label="Erinnerung wiederholen"
-                >
-                  <option value="none">Einmalig</option>
-                  <option value="daily">Taeglich</option>
-                  <option value="weekly">Woechentlich</option>
-                  <option value="monthly">Monatlich</option>
-                </select>
-              )}
-              <button
-                type="submit"
-                className="nx-calendar-add-button"
-                disabled={!composerCanSubmit}
-              >
-                <Plus size={14} />
-                Einplanen
-              </button>
-            </div>
-          </form>
-          </details>
         </div>
 
         {importOpen && (
@@ -1798,7 +1777,7 @@ export function CalendarView({
         </div>}
 
         <div className={`nx-calendar-shell nx-calendar-shell-${calendarMode}`}>
-          {calendarMode === "agenda" ? <div className="nx-calendar-agenda-surface custom-scrollbar"><DropAgenda dateKey={selectedDateKey} onDropItem={handleDropItem}><MainPlanningSurface setView={setView} selectedDay={selectedDateKey} onDayChange={setSelectedDateKey} /></DropAgenda></div> : calendarMode === "month" ? (
+          {calendarMode === "month" ? (
             <Glass className="nx-calendar-month-panel">
               <div className="nx-calendar-panel-head nx-calendar-month-head">
                 <div>
@@ -1848,7 +1827,7 @@ export function CalendarView({
             </Glass>
           ) : (
             <CalendarTimeline
-              mode={calendarMode}
+              mode={calendarMode === 'week' ? 'week' : 'day'}
               days={timelineDays}
               itemsByDate={itemsByDate}
               selectedDateKey={selectedDateKey}
@@ -1884,16 +1863,29 @@ export function CalendarView({
         )}
       </div>
   );
-  return <DndProvider backend={HTML5Backend}>
-    {calendarMode === 'agenda' ? <div className="nx-calendar-agenda-overlay" style={{ '--nx-calendar-accent': theme.accent, '--nx-calendar-accent-rgb': rgb } as React.CSSProperties} onMouseDown={event => { if (event.target === event.currentTarget) closeAgenda(); }}>
-      <div ref={agendaDialogRef} className="nx-calendar-agenda-dialog" role="dialog" aria-modal="true" aria-labelledby="nx-calendar-agenda-title" tabIndex={-1}>
-        <Glass type="modal" glow disablePulse performanceProfile="balanced" className="nx-calendar-agenda-sheet">
-          <header className="nx-calendar-agenda-popup-head"><span className="nx-calendar-agenda-popup-icon"><Calendar size={20} /></span><div><h2 id="nx-calendar-agenda-title">Agenda</h2><p>Dein Tag im Überblick</p></div><button type="button" onClick={closeAgenda} aria-label="Agenda schließen"><X size={20} /></button></header>
-          {calendarContent}
-        </Glass>
+  if (calendarMode === 'agenda') return (
+    <DndProvider backend={HTML5Backend}>
+      <div className="nx-calendar-view nx-calendar-mode-agenda nx-calendar-workspace-host">
+        <DropAgenda dateKey={selectedDateKey} onDropItem={handleDropItem}>
+          <MainPlanningSurface
+            selectedDay={selectedDateKey}
+            onDayChange={setSelectedDateKey}
+            setView={setView}
+            quickEntry={quickEntry}
+            importRequest={agendaImportRequest}
+            navigationCursor={agendaNavigationCursor}
+            importCursor={agendaImportCursor}
+            viewSwitcher={<div className="nx-agenda-calendar-modes nx-calendar-view-tabs" role="group" aria-label="Kalenderansicht">
+              {(['day', 'week', 'month', 'agenda'] as const).map(mode => (
+                <button key={mode} type="button" aria-pressed={mode === calendarMode} onClick={() => setCalendarMode(mode)}>{React.createElement(VIEW_ICON[mode], { size: 15, 'aria-hidden': true })}{VIEW_LABEL[mode]}</button>
+              ))}
+            </div>}
+          />
+        </DropAgenda>
       </div>
-    </div> : calendarContent}
-  </DndProvider>;
+    </DndProvider>
+  );
+  return <DndProvider backend={HTML5Backend}>{calendarContent}</DndProvider>;
 }
 
 export default CalendarView;

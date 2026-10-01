@@ -13,7 +13,10 @@ export type PlanningPanelProps = {
   execute: (command: PlanningCommand) => Promise<PlanningCommandResult>; initialize: () => Promise<void>
   storageError?: string | null; selectedDay?: string; initialTaskId?: string; initialStart?: string
   onDayChange?: (day: string) => void; onOpenTask?: (id: string) => void; compact?: boolean
-  initialMode?: 'schedule' | 'task' | 'event'; requestId?: string
+  initialMode?: 'schedule' | 'task' | 'event' | 'availability'; requestId?: string
+  editorOnly?: boolean; initialBlockId?: string; timeZone?: string
+  onFeedback?: (feedback: { message: string; result: PlanningCommandResult | null; error: boolean }) => void
+  messageText?: (message: string) => string
   initialTitle?: string
   /** Main's day-first presentation; other clients retain their existing layout. */
   dayFirst?: boolean
@@ -25,7 +28,7 @@ export function PlanningPanel(props: PlanningPanelProps) {
   const [day, setDay] = useState(props.selectedDay || zonedDate(new Date().toISOString(), zone))
   const [mode, setMode] = useState<'schedule' | 'task' | 'event' | 'availability'>(props.initialMode || 'schedule')
   const [taskId, setTaskId] = useState(props.initialTaskId || '')
-  const [blockId, setBlockId] = useState('')
+  const [blockId, setBlockId] = useState(props.initialBlockId || '')
   const [title, setTitle] = useState(props.initialTitle || '')
   const [deadline, setDeadline] = useState('')
   const [duration, setDuration] = useState('')
@@ -46,18 +49,27 @@ export function PlanningPanel(props: PlanningPanelProps) {
   const lastCompletion = useRef<PlanningCommand | null>(null)
   const identity = useRef<string>(crypto.randomUUID())
   const formSignature = `${mode}|${taskId}|${blockId}|${title}|${deadline}|${duration}|${start}|${end}|${fold}|${endFold}|${zone}|${keepConflict}|${completeCoverage}`
-  useEffect(() => { identity.current = crypto.randomUUID(); setResult(null) }, [formSignature])
+  useEffect(() => { identity.current = crypto.randomUUID(); setResult(null); if (props.editorOnly) { setMessage(''); setMessageError(false) } }, [formSignature])
   useEffect(() => { props.initialize().then(() => setReady(true)).catch(error => setMessage(String(error instanceof Error ? error.message : error))) }, [props.initialize])
   useEffect(() => { if (props.selectedDay) setDay(props.selectedDay) }, [props.selectedDay])
+  useEffect(() => { props.onFeedback?.({ message: props.storageError || message, result, error: Boolean(props.storageError || result?.ok === false || messageError) }) }, [message, result, messageError, props.storageError, props.onFeedback])
   useEffect(() => {
     identity.current = crypto.randomUUID(); setResult(null); setMessage('')
     if (props.initialTaskId) { setTaskId(props.initialTaskId); setMode('schedule'); setBlockId('') }
     if (props.initialStart !== undefined) setStart(props.initialStart)
     if (props.initialMode) setMode(props.initialMode)
     if (props.initialTitle !== undefined) setTitle(props.initialTitle)
+    if (props.editorOnly) {
+      const initialBlock = props.planning.blocks.find(item => item.id === props.initialBlockId)
+      setBlockId(props.initialBlockId || '')
+      setTaskId(props.initialTaskId || ''); setTitle(props.initialTitle || ''); setStart(props.initialStart || ''); setDeadline(''); setEnd(''); setCompleteCoverage(false); setMessageError(false)
+      const minutes = initialBlock ? (Date.parse(initialBlock.end) - Date.parse(initialBlock.start)) / 60000 : props.tasks.find(item => item.id === props.initialTaskId)?.durationMinutes ?? props.planning.durations[props.initialTaskId || '']
+      setDuration(minutes === undefined ? '' : String(minutes))
+    }
     setFold(''); setEndFold(''); setKeepConflict(false)
     if (props.requestId || props.initialTaskId || props.initialMode || props.initialStart) openManual()
-  }, [props.initialTaskId, props.initialStart, props.initialMode, props.initialTitle, props.requestId])
+  }, [props.initialTaskId, props.initialStart, props.initialMode, props.initialTitle, props.requestId, props.initialBlockId])
+  useEffect(() => { if (props.editorOnly && props.timeZone) { setZone(props.timeZone); setFold(''); setEndFold('') } }, [props.editorOnly, props.timeZone])
   const task = props.tasks.find(item => item.id === taskId)
   const block = props.planning.blocks.find(item => item.id === blockId)
   const startResolution = resolvePlanningLocal(start, zone, fold)
@@ -121,10 +133,11 @@ export function PlanningPanel(props: PlanningPanelProps) {
   const today = derived.today
   const complete = (item: TaskRecord) => execute({ kind: 'complete-task', key: crypto.randomUUID(), expected: expected(item), taskId: item.id, stopAttachedReminderIds: stopReminderIds.filter(id => props.reminders.some(reminder => reminder.id === id && reminder.linkedTaskId === item.id)) })
   const timezoneControl = <label>Zeitzone<input aria-label="Planungszeitzone" value={zone} onChange={event => { setZone(event.target.value); setFold(''); setEndFold('') }} /></label>
+  const messageText = props.messageText || ((value: string) => value)
   const feedback = <>
-    {(message || props.storageError) && <p role={result?.ok === false || props.storageError || (props.dayFirst && messageError) ? 'alert' : 'status'}>{props.storageError || message}</p>}
-    {result?.ok === false && result.issues?.map((issue, index) => <p className="nx-planning-issue" key={index}>{issue.message}</p>)}
-    {result?.ok && result.issues.map((issue, index) => <p className="nx-planning-issue" key={index}>Gespeichert mit sichtbarem Hinweis: {issue.message}</p>)}
+    {(message || props.storageError) && <p role={result?.ok === false || props.storageError || ((props.dayFirst || props.editorOnly) && messageError) ? 'alert' : 'status'}>{messageText(props.storageError || message)}</p>}
+    {result?.ok === false && result.issues?.map((issue, index) => <p className="nx-planning-issue" key={index}>{messageText(issue.message)}</p>)}
+    {result?.ok && result.issues.map((issue, index) => <p className="nx-planning-issue" key={index}>{props.editorOnly ? 'Gespeichert mit Hinweis: ' : 'Gespeichert mit sichtbarem Hinweis: '}{messageText(issue.message)}</p>)}
     {result?.ok && result.reminderStops?.map(stop => <p key={stop.id} role={stop.result.ok ? 'status' : 'alert'}>{stop.result.ok ? 'Ausgewählte verbundene Erinnerung wurde zusätzlich gestoppt.' : `Aufgabe dauerhaft abgeschlossen; Erinnerungsstopp noch unbestätigt: ${stop.result.message}`}</p>)}
     {result?.ok && result.reminderStops?.some(stop => stop.result.ok === false) && <button type="button" disabled={pending} onClick={() => { if (lastCompletion.current) void execute(lastCompletion.current) }}>Ausgewählte Erinnerungsstopps erneut versuchen</button>}
   </>
@@ -151,6 +164,30 @@ export function PlanningPanel(props: PlanningPanelProps) {
     ...(today?.blocks || []).filter(item => item.state === 'active').map(item => ({ kind: 'block' as const, id: item.id, title: props.tasks.find(task => task.id === item.taskId)?.title || 'Verknüpfte Aufgabe fehlt', start: item.start, end: item.end, block: item })),
     ...(today?.reminderPoints || []).map(item => ({ kind: 'reminder' as const, id: item.occurrenceId, title: item.title, start: item.snoozeUntil || item.datetime, overdue: item.overdue })),
   ].sort((a, b) => Date.parse(a.start) - Date.parse(b.start))
+  const editor = <>
+    <nav aria-label="Manuelle Planung">{([['task', 'Neue Aufgabe', 'Aufgabe erfassen'], ['event', 'Neuer Termin', 'Feste Verpflichtung'], ['schedule', 'Zeit einplanen', 'Arbeitsblock'], ['availability', 'Verfügbarkeit', 'Verfügbarkeit']] as const).map(([value, modern, original]) => <button key={value} type="button" aria-pressed={mode === value} onClick={() => { setMode(value); if (value !== 'availability') setBlockId('') }}>{props.editorOnly ? modern : original}</button>)}</nav>
+    <form onSubmit={event => void submit(event)} aria-label="Manuelle Planungsaktion">
+      <h3>{props.editorOnly ? mode === 'task' ? 'Was möchtest du erledigen?' : mode === 'event' ? 'Welcher Termin steht an?' : mode === 'availability' ? 'Wann kannst du arbeiten?' : block ? 'Fokuszeit verschieben' : 'Wann möchtest du daran arbeiten?' : mode === 'task' ? 'Aufgabe erfassen' : mode === 'event' ? 'Feste Verpflichtung erfassen' : mode === 'availability' ? 'Verfügbarkeit erklären' : block ? 'Arbeitsblock verschieben' : 'Aufgabe planen'}</h3>
+      <fieldset disabled={pending || !ready || Boolean(props.storageError)}>
+        {(mode === 'task' || mode === 'event') && <label>Titel<input aria-label="Planungstitel" required value={title} onChange={event => setTitle(event.target.value)} /></label>}
+        {mode === 'schedule' && <label>Aufgabe<select aria-label="Aufgabe für Arbeitsblock" value={taskId} onChange={event => schedule(event.target.value)}><option value="">Aufgabe wählen</option>{props.tasks.filter(task => task.status !== 'done').map(task => <option key={task.id} value={task.id}>{task.title}</option>)}</select></label>}
+        {mode === 'task' && <label>Frist (optional, nur Datum)<input aria-label="Aufgabenfrist" type="date" value={deadline} onChange={event => setDeadline(event.target.value)} /></label>}
+        {mode === 'task' && <p>Eine Datumsfrist gilt bis zum Ende des genannten Tages in {zone}. Sie reserviert keine Arbeitszeit.</p>}
+        {(mode === 'task' || mode === 'schedule') && <label>Dauer in Minuten{mode === 'task' ? ' (optional)' : ''}<input aria-label="Arbeitsdauer in Minuten" type="number" min="1" max="10080" step="1" readOnly={Boolean(block)} value={duration} onChange={event => setDuration(event.target.value)} placeholder="Unbekannt — Eingabe erforderlich" /></label>}
+        {mode !== 'task' && <label>Beginn<input aria-label="Planungsbeginn" required type="datetime-local" value={start} onChange={event => { setStart(event.target.value); setFold('') }} /></label>}
+        {(mode === 'event' || mode === 'availability') && <label>Ende<input aria-label="Planungsende" required type="datetime-local" value={end} onChange={event => { setEnd(event.target.value); setEndFold('') }} /></label>}
+        {startResolution.choices.length > 1 && <label>Beginn bei Zeitumstellung<select aria-label="Beginn Uhrzeitvorkommen" value={fold} onChange={event => setFold(event.target.value)}><option value="">Früheres oder späteres Vorkommen wählen</option>{startResolution.choices.map(choice => <option key={choice.instant} value={choice.instant}>{choice.instant} {choice.offsetLabel}</option>)}</select></label>}
+        {endResolution.choices.length > 1 && <label>Ende bei Zeitumstellung<select aria-label="Ende Uhrzeitvorkommen" value={endFold} onChange={event => setEndFold(event.target.value)}><option value="">Vorkommen wählen</option>{endResolution.choices.map(choice => <option key={choice.instant} value={choice.instant}>{choice.instant} {choice.offsetLabel}</option>)}</select></label>}
+        {(mode === 'schedule' || mode === 'event') && <label className="nx-planning-check"><input type="checkbox" checked={keepConflict} onChange={event => setKeepConflict(event.target.checked)} />{props.dayFirst || props.editorOnly ? 'Mögliche Konflikte oder unvollständige Kalenderdaten: trotzdem einplanen.' : 'Konflikte / unbekannte Abdeckung ausdrücklich behalten'}</label>}
+        {mode === 'availability' && (props.dayFirst ? <details><summary>Kalenderdaten für den Tag bestätigen</summary><label className="nx-planning-check"><input type="checkbox" checked={completeCoverage} onChange={event => setCompleteCoverage(event.target.checked)} />Alle beschäftigten Quellen für den gewählten Tag sind enthalten.</label><p>Ohne diese ausdrückliche Bestätigung bleibt die Abdeckung unbekannt.</p></details> : <label className="nx-planning-check"><input type="checkbox" checked={completeCoverage} onChange={event => setCompleteCoverage(event.target.checked)} />Alle beschäftigten Quellen für den gewählten Tag sind enthalten.</label>)}
+        {mode === 'schedule' && <p>Planen oder Verschieben ändert den Arbeitsblock. Die Aufgabenfrist bleibt erhalten. Eine fehlende Dauer wird nicht geschätzt.</p>}
+        <button type="submit" disabled={result?.ok === true}>{pending ? 'Wird gespeichert …' : props.editorOnly ? mode === 'task' ? 'Aufgabe hinzufügen' : mode === 'event' ? 'Termin hinzufügen' : mode === 'availability' ? 'Verfügbarkeit speichern' : block ? 'Zeitänderung speichern' : 'Fokuszeit einplanen' : 'Planungsaktion speichern'}</button>
+      </fieldset>
+      {!props.dayFirst && feedback}
+    </form>
+
+    </>
+  if (props.editorOnly) return <section className="nx-planning-panel nx-planning-editor" aria-label="Planungseditor">{derived.error && <p role="alert">{derived.error}</p>}{editor}</section>
   return <section className={`nx-planning-panel ${props.compact ? 'is-compact' : ''} ${props.dayFirst ? 'nx-planning-panel--day-first' : ''}`} aria-labelledby={`${label}-title`}>
     <header><div className="nx-agenda-heading"><h2 id={`${label}-title`}>{props.dayFirst ? 'Agenda' : 'Agenda / Tag'}</h2>{props.dayFirst && <><p className="nx-agenda-date">{dayTitle}</p><small>Zeiten in {zone}</small></>}</div><label>Tag<input aria-label="Agenda-Tag" type="date" value={day} onChange={event => { setDay(event.target.value); props.onDayChange?.(event.target.value) }} /></label>{!props.dayFirst && timezoneControl}</header>
     <p className="nx-planning-coverage" role="status">{props.dayFirst ? <><strong>{today?.coverage === 'complete' ? 'Kalenderdaten für diesen Tag bestätigt' : 'Kalenderdaten unvollständig'}</strong>{today?.coverage !== 'complete' && <span>Freie Zeit wird nicht automatisch angenommen.</span>}</> : today?.coverage === 'complete' ? 'Kalenderabdeckung für diesen Tag ausdrücklich bestätigt.' : 'Kalenderabdeckung unbekannt — Zeit wird nicht als frei bestätigt.'}</p>
@@ -187,28 +224,8 @@ export function PlanningPanel(props: PlanningPanelProps) {
     </div>}
     {!props.dayFirst && <details open className="nx-planning-unscheduled"><summary>Ungeplante Arbeit</summary>{unscheduled.map(task => <div key={task.id}><span>{task.title}{task.blocked ? ' · blockiert' : ''}</span><button type="button" onClick={() => schedule(task.id)}>Planen</button></div>)}</details>}
     {props.dayFirst && feedback}
-    {renderEditor(<>
-    <nav aria-label="Manuelle Planung"><button type="button" onClick={() => { setMode('task'); setBlockId('') }}>Aufgabe erfassen</button><button type="button" onClick={() => { setMode('event'); setBlockId('') }}>Feste Verpflichtung</button><button type="button" onClick={() => { setMode('schedule'); setBlockId('') }}>Arbeitsblock</button><button type="button" onClick={() => setMode('availability')}>Verfügbarkeit</button></nav>
-    <form onSubmit={event => void submit(event)} aria-label="Manuelle Planungsaktion">
-      <h3>{mode === 'task' ? 'Aufgabe erfassen' : mode === 'event' ? 'Feste Verpflichtung erfassen' : mode === 'availability' ? 'Verfügbarkeit erklären' : block ? 'Arbeitsblock verschieben' : 'Aufgabe planen'}</h3>
-      <fieldset disabled={pending || !ready || Boolean(props.storageError)}>
-        {(mode === 'task' || mode === 'event') && <label>Titel<input aria-label="Planungstitel" required value={title} onChange={event => setTitle(event.target.value)} /></label>}
-        {mode === 'schedule' && <label>Aufgabe<select aria-label="Aufgabe für Arbeitsblock" value={taskId} onChange={event => schedule(event.target.value)}><option value="">Aufgabe wählen</option>{props.tasks.filter(task => task.status !== 'done').map(task => <option key={task.id} value={task.id}>{task.title}</option>)}</select></label>}
-        {mode === 'task' && <label>Frist (optional, nur Datum)<input aria-label="Aufgabenfrist" type="date" value={deadline} onChange={event => setDeadline(event.target.value)} /></label>}
-        {mode === 'task' && <p>Eine Datumsfrist gilt bis zum Ende des genannten Tages in {zone}. Sie reserviert keine Arbeitszeit.</p>}
-        {(mode === 'task' || mode === 'schedule') && <label>Dauer in Minuten{mode === 'task' ? ' (optional)' : ''}<input aria-label="Arbeitsdauer in Minuten" type="number" min="1" max="10080" step="1" readOnly={Boolean(block)} value={duration} onChange={event => setDuration(event.target.value)} placeholder="Unbekannt — Eingabe erforderlich" /></label>}
-        {mode !== 'task' && <label>Beginn<input aria-label="Planungsbeginn" required type="datetime-local" value={start} onChange={event => { setStart(event.target.value); setFold('') }} /></label>}
-        {(mode === 'event' || mode === 'availability') && <label>Ende<input aria-label="Planungsende" required type="datetime-local" value={end} onChange={event => { setEnd(event.target.value); setEndFold('') }} /></label>}
-        {startResolution.choices.length > 1 && <label>Beginn bei Zeitumstellung<select aria-label="Beginn Uhrzeitvorkommen" value={fold} onChange={event => setFold(event.target.value)}><option value="">Früheres oder späteres Vorkommen wählen</option>{startResolution.choices.map(choice => <option key={choice.instant} value={choice.instant}>{choice.instant} {choice.offsetLabel}</option>)}</select></label>}
-        {endResolution.choices.length > 1 && <label>Ende bei Zeitumstellung<select aria-label="Ende Uhrzeitvorkommen" value={endFold} onChange={event => setEndFold(event.target.value)}><option value="">Vorkommen wählen</option>{endResolution.choices.map(choice => <option key={choice.instant} value={choice.instant}>{choice.instant} {choice.offsetLabel}</option>)}</select></label>}
-        {(mode === 'schedule' || mode === 'event') && <label className="nx-planning-check"><input type="checkbox" checked={keepConflict} onChange={event => setKeepConflict(event.target.checked)} />{props.dayFirst ? 'Mögliche Konflikte oder unvollständige Kalenderdaten: trotzdem einplanen.' : 'Konflikte / unbekannte Abdeckung ausdrücklich behalten'}</label>}
-        {mode === 'availability' && (props.dayFirst ? <details><summary>Kalenderdaten für den Tag bestätigen</summary><label className="nx-planning-check"><input type="checkbox" checked={completeCoverage} onChange={event => setCompleteCoverage(event.target.checked)} />Alle beschäftigten Quellen für den gewählten Tag sind enthalten.</label><p>Ohne diese ausdrückliche Bestätigung bleibt die Abdeckung unbekannt.</p></details> : <label className="nx-planning-check"><input type="checkbox" checked={completeCoverage} onChange={event => setCompleteCoverage(event.target.checked)} />Alle beschäftigten Quellen für den gewählten Tag sind enthalten.</label>)}
-        {mode === 'schedule' && <p>Planen oder Verschieben ändert den Arbeitsblock. Die Aufgabenfrist bleibt erhalten. Eine fehlende Dauer wird nicht geschätzt.</p>}
-        <button type="submit" disabled={result?.ok === true}>{pending ? 'Wird gespeichert …' : 'Planungsaktion speichern'}</button>
-      </fieldset>
-      {!props.dayFirst && feedback}
-    </form>
-    </>)}
+    {renderEditor(editor)}
+
     {renderAdvanced(<>
     {props.entityCatalog && <details><summary>Aufgaben-Kontext und Reparatur</summary>{props.tasks.map(item => <TaskContextLinks key={item.id} task={item} catalog={props.entityCatalog!} planning={props.planning} execute={props.execute} onOpen={props.onOpenEntity} />)}</details>}
     <PlanningIcsPanel planning={props.planning} timeZone={zone} ready={ready && !pending && !props.storageError} execute={props.execute} />
