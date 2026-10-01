@@ -1,50 +1,48 @@
-# Continuation checkpoint — STOP after Wave 0
+# Continuation checkpoint — STOP after Wave 1
 
-Date: 2026-09-30. Completed: **Phase 0 and Wave 0 only**. Continue when the user says `weiter`. No Wave 1 production migration was performed.
+Date: 2026-10-01. **Phase 0, Wave 0 and Wave 1 foundation complete. Wave 2 has not started.** Continue only after a new `weiter`.
 
-## Branch and commit
+## Main folder and commits
 
-- Worktree: `F:/Coding/Nexus Workspace/Nexus-Code-v2-audit`.
-- Branch: `recode/nexus-code-v2-wave-0`.
-- Audited implementation/base: `10f8684c2da530ddc5549f2298f2794123a093d7`.
-- Evidence checkpoint commit: `10352104163c122425ddc412b7deae3f94698af5` (`test(code): capture Wave 0 native and audit baselines`).
-- Latest completed packet commit: the final documentation commit at **HEAD of this branch**; resolve with `git rev-parse HEAD` in this worktree. Its literal hash is reported in the session's final answer; a document cannot embed its own resulting commit hash without creating another commit.
-- Primary checkout: `F:/Coding/Nexus Workspace/Nexus-Ecosystem`, `dev`, same starting HEAD, pending merge `6458915ba3c5c1e4c71f2e07280dc4d7f9357f38`. Root package.json and two architecture ledgers are conflicted; unrelated staged work remains user-owned. Before/after evidence is retained. No push, PR or primary merge resolution.
+Work only in **F:/Coding/Nexus Workspace/Nexus-Ecosystem**, currently branch `dev`. Read Workspace/AGENTS.md and run the workspace's `npm run check:workspace` at task start/end. No additional source copies/worktrees without explicit human authorization. The user authorized consolidation via the Security chat; that workflow owns remaining workspace cleanup.
 
-## Completed packet
+- Original audit **642bde64f2167d5b254f7be05f0a40be52a3aa47**, evidence **10352104163c122425ddc412b7deae3f94698af5**, implementation **10f8684**. Historical branch refs/evidence remain available.
+- Fresh fetched base **0cb408b02f4ba54f0626b4031d73541b8cb94287**. [Reconciliation](11-main-reconciliation.md) verifies the already merged Windows runner fix: unchanged original harness 10/10. **Do not fix it again.**
+- Separate shared persistence fix **f58ebbb2c3151ad930aad988de525c9b86ca2807** owns the five concurrent legacy IndexedDB files; not a Code foundation change.
+- Audit integrated as **49408da / 3a96e4d**. Foundation integrated as **b0d3fc203054bffed525d901688d5e43c1db4b0c** (original isolated commit 7f63f7b). Final checkpoint/evidence commit is HEAD after this document's commit: resolve `git rev-parse HEAD`. No push or PR requested/performed.
+- Final boundary review added a fixed allowlist for technical error codes and its secret-string regression test. That small source change is included in the final checkpoint/evidence commit; final foundation tests are **20/20**.
+- Original primary merge was resolved by its separately authorized owner; no MERGE_HEAD remains. Foreign Nexus Main/README.md and packages/nexus-core/src/planning/cerebri/adapter.ts remain untouched/uncommitted. Recheck status and coordinate before editing them.
 
-41 subsystem records, exact requested recode classes, all direct runtime/development dependencies and overrides, product core/advanced/experimental/out-of-scope, capability-truth ledger, canonical state owners, final 0–15 wave sequence, six ADRs, current user/developer guides, UI token/surface plan, security/performance plans, baseline logs and selected actual Electron screenshots. Added one native production-main/preload characterization harness; only its native folder picker is replaced. CodeMirror, shared persistence and security behavior are unchanged.
+## Implemented foundation
 
-## Tests and known failures
+[12-wave-1-foundation.md](12-wave-1-foundation.md) records exact contracts and the seven-domain ownership matrix.
 
-Passed: lint, build/markup, 52 IDE-core cases, 36 SSR fixtures, security navigation/no-localStorage-token assertions, single-React/ecosystem checks, 79 public tests, real-browser persistence tests, model measurements. Native characterization passes nine checks: account gate, root authorization, bytes/empty/Unicode/EOL, traversal/metadata/symlink rejection, rename/delete, disposable Git status/stage/commit and relative runner output/error/input/exit.
+1. Typed window/workspace/terminal/git/github/lsp ports wrap existing secure preload. Browser/test adapters and partial capability states are explicit. No main/preload/security/auth rewrite.
+2. Safe structured result/errors and typed idempotent subscriptions. Workspace writes require the actual true acknowledgment; existing shared revision/save owner stays canonical.
+3. Central command registry/aliases/availability/handler. Six panel/settings commands share menu/keyboard/palette/Spotlight dispatch; separate visuals and other commands stay legacy.
+4. One panel/settings controller extracted from Editor, with existing state/dock functions injected. No mirrored store or new writer.
+5. Seven-key settings schema under the current loader/UI preserves compatible unknown keys/custom themes/future shortcut IDs and legacy known-shortcut validation.
 
-Known red gates:
+Editor still owns tabs/workspace/files/layout/UI and remaining actions. CodeEditor/providers/LSP transports, terminal/Git/GitHub/extensions/settings UI and persistence queues remain largely legacy. Other raw bridge consumers are documented. Do not claim the whole renderer is migrated.
 
-1. Full JS typecheck exits 2: 4,353 diagnostics, identical count in primary. Build is a different permissive gate.
-2. Full visual suite exits 1: 119/120, editor-scroll@desktop grammar-loading/no-scroller race. Single focused recheck passes; full matrix remains red. Recheck overwrote original failed image/full metrics summary; raw full log and reconstructed outcome manifest retained.
-3. Native suite exits 1: quoted absolute path containing spaces fails on Windows runner IPC. Relative command passes. Keep this regression red until Wave 8 repair.
+## Final evidence
 
-Detailed commands, limits and logs: [test strategy](09-test-strategy.md). No clean lockfile install (installed junctions reused), authenticated production workbench, real LSP server/GitHub mutation, DAP/PTY, installers or native upgrade/restart/force-kill/multi-window acceptance. No remote CI result for the local base SHA. #418 successful checks concern the pending merge, not this base.
+[09](09-test-strategy.md) links all gates and scope. Strict new TS gate + **20 tests** pass. Full JS check remains red at **4,270 vs 4,353**, **0 new / 83 removed**, exact [inventory](13-diagnostics.md). New TS modules: zero; legacy touched files remain enumerated.
 
-## Current architecture and remaining legacy
+Main-folder gates pass: lint, 52 IDE-core cases, 36 SSR cases, security, markup/build, seven actual adapter-native checks, 254 public cases (237 pass / 17 skips), ecosystem/single-React/lockfiles/encoding and 14 real browser persistence stages. Full visual remains historical 119/120; isolated recheck is not a green full matrix. No authenticated Editor/live LSP/GitHub/PTY/DAP/installed durability acceptance.
 
-Boot/auth/release policy lives in App/boot/account helpers. Local Nexus session/token uses sessionStorage, removes legacy localStorage credentials, and Remember is forwarded to backend; native durable restore is unverified. Editor remains orchestration/state/IO/UI; CodeEditor remains CM+document/providers/process/status. Shared core repository/save queue/mutation guard owns revision-bound persistence. Main/preload gate native operations; existing Git/GitHub/LSP services are real foundations. Docking/tree/feature models and PanelChrome are valuable.
+## Consolidation and preserved work
 
-Legacy remains in production: synthetic debug runtime, canned browser terminal path, marketplace-like local extension records, giant Settings/Git/Editor integration, global CSS overrides, separate palette/Spotlight/shortcut dispatch, incomplete workspace diagnostics/search scope/watcher, ad-hoc bridge/errors, scaffold/template dependency candidates. No removal/implementation occurred beyond truthful README documentation.
+Both temporary Code worktree registrations were removed with Git after integration and verified backups. Windows Git removal left physical contents. Wave1 leftovers were reversibly archived; Audit Move-Item failed at a fixture junction and the subsequent nonrecursive Directory.Move was denied by Windows. **The remaining Audit folder must not be used for development.** Further physical operations stopped at the consolidation chat's request while it investigates workspace links. Automatic command policy also rejected junction/directory removal with only 'blocked by policy', no additional explanation. [Consolidation record](evidence/wave-1/consolidation.json) is authoritative.
 
-## Exact next task — Wave 1 foundation only
+Archive root: **F:/Coding/Nexus Workspace/.workspace-maintenance/2026-10-01/nexus-code-wave-1/**. Contains historical/current test ZIPs (125+5 PNGs), SHA manifest, foreign patch/raw copies, preserved foreign-file hashes, residual-wave-1 and partial residual-audit. A separate verified foreign backup remains under .workspace-maintenance/2026-10-01/wave1-persistence-*/. Five foreign edits are already integrated as f58ebbb, not lost/reapplied. Historical and foundation branch refs are retained.
 
-1. Read this packet, inspect both worktree statuses and current commits/PRs. Decide the implementation base deliberately after the primary merge is reconciled by its owning workflow; preserve its uncommitted work. Do not replay stale July push-main instructions.
-2. Read current bridge/command/settings/persistence tests and search all consumers. Add a strict TS noEmit boundary configuration and typed capability/result/error/event contracts; adapt current window/workspace/runner/Git/GitHub/LSP shapes, preserving native guards.
-3. Evolve existing command metadata into one dispatch/availability registry with aliases. Migrate the bounded initial set: open folder, new file, save/Save All, sidebar/terminal toggles, settings and format/rename/definition availability. Protect keyboard/menu/palette parity and event teardown.
-4. Define bounded workspace/document/workbench/settings/runner/SCM owner interfaces. Extract one workbench command controller as proof; wrap the shared save owner, never duplicate it.
-5. Add a compatible initial theme/font/tab-size/word-wrap/autosave/keybinding schema preserving stored keys/defaults; adapt existing SettingsPanel and define acknowledged errors. No full settings UI migration.
-6. Publish capability truth at adapters. Handle missing bridge/unsupported/debug/PTY/marketplace states as unavailable/limited, not generated success. Only small tested labeling corrections; runtime rebuilds remain in later waves.
-7. Run strict new-boundary checks plus relevant existing gates/native/public persistence protections, report inherited failures, update docs/ledger/checkpoint, make a bounded commit, **STOP**.
+## Exact next task — Wave 2 only after weiter
 
-Full Wave 1 exclusions/acceptance: [roadmap](04-migration-roadmap.md). No visual shell rebuild, engine swap, new save queue, broad mechanical TS conversion, dependency refresh or auth/security-policy change.
+1. Read this checkpoint, AGENTS/status/main history; coordinate foreign work and workspace cleanup. Work in the main folder.
+2. Read [05 UI system](05-ui-system.md), [CSS/source inventory](evidence/source-inventory.json), [captures](evidence/visual-baseline.md). Begin with **semantic CSS tokens, surface levels, typography/spacing/radius/focus/motion primitives**, using existing src/theme/nexusThemeResolver.js and src/components/editor/panels/PanelChrome.jsx as seams; inspect globals.css before scoped edits.
+3. Add a bounded token/primitives layer with computed-style/contrast/theme/keyboard/reduced-motion evidence. Preserve persisted appearance options/fallbacks; remove only proven cascade duplication. No broad globals.css replacement.
+4. Validate actual Electron fixtures/screenshots for touched primitives plus focus/small-window/theme behavior. Keep strict/full diagnostic delta, build/security/save protections.
+5. Update docs/checkpoint, commit a bounded Wave 2 packet and **STOP**. Do not expand into Wave 3 shell composition, Settings/Git/Terminal redesign, PTY, DAP, extensions or persistence redesign.
 
-## Parallel chat coordination
-
-The separately authorized V7 chat (`01a0f1f6-03fb-7030-a5c0-153bbfbdf7cc`) is handling Nexus ecosystem/Main/Mobile planning in its own worktree. This packet owns Code audit/test/docs only and does not edit Code Mobile or shared-core production code. Recheck integration before future commits; chat messages do not expand the current Wave 0 authorization.
+The old suggested Wave 1 file/save/format/navigation expansion was superseded by the human's bounded panel/settings scope. Continue those migrations in their domain waves.

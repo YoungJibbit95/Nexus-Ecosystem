@@ -41,8 +41,9 @@ function count(entries, key) {
   return entries.reduce((totals, entry) => { const name = entry[key]; totals[name] = (totals[name] || 0) + 1; return totals; }, seed);
 }
 const before = read('typecheck-before.log');
-const hasAfter = fs.existsSync(path.join(directory, 'typecheck-after.log'));
-const after = hasAfter ? read('typecheck-after.log') : null;
+const afterLog = process.argv[2] ?? 'typecheck-after.log';
+const hasAfter = fs.existsSync(path.join(directory, afterLog));
+const after = hasAfter ? read(afterLog) : null;
 const key = item => `${item.file}|${item.code}|${item.message}`;
 function difference(left, right) {
   const remaining = new Map();
@@ -55,6 +56,7 @@ function difference(left, right) {
 }
 const report = { method:'Diagnostic identity multiset ignoring line shifts and dependency junction path spelling; categories are triage heuristics, not automatic proof of contract defects. Raw logs retain original file paths. Review representative source before fixing.',
   integrationBase:'0cb408b02f4ba54f0626b4031d73541b8cb94287', historicalCount:4353,
+  sourceLogs:{before:'typecheck-before.log',after:afterLog},
   before:{count:before.length, byFile:count(before,'file'), byCode:count(before,'code'), bySubsystem:count(before,'subsystem'), byCategory:count(before,'category'), diagnostics:before},
   after:after ? {count:after.length, byFile:count(after,'file'), byCode:count(after,'code'), bySubsystem:count(after,'subsystem'), byCategory:count(after,'category'), diagnostics:after} : null,
   introduced:after ? difference(after,before) : [], removed:after ? difference(before,after) : []};

@@ -15,9 +15,10 @@ const messages: Record<PlatformErrorCode, string> = {
   RATE_LIMITED: 'The service is temporarily rate limited. Try again later.',
   OPERATION_FAILED: 'The operation could not be completed.',
 };
+const safeNativeCodes = new Set(['EACCES','EPERM','ENOENT','EEXIST','ENOTDIR','EISDIR','ENOSPC','EROFS','EMFILE','ENFILE','EBUSY','ETIMEDOUT','ECONNRESET','ECONNREFUSED','ENETUNREACH','EHOSTUNREACH','EPIPE']);
 export function normalizePlatformError(operation: string, cause: unknown, explicitCode?: PlatformErrorCode): PlatformError {
   const raw = typeof cause === 'string' ? cause : isRecord(cause) && typeof cause.message === 'string' ? cause.message : '';
-  const nativeCode = isRecord(cause) && typeof cause.code === 'string' && /^E[A-Z_]{2,30}$/.test(cause.code) ? cause.code : undefined;
+  const nativeCode = isRecord(cause) && typeof cause.code === 'string' && safeNativeCodes.has(cause.code) ? cause.code : undefined;
   const code = explicitCode ?? (/timeout|timed out/i.test(raw) ? 'TIMEOUT'
     : /abort|cancel/i.test(raw) ? 'CANCELED'
     : /outside|protected|not allowed|denied|workspace.*selected|workspace-ordner auswaehlen|workspace root.*cannot be modified/i.test(raw) || nativeCode === 'EACCES' || nativeCode === 'EPERM' ? 'PERMISSION_DENIED'

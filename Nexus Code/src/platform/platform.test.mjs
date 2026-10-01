@@ -92,3 +92,11 @@ test('GitHub device-flow compatibility accepts both existing string and options 
   assert.equal((await port.pollDeviceFlow({deviceCode:'fixture-code'})).ok,true);
   assert.deepEqual(calls,['fixture-code',{deviceCode:'fixture-code'}]);
 });
+
+test('technical codes use a fixed allowlist rather than exposing provider-controlled strings', () => {
+  const unsafe=normalizePlatformError('workspace.readFile',{code:'ESECRET_API_TOKEN',message:'token=private'});
+  assert.doesNotMatch(JSON.stringify(unsafe),/SECRET|TOKEN|private/);
+  assert.equal(unsafe.technical,undefined);
+  const safe=normalizePlatformError('workspace.writeFile',{code:'EACCES'});
+  assert.equal(safe.technical.nativeCode,'EACCES');assert.equal(safe.code,'PERMISSION_DENIED');
+});

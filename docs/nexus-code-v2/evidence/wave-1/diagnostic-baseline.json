@@ -2,6 +2,10 @@
   "method": "Diagnostic identity multiset ignoring line shifts and dependency junction path spelling; categories are triage heuristics, not automatic proof of contract defects. Raw logs retain original file paths. Review representative source before fixing.",
   "integrationBase": "0cb408b02f4ba54f0626b4031d73541b8cb94287",
   "historicalCount": 4353,
+  "sourceLogs": {
+    "before": "typecheck-before.log",
+    "after": "main-typecheck.log"
+  },
   "before": {
     "count": 4353,
     "byFile": {

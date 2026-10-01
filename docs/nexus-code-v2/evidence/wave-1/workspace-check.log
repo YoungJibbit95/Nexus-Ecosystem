@@ -1,0 +1,10 @@
+
+> nexus-workspace@1.0.0 check:workspace
+> powershell -NoProfile -ExecutionPolicy Bypass -File ./.workspace-maintenance/check-workspace.ps1
+
+Hinweis: bestehender Worktree ausserhalb dieses Workspace: C:\Users\Administrator\.codex\worktrees\slice-2-phase-b\Nexus Cerebri Project
+Hinweis: bestehender Worktree ausserhalb dieses Workspace: C:\Users\Administrator\.codex\worktrees\technical-descent\Nexus Cerebri Project
+Neben-Worktree fuer F:\Coding\Nexus Workspace\Nexus-Ecosystem: F:\Coding\Nexus Workspace\Nexus-Ecosystem-v7
+Neben-Worktree fuer F:\Coding\Nexus Workspace\Nexus-Ecosystem: F:\Coding\Nexus Workspace\Nexus-Ecosystem-v7-review
+Zusaetzlicher Source-Checkout: F:\Coding\Nexus Workspace\Nexus-Ecosystem-v7
+Zusaetzlicher Source-Checkout: F:\Coding\Nexus Workspace\Nexus-Ecosystem-v7-review

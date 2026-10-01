@@ -57,3 +57,26 @@ Run existing relevant gates and new behavioral protection; compare inherited fai
 Wave 0 adds test/evidence/docs only. No installer, live GitHub mutation, actual language server, DAP, PTY, authenticated workbench, power-loss or installed upgrade acceptance was performed. Performance and security observations do not substitute for those tests.
 
 Final packet verification: lint passed again (53.6s; [result](evidence/final-lint-result.json)), native/evidence scripts passed syntax checks ([results](evidence/final-syntax-results.json)), and [primary preservation](evidence/primary-preservation.json) confirms the original branch/HEAD/MERGE_HEAD and status stayed unchanged. [Document/link/screenshot checks](evidence/final-document-check.json) pass. [Staged whitespace checks](evidence/final-whitespace-check.json) pass. Lint logs have only their trailing blank line normalized for repository whitespace rules; output content is preserved.
+
+## Wave 1 final gates — 2026-10-01
+
+Reconciliation first used current main `0cb408b`: build passed, full check remained 4,353, and the **unchanged historical harness passed 10/10** ([result](evidence/wave-1/native-historical-harness.json)). The runner was already fixed; no second fix or historical evidence replacement was made.
+
+Foundation commit `7f63f7b` was integrated in the main folder as **`b0d3fc2`**, after the separate shared persistence fix **`f58ebbb`**. Audit commits were copied as `49408da`/`3a96e4d`. Final gates below were rerun in **Nexus-Ecosystem**, against the combined committed source. Foreign Main README/planning adapter changes were preserved, not staged. Early browser/public checks included concurrent persistence edits; final main checks use their separately reviewed committed version, not attributed to Wave 1.
+
+| Gate | Exit | Final result |
+| --- | ---: | --- |
+| Strict foundation + unit tests | 0 | Zero new-boundary diagnostics; **20/20** ([log](evidence/wave-1/main-foundation.log)) |
+| Full typecheck | 2 | **4,353 → 4,270; 0 introduced / 83 removed**, new TS modules zero ([inventory](13-diagnostics.md), [log](evidence/wave-1/main-typecheck.log)) |
+| Lint | 0 | Existing renderer ESLint rules pass ([log](evidence/wave-1/main-lint.log)) |
+| IDE-core / UI / security | 0 | **52** model cases, **36** SSR fixtures/four viewports; navigation/token regression ([log](evidence/wave-1/main-core-ui-security.log)) |
+| Build | 0 | Markup, permissive TS build and production Vite ([log](evidence/wave-1/main-build.log)) |
+| Compiled adapters over real native bridge | 0 | **7/7**, isolated account gate, guarded disk IO, runner events ([result](evidence/wave-1/main-native.json), [log](evidence/wave-1/main-native.log)) |
+| Ecosystem checks | 0 | single-React, ecosystem, six lockfiles, encoding; **254 public cases: 237 pass / 17 existing skips** ([log](evidence/wave-1/main-ecosystem.log)) |
+| Real browser persistence | 0 | **14 stages**, actual IndexedDB/React reload/handoff/recovery, injected native writes ([log](evidence/wave-1/main-browser-persistence.log)) |
+
+Each log has a sibling `*-result.json` binding exit/time/location/source. The first native attempt exposed a localized denial-classification gap; its [failed development result](evidence/wave-1/foundation-native-first-attempt.json) remains, with corrected unit/native gates passing. Main/preload sources are unchanged by Wave 1.
+
+Full visual remains historical **119/120**, with only its focused recheck green. No authenticated Editor/live LSP/GitHub/DAP/PTY/installer/restart/force-kill/upgrade acceptance is claimed. Lockfile consistency is not a clean install. Native GPU/CSP/deprecation warnings remain visible and unsuppressed in logs.
+
+Ignored historical/current test artifacts, available captures, foreign patch/raw files and SHA-256 manifests are centralized under `F:/Coding/Nexus Workspace/.workspace-maintenance/2026-10-01/nexus-code-wave-1/`. Committed historical evidence is unchanged. [Consolidation record](evidence/wave-1/consolidation.json) gives integration/preservation and remaining cleanup status.
