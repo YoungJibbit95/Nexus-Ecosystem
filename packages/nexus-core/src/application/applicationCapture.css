@@ -1,0 +1,28 @@
+.nx-application-capture {
+  position: fixed; inset: 0; z-index: 50000; display: grid; place-items: center;
+  background: #0009; padding: 16px; box-sizing: border-box;
+}
+.nx-application-capture-dialog {
+  background: var(--nx-bg-elevated, #182334); color: var(--nx-text-primary, #fff);
+  border: 1px solid #64748b; border-radius: 16px; padding: 22px;
+  width: 100%; max-width: 520px; min-width: 0; box-sizing: border-box;
+  max-height: calc(100dvh - 32px); overflow: auto; overflow-wrap: anywhere;
+}
+.nx-application-capture-dialog input,
+.nx-application-capture-dialog textarea,
+.nx-application-capture-dialog select,
+.nx-application-capture-dialog button {
+  min-height: 44px; min-width: 0; max-width: 100%; box-sizing: border-box;
+  font: inherit; color: inherit; background: #101a2b;
+  border: 1px solid #94a3b8; border-radius: 8px; padding: 10px;
+}
+.nx-application-capture-dialog input,
+.nx-application-capture-dialog textarea,
+.nx-application-capture-dialog select { width: 100%; }
+.nx-application-capture-dialog button { cursor: pointer; white-space: normal; }
+.nx-application-capture-dialog :focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+.nx-application-capture-dialog :disabled { opacity: .65; cursor: default; }
+.nx-application-capture-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.nx-application-capture,
+.nx-application-capture-dialog,
+.nx-application-capture-dialog * { animation: none !important; transition: none !important; }

@@ -7,24 +7,42 @@
 Nexus Main ist die Desktop-Workspace-App im Nexus Ecosystem.
 Sie kombiniert produktive Kern-Views mit der zentralen Render-/Motion-Laufzeit aus `@nexus/core`.
 
+## Nutzung
+
+Öffne Dashboard zum Fortsetzen deiner Arbeit, Notes zum Schreiben, Tasks/Reminders zum Planen und Files für den lokalen Datenbestand. Der [User Guide](../docs/USER_GUIDE.md) beschreibt die Bedienung; die Build-Kommandos weiter unten richten sich an Entwickler.
+
+**Code ist ein Archiv:** Vorhandene Code-Dateien lassen sich nach Namen suchen, lesen und als einzelne Datei oder mit Ordnerdaten als JSON exportieren. Die Daten bleiben in der lokalen Speicherung und in unterstützten Workspace-Snapshots/Backups erhalten. Im Archiv gibt es kein Bearbeiten oder Ausführen. Exportierte Einzeldateien kannst du in einem selbst gewählten Ordner in der separaten App Nexus Code öffnen; Archiv-JSON ist kein automatischer Projektimport.
+
+Nexus Code uses CodeMirror and a simple stdio command runner. The quoted absolute Windows-path regression is corrected and covered by actual IPC probes; this does not establish every command or installed-platform behavior. Language servers and GitHub need external prerequisites. PTY, connected debugging and executable marketplace support are not qualified. The separate app requires a validated compatible account.
+
 ## View Overview
+
+### Manual agenda and workspace transfer
+
+Open **Calendar → Agenda** to capture a task, a fixed event or an explicit work block. A task deadline and a work block are separate: planning Wednesday does not move a Friday deadline. Enter the duration yourself when it is unknown. Missing calendar coverage is shown as unknown; overlaps and uncertainty require an explicit decision before saving. Dashboard and Flux use the same distinct task, commitment and reminder counts.
+
+Shell, Dashboard and command-palette capture open the same unsaved forms. Opening or cancelling a form does not save an entity; confirmation returns its canonical identity only after storage acknowledgement. Note and Canvas context links focus existing entities and offer explicit repair when a source is missing.
+
+ICS import previews fixed intervals and keeps the original file and warnings. Recurrence, exceptions, alarms and embedded timezone rules are retained as raw provenance rather than executed. A recurring base interval requires a separate explicit choice. Complete workspace exports/backups use Runtime V2 for planning and portable reminder occurrence state. A separate legacy V1 downgrade reports the omitted planning/history before use; loose-file import is not a complete snapshot.
+
+Cerebri production assistance remains disabled. The local preview qualification does not activate a production collector or automatic scheduling. See the [User Guide](../docs/USER_GUIDE.md#manual-agenda-and-capture), [Developer Guide](../docs/DEVELOPER_GUIDE.md#planning-and-workspace-contracts) and [shared planning contract](../packages/nexus-core/src/planning/README.md).
 
 | View | Purpose | Highlights |
 | --- | --- | --- |
 | `dashboard` | start and control center | Today layer, resume lane, quick capture, workspace status |
-| `calendar` | shared planning layer (partial) | task/reminder-backed day, week, month, agenda and ICS flows |
+| `calendar` | manual planning and temporal context | separate deadlines, fixed events, work blocks, explicit availability and loss-aware ICS preview |
 | `notes` | markdown knowledge workflow (partial) | edit/preview/split, templates, linking/context helpers |
 | `tasks` | execution planning | kanban flow, priorities, due states, focus actions |
 | `reminders` | time-based workflow | grouped due states, snooze/complete, health controls |
 | `canvas` | visual board workflow (development) | node graph, templates, quick add, inspector, keyboard actions |
 | `files` | workspace + handoff (partial) | explicit library/workspace assignment, root selection, import/export and preview |
 | `flux` | local operations view (partial) | queue, bottleneck and activity signals derived from local workspace data |
-| `code` | embedded code work (partial) | bounded local code execution and file workflows in Main shell |
+| `code` | compatibility archive | read/search/export existing code files; no embedded editing or execution |
 | `devtools` | internal diagnostics (development) | development-only, Pro plus Admin/Developer-gated utilities |
 | `settings` | system controls (partial) | appearance, typography, motion/render controls, presets |
 | `info` | product and architecture docs | in-app source of truth for usage and internals |
 
-## UI Engine
+## Developer reference: UI Engine
 
 Nexus Main uses shared runtime modules from:
 

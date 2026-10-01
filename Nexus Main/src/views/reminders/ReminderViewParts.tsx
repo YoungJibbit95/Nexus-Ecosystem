@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { createReminderTimeEdit, resolveReminderTimeEdit } from "@nexus/core/time/reminderTimeEdit";
+import { executeReminderCommand, type ReminderCommandResult } from "@nexus/core/reminders/reminderDomain";
 import {
   AlarmClock,
   AlertCircle,
@@ -449,6 +450,7 @@ export function ReminderModal({
                     </button>
                   ))}
                 </div>
+                {repeat !== "none" && <p style={{fontSize:11,opacity:0.75}}>Repeats in UTC. Monthly dates clamp to the last day and retain the original anchor day. Local civil-time recurrence is unavailable.</p>}
                 <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
                   <label style={{ display: "grid", gap: 4, fontSize: 11, opacity: 0.8 }}>
                     Verknupfte Task
@@ -626,6 +628,8 @@ export function ReminderCard({
   const t = useTheme();
   const rgb = hexToRgb(t.accent);
   const { doneRem, delRem, snoozeRem, tasks, notes, openNote, setNote } = useApp();
+  const [commandMessage, setCommandMessage] = useState("");
+  const runCommand = async (pending:Promise<ReminderCommandResult>) => { const result=await pending; setCommandMessage(result.ok===false?result.message:result.skipped?`Advanced; ${result.skipped} missed occurrences skipped.`:""); };
   const dt = new Date(r.snoozeUntil || r.datetime);
   const isPast = dt < now && !r.done;
   const isSoon = !isPast && dt.getTime() - now.getTime() < 30 * 60000;
@@ -744,7 +748,9 @@ export function ReminderCard({
           </SurfaceHighlight>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
             <button
-              onClick={() => doneRem(r.id)}
+              aria-label="Complete occurrence"
+              disabled={r.done}
+              onClick={() => {void runCommand(doneRem(r.id))}}
               style={{
                 width: 22,
                 height: 22,
@@ -841,7 +847,7 @@ export function ReminderCard({
                       color: t.accent,
                     }}
                   >
-                    <Repeat size={9} /> {formatReminderRepeat(r.repeat)}
+                    <Repeat size={9} /> {formatReminderRepeat(r.repeat)} (UTC)
                   </span>
                 )}
                 {linkedTask ? (
@@ -958,7 +964,7 @@ export function ReminderCard({
               {REMINDER_SNOOZE_PRESETS.map((minutes) => (
                 <button
                   key={minutes}
-                  onClick={() => snoozeRem(r.id, minutes)}
+                  onClick={() => {void runCommand(snoozeRem(r.id, minutes))}}
                   style={{
                     padding: "4px 10px",
                     borderRadius: 7,
@@ -975,6 +981,8 @@ export function ReminderCard({
               ))}
             </div>
           )}
+          {r.repeat !== "none" && !r.done && <button onClick={()=>{void runCommand(executeReminderCommand('main',{kind:'stop',id:r.id}))}} style={{marginTop:8}}>Stop series</button>}
+          {commandMessage && <div role="status" style={{fontSize:12,marginTop:8}}>{commandMessage}</div>}
         </Glass>
       </motion.div>
     </motion.div>

@@ -582,7 +582,7 @@ const run = async () => {
     {
       id: 'main-workspace-restore-safety-backup',
       file: path.join(ROOT, 'Nexus Main/src/app/workspaceRestore.ts'),
-      pattern: /export async function restoreWorkspaceBackup[\s\S]*?applySnapshotTransaction[\s\S]*?before-restore[\s\S]*?await saveWorkspaceBackup\(before\)[\s\S]*?await writeWorkspaceRestoreJournal\(before, after\)/,
+      pattern: /async function runWorkspaceReplacement[\s\S]*?applySnapshotTransaction[\s\S]*?if \(retainRestoreBackup\) await saveWorkspaceBackup\(before.snapshot\)[\s\S]*?await writeWorkspaceRestoreJournal\(before, after\)[\s\S]*?export async function restoreWorkspaceBackup[\s\S]*?return runWorkspaceReplacement\(snapshot, true\)/,
       message: 'Workspace-Koordinator erstellt Safety Backup und Recovery Journal vor der Anwendung',
     },
     {

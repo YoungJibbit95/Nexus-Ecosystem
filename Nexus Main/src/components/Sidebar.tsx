@@ -1,4 +1,5 @@
 import React from 'react'
+import { openApplicationCapture } from '@nexus/core/application/captureNavigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Terminal, Zap, Plus, Circle } from 'lucide-react'
 import { Glass } from './Glass'
@@ -463,8 +464,7 @@ export function Sidebar({
                 <LiquidGlassButton
                   className="nx-bounce-target"
                   onClick={() => {
-                    addNote()
-                    if (allowedViews.has('notes')) onChange('notes')
+                    if (allowedViews.has('notes')) openApplicationCapture('main', 'note', next => onChange(next as View))
                   }}
                   color={t.accent}
                   borderRadius={8}
@@ -487,8 +487,7 @@ export function Sidebar({
                 <button
                   className="nx-bounce-target"
                   onClick={() => {
-                    addNote()
-                    if (allowedViews.has('notes')) onChange('notes')
+                    if (allowedViews.has('notes')) openApplicationCapture('main', 'note', next => onChange(next as View))
                   }}
                   style={{
                     flex: 1,
@@ -513,8 +512,7 @@ export function Sidebar({
                 <LiquidGlassButton
                   className="nx-bounce-target"
                   onClick={() => {
-                    addTask('Quick Task', 'todo')
-                    if (allowedViews.has('tasks')) onChange('tasks')
+                    if (allowedViews.has('tasks') && allowedViews.has('calendar')) openApplicationCapture('main', 'task', next => onChange(next as View))
                   }}
                   color="#ff9f0a"
                   borderRadius={8}
@@ -537,8 +535,7 @@ export function Sidebar({
                 <button
                   className="nx-bounce-target"
                   onClick={() => {
-                    addTask('Quick Task', 'todo')
-                    if (allowedViews.has('tasks')) onChange('tasks')
+                    if (allowedViews.has('tasks') && allowedViews.has('calendar')) openApplicationCapture('main', 'task', next => onChange(next as View))
                   }}
                   style={{
                     flex: 1,

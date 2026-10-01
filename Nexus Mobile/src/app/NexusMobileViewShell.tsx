@@ -15,6 +15,7 @@ import {
   type NexusViewManifest,
 } from "@nexus/core";
 import type { View } from "../components/Sidebar";
+import { useTheme } from "../store/themeStore";
 
 type Props = {
   viewId: View;
@@ -22,7 +23,7 @@ type Props = {
   active: boolean;
   reducedMotion: boolean;
   onRequestViewChange: (viewId: View | string) => void;
-  onExecuteCommand?: (command: NexusResolvedViewCommand) => boolean | void;
+  onExecuteCommand?: (command: NexusResolvedViewCommand) => boolean | void | 'opened';
   children: React.ReactNode;
 };
 
@@ -92,6 +93,7 @@ export function NexusMobileViewShell({
   onExecuteCommand,
   children,
 }: Props) {
+  const themeMode = useTheme((state) => state.mode);
   const contract = React.useMemo(() => resolveViewContract(viewId), [viewId]);
   const relatedViews = React.useMemo(
     () => resolveRelatedViews(viewId, availableViews, contract),
@@ -104,12 +106,12 @@ export function NexusMobileViewShell({
           viewId,
           surface: "mobile",
           density: "compact",
-          themeMode: "dark",
+          themeMode,
           accent: contract.accent,
           reducedMotion,
         }),
       ),
-    [contract.accent, reducedMotion, viewId],
+    [contract.accent, reducedMotion, themeMode, viewId],
   );
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [activePanelId, setActivePanelId] = React.useState<string | null>(null);
@@ -260,6 +262,10 @@ export function NexusMobileViewShell({
       }
 
       const handled = onExecuteCommand?.(command);
+      if (handled === 'opened') {
+        setShellState({ ...resolveNexusViewState({ viewId }), tone: 'info', label: 'Geöffnet', title: 'Erfassung geöffnet', description: 'Noch nicht gespeichert. Bestätige die Eingaben im Erfassungsformular.', ariaLive: 'polite' });
+        return;
+      }
       if (handled) {
         setShellState(resolveNexusViewState({ viewId, saved: true }));
         return;

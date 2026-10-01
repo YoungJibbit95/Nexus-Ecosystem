@@ -300,7 +300,9 @@ const resolveShellLaunch = (command) => {
   if (process.platform === "win32") {
     return {
       binary: process.env.ComSpec || "cmd.exe",
-      args: ["/d", "/s", "/c", command],
+      // Match cmd's /s quote boundary; CRT escaping would corrupt quoted script paths.
+      args: ["/d", "/s", "/c", `"${command}"`],
+      windowsVerbatimArguments: true,
     };
   }
 
@@ -994,6 +996,7 @@ ipcMain.on("terminal:run", async (event, payload = {}) => {
       env: createSanitizedProcessEnv({ FORCE_COLOR: "1" }),
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
+      windowsVerbatimArguments: shellLaunch.windowsVerbatimArguments,
     });
 
     activeProcesses.set(id, proc);

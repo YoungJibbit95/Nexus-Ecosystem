@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { type CaptureIntent } from "@nexus/core";
+import { openApplicationCapture } from '@nexus/core/application/captureNavigation';
 import { shallow } from "zustand/shallow";
 import { useTheme } from "../../store/themeStore";
 import { useTerminal } from "../../store/terminalStore";
@@ -217,28 +218,19 @@ export function useNexusToolbarModel({
     (intent: CaptureIntent) => {
       switch (intent.type) {
         case "note": {
-          app.addNote();
-          const latest = useApp.getState().notes[0];
-          const title = intent.title?.trim();
-          if (latest?.id && title) {
-            useApp.getState().updateNote(latest.id, { title });
-          }
-          setView?.((intent.targetView || "notes") as any);
+          openApplicationCapture('main', 'note', setView, intent.title);
           return;
         }
         case "task": {
-          app.addTask(intent.title?.trim() || "Quick Task", "todo");
-          setView?.((intent.targetView || "tasks") as any);
+          openApplicationCapture('main', 'task', setView, intent.title);
+          return;
+        }
+        case "event": {
+          openApplicationCapture('main', 'event', setView, intent.title);
           return;
         }
         case "reminder": {
-          app.addRem({
-            title: intent.title?.trim() || "Quick Reminder",
-            msg: "Created from command bar",
-            datetime: new Date(Date.now() + 60 * 60000).toISOString(),
-            repeat: "none",
-          });
-          setView?.((intent.targetView || "reminders") as any);
+          openApplicationCapture('main', 'reminder', setView, intent.title);
           return;
         }
         case "code": {

@@ -1,4 +1,6 @@
 import { useCallback, useMemo } from 'react'
+import { usePlanningToday } from '../planning/usePlanningToday'
+import { openApplicationCapture } from '@nexus/core/application/captureNavigation'
 import { computeTodayLayerSummary, createCaptureIntent, type CaptureIntentType } from '@nexus/core'
 
 type Entity = Record<string, any>
@@ -47,6 +49,7 @@ export function useMobileDashboardDerivedData({
   addCanvas: (name?: string) => void
   updateReminder: (id: string, patch: Record<string, any>) => void
 }) {
+  const planningToday = usePlanningToday()
   const doneTasks = useMemo(() => tasks.filter((x) => x.status === 'done').length, [tasks])
   const openTasks = useMemo(() => tasks.filter((x) => x.status !== 'done').length, [tasks])
   const overdueReminders = useMemo(
@@ -65,8 +68,8 @@ export function useMobileDashboardDerivedData({
   const pinnedNotes = useMemo(() => notes.filter((n) => n.pinned).length, [notes])
   const now = useMemo(() => new Date(), [])
   const todaySummary = useMemo(
-    () => computeTodayLayerSummary(tasks as any[], reminders as any[], now),
-    [tasks, reminders, now],
+    () => { const remindersSummary = computeTodayLayerSummary(tasks as any[], reminders as any[], now); return { ...remindersSummary, openTaskCount: planningToday.openTaskCount, dueTodayCount: planningToday.dueTaskCount + planningToday.dueReminderCount, overdueCount: planningToday.overdueTaskCount + remindersSummary.overdueCount } },
+    [tasks, reminders, now, planningToday],
   )
   const taskProgress = useMemo(
     () => (tasks.length ? Math.round((doneTasks / tasks.length) * 100) : 0),
@@ -183,21 +186,16 @@ export function useMobileDashboardDerivedData({
     const intent = createCaptureIntent(intentType)
     switch (intent.type) {
       case 'note':
-        addNote()
-        setView?.(intent.targetView || 'notes')
+        openApplicationCapture('mobile', 'note', setView)
         break
       case 'task':
-        addTask(intent.title || 'Quick Task', 'todo', 'Erstellt via Quick Capture', 'mid')
-        setView?.(intent.targetView || 'tasks')
+        openApplicationCapture('mobile', 'task', setView)
+        break
+      case 'event':
+        openApplicationCapture('mobile', 'event', setView)
         break
       case 'reminder':
-        addRem({
-          title: intent.title || 'Quick Reminder',
-          msg: 'Erstellt via Quick Capture',
-          datetime: new Date(Date.now() + 15 * 60_000).toISOString(),
-          repeat: 'none',
-        })
-        setView?.(intent.targetView || 'reminders')
+        openApplicationCapture('mobile', 'reminder', setView)
         break
       case 'code':
         addCode('quick-note.ts', 'typescript')

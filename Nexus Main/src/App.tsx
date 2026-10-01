@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { useTheme, GLOBAL_FONTS } from "./store/themeStore";
 import { useTerminal } from "./store/terminalStore";
+import { useReminderApplication } from "./lib/reminderService";
 import type { View } from "./components/Sidebar";
 import { BootSequenceScreen } from "./components/BootSequenceScreen";
 import { WelcomeWalkthrough } from "./components/WelcomeWalkthrough";
@@ -341,6 +342,7 @@ const buildMainLocalShellAccessResult = (
 });
 
 export default function App() {
+  const reminderOverlay = useReminderApplication();
   const [view, setView] = useState<View>("dashboard");
   const [mountedViews, setMountedViews] = useState<View[]>(["dashboard"]);
   const [availableViews, setAvailableViews] = useState<View[]>(
@@ -1626,6 +1628,7 @@ export default function App() {
 
   return (
     <>
+      {reminderOverlay}
       <MainShellLayout
         theme={t}
         lowPowerMode={lowPowerMode}

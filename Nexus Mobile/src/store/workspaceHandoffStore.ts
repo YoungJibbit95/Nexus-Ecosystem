@@ -1,6 +1,8 @@
 import { createWithEqualityFn as create } from 'zustand/traditional'
 import { persist } from 'zustand/middleware'
 import { createStoreManagerStorage } from '@nexus/core/storage/browserPersistence'
+import type { PlanningDocument } from '@nexus/core/planning/domain'
+import type { ReminderDeliveryLedger } from '@nexus/core/reminders/reminderDomain'
 
 type WorkspaceHandoffMode = 'manual-runtime'
 type HandoffRiskLevel = 'low' | 'medium' | 'high'
@@ -34,6 +36,8 @@ type HandoffCheckpointState = {
 export type HandoffCheckpoint = {
   savedAt: string
   state: HandoffCheckpointState
+  planning?: PlanningDocument
+  reminderLedger?: ReminderDeliveryLedger
 }
 
 interface WorkspaceHandoffStore {

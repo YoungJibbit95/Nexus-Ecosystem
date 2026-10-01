@@ -7,17 +7,18 @@ import { useTerminal } from '../store/terminalStore'
 import { hexToRgb } from '../lib/utils'
 import { buildMotionRuntime } from '../lib/motionEngine'
 import {
-  Bell, Code2, Columns, FileText, GitBranch, HardDrive, Info,
+  Bell, Calendar, Code2, Columns, FileText, GitBranch, HardDrive, Info,
   Settings, Terminal, Zap, BarChart3, Wrench
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { SurfaceHighlight } from './render/SurfaceHighlight'
 import { useInteractiveSurfaceMotion } from '../render/useInteractiveSurfaceMotion'
 
-export type View = 'dashboard' | 'notes' | 'code' | 'tasks' | 'reminders' | 'canvas' | 'files' | 'flux' | 'devtools' | 'diagnostics' | 'settings' | 'info'
+export type View = 'dashboard' | 'calendar' | 'notes' | 'code' | 'tasks' | 'reminders' | 'canvas' | 'files' | 'flux' | 'devtools' | 'diagnostics' | 'settings' | 'info'
 
 const ITEMS: { id: View; icon: any; label: string; color?: string }[] = [
   { id: 'dashboard', icon: BarChart3, label: 'Dashboard', color: '#007AFF' },
+  { id: 'calendar',  icon: Calendar, label: 'Agenda', color: '#30D158' },
   { id: 'notes',     icon: FileText,  label: 'Notes',     color: '#30D158' },
   { id: 'code',      icon: Code2,     label: 'Code',      color: '#BF5AF2' },
   { id: 'tasks',     icon: Columns,   label: 'Tasks',     color: '#FF9F0A' },

@@ -1059,6 +1059,7 @@ html { font-size: var(--nx-font-size, 14px); }
   height: 100%;
   min-height: 0;
   overflow: hidden;
+  color: var(--nx-ui-text, inherit);
   background: color-mix(in srgb, var(--nx-ui-accent, var(--nx-mobile-v6-accent)) 5%, var(--nx-ui-background, transparent));
 }
 
@@ -1151,9 +1152,10 @@ html { font-size: var(--nx-font-size, 14px); }
 }
 
 .nx-mobile-v6-action {
+  flex: 0 0 auto;
   min-height: var(--nx-ui-toolbar-height, 32px);
   padding: var(--nx-ui-space-xs, 7px) var(--nx-ui-space-md, 10px);
-  color: rgba(255,255,255,0.82);
+  color: var(--nx-ui-text, inherit);
   font-size: var(--nx-ui-font-meta, 11px);
   white-space: nowrap;
 }
@@ -1161,7 +1163,7 @@ html { font-size: var(--nx-font-size, 14px); }
 .nx-mobile-v6-action--primary {
   border-color: color-mix(in srgb, var(--nx-ui-accent, var(--nx-mobile-v6-accent)) 58%, transparent);
   background: color-mix(in srgb, var(--nx-ui-accent, var(--nx-mobile-v6-accent)) 22%, rgba(255,255,255,0.05));
-  color: white;
+  color: var(--nx-ui-text, inherit);
 }
 
 .nx-mobile-v6-action[aria-disabled='true'] {
@@ -1169,12 +1171,13 @@ html { font-size: var(--nx-font-size, 14px); }
 }
 
 .nx-mobile-v6-related button {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-height: calc(var(--nx-ui-toolbar-height, 32px) - 4px);
   padding: var(--nx-ui-space-xs, 5px) var(--nx-ui-space-sm, 8px);
-  color: rgba(255,255,255,0.72);
+  color: var(--nx-ui-text-muted, inherit);
   font-size: var(--nx-ui-font-meta, 10px);
   white-space: nowrap;
 }
@@ -1601,7 +1604,7 @@ body,
 }
 
 .nx-mobile-v6-header {
-  background: rgba(8, 10, 18, 0.72);
+  background: var(--nx-ui-surface, rgba(8, 10, 18, 0.72));
 }
 
 .nx-mobile-v6-actions,
@@ -1649,5 +1652,73 @@ body,
 @media (min-width: 768px) {
   .nx-mobile-view-screen {
     max-width: 100%;
+  }
+}
+
+/* Keep file controls and content usable when browser zoom narrows the viewport. */
+@media (max-width: 240px) {
+  .nx-mobile-files-screen {
+    display: block !important;
+    overflow-y: auto !important;
+  }
+
+  .nx-mobile-files-body {
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  .nx-mobile-files-items {
+    flex: 0 0 auto !important;
+    overflow: visible !important;
+  }
+
+  .nx-mobile-view-header-row {
+    flex-wrap: wrap !important;
+  }
+
+  .nx-mobile-view-header-copy {
+    flex: 1 1 100%;
+  }
+
+  .nx-mobile-view-header-copy > div {
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+
+  .nx-mobile-view-header-actions {
+    width: 100%;
+    max-width: 100% !important;
+    justify-content: flex-start !important;
+  }
+
+  .nx-mobile-files-toolbar {
+    flex-wrap: wrap !important;
+    white-space: normal;
+  }
+
+  .nx-mobile-files-toolbar > .nx-mobile-row-flex {
+    order: 2;
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+  }
+
+  .nx-mobile-files-toolbar > button {
+    order: 1;
+  }
+
+  .nx-mobile-file-list-row {
+    display: grid !important;
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 8px !important;
+  }
+
+  .nx-mobile-file-list-copy > div {
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+
+  .nx-mobile-file-list-meta {
+    grid-column: 2;
+    flex-wrap: wrap;
   }
 }

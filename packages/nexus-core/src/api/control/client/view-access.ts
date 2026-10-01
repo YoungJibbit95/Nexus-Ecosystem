@@ -24,7 +24,7 @@ const LOCAL_FREE_VIEWS_BY_APP: Record<string, Set<string>> = {
     'settings',
     'info',
   ]),
-  mobile: new Set(['dashboard', 'notes', 'tasks', 'reminders', 'files', 'settings', 'info']),
+  mobile: new Set(['dashboard', 'calendar', 'notes', 'tasks', 'reminders', 'files', 'settings', 'info']),
   code: new Set([]),
   'code-mobile': new Set([]),
 }

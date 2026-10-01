@@ -213,7 +213,7 @@ export function FileCard({
   if (viewMode === 'list') {
     return (
       <motion.div
-        className="nx-motion-managed nx-surface-row"
+        className="nx-motion-managed nx-surface-row nx-mobile-file-list-row"
         animate={interaction.content.animate}
         transition={interaction.content.transition}
         onMouseEnter={() => setHovered(true)}
@@ -247,11 +247,11 @@ export function FileCard({
         <div style={{ width:30, height:30, borderRadius:8, background:`${meta.color}22`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
           <Icon size={14} style={{ color:meta.color }}/>
         </div>
-        <div style={{ flex:1, minWidth:0 }}>
+        <div className="nx-mobile-file-list-copy" style={{ flex:1, minWidth:0 }}>
           <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.title}</div>
           {item.preview && <div style={{ fontSize:11, opacity:0.5, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.preview}</div>}
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
+        <div className="nx-mobile-file-list-meta" style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
           {wsColor && <div style={{ width:6, height:6, borderRadius:'50%', background:wsColor }} title="In workspace"/>}
           <span style={{ fontSize:10, opacity:0.4 }}>{timeAgo(item.updated)}</span>
           <span style={{ fontSize:10, padding:'2px 7px', borderRadius:10, background:`${meta.color}20`, color:meta.color, fontWeight:700 }}>{meta.label}</span>

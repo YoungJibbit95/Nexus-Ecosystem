@@ -7,10 +7,10 @@ export const wikiEntriesSecondary: WikiEntry[] = [
     app: 'mobile',
     category: 'overview',
     summary:
-      'Nexus Mobile bildet die Main Kernviews auf mobilem Formfaktor mit adaptiver Navigation und haptisch orientierter Bedienung ab.',
+      'Nexus Mobile bildet die lokale Kernworkflows auf mobilem Formfaktor mit adaptiver Navigation und haptisch orientierter Bedienung ab.',
     guide: [
       { title: '1. Navigation verstehen', detail: 'Bottom Tabs fuer Kernbereiche plus More Drawer fuer erweiterte Views.' },
-      { title: '2. Feature-Paritaet pruefen', detail: 'Notes/Code/Tasks/Reminders/Canvas/Files/Settings/Info sind mobil verfuegbar.' },
+      { title: '2. Feature-Paritaet pruefen', detail: 'Die sichtbaren Views nutzen; Code ist ein Lese-/Exportarchiv, native Funktionen unterscheiden sich von Desktop.' },
       { title: '3. Runtime Verhalten beachten', detail: 'View access list und account feature access werden weiterhin zentral erzwungen.' },
     ],
     points: [
@@ -73,18 +73,18 @@ export const wikiEntriesSecondary: WikiEntry[] = [
       'Aktuelle Mobile-Keybinds fuer Hardware-Keyboard plus Palette-/Terminal-Shortcuts.',
     guide: [
       { title: '1. Global lernen', detail: 'Ctrl/Cmd+K toggelt die Command Palette, Shift x2 toggelt den Toolbar-Spotlight Modus, Esc beendet Overlay/Expanded States.' },
-      { title: '2. View Keybinds nutzen', detail: 'Notes/Code/Flux/Canvas orientieren sich an Main-Shortcuts fuer Paritaet.' },
+      { title: '2. View Keybinds nutzen', detail: 'Die tatsächlich verfügbaren Aktionen in Notes, Code-Archiv, Flux und Canvas verwenden.' },
       { title: '3. Terminal als Fallback', detail: 'Mit palette/new/search/goto Workflows ohne Pointer intensivieren.' },
     ],
     points: [
       'Global Mobile: Ctrl/Cmd+K (Palette toggle), Shift x2 (Toolbar spotlight), Esc (close/reset).',
       'Notes: Cmd/Ctrl+S, +B, +I, +K, +Z, +Y, Tab.',
-      'Code: Cmd/Ctrl+Enter run, Cmd/Ctrl+S save, Tab indent.',
+      'Code-Archiv: Dateisuche, Quelltextansicht und Export; keine Run-/Save-Shortcuts.',
       'Canvas: Space, Delete, Esc, Cmd/Ctrl+0 (plus pan/zoom gestures).',
       'Flux: Cmd/Ctrl+F, Cmd/Ctrl+Shift+N/C/T/R, Cmd/Ctrl+Shift+D/B, 1/2/3/4, 0, F, Esc.',
       'Terminal: help, views, goto, new, list, stats, theme, preset, search, palette.',
     ],
-    commands: ['Ctrl/Cmd+K', 'Shift x2', 'Esc', 'Ctrl/Cmd+S', 'Ctrl/Cmd+Enter', 'palette', 'goto <view>'],
+    commands: ['Ctrl/Cmd+K', 'Shift x2', 'Esc', 'Ctrl/Cmd+S', 'palette', 'goto <view>'],
     tags: ['mobile-keybinds', 'shortcuts', 'parity'],
     sources: [
       'Nexus Mobile/src/App.tsx',
@@ -118,46 +118,87 @@ export const wikiEntriesSecondary: WikiEntry[] = [
     sources: ['Nexus Mobile/src/store/terminalStore.ts'],
   },
   {
-    id: 'code-overview',
-    title: 'Nexus Code Gesamtguide',
-    app: 'code',
-    category: 'overview',
-    summary:
-      'Nexus Code ist die Desktop IDE Surface mit Panel-Stack, Dateiworkflow, Command Palette, Spotlight und Terminal.',
-    guide: [
-      { title: '1. Route und Access', detail: 'Editor laeuft auf /editor und validiert View Access ueber Runtime.' },
-      { title: '2. Panel Stack nutzen', detail: 'Explorer/Search/Problems/Git/Debug/Extensions je nach Task oeffnen.' },
-      { title: '3. Editor Loop', detail: 'Tabs verwalten, speichern, auto-save und Terminal/Problems parallel beobachten.' },
+    "id": "code-overview",
+    "title": "Nexus Code: Fähigkeiten und Grenzen",
+    "summary": "Separate Desktop-App mit CodeMirror, Dateiarbeit und einfachem stdio-Befehlsrunner; sichtbare Panels bedeuten keine vollständige IDE-Parität.",
+    "guide": [
+      {
+        "title": "1. Zugang prüfen",
+        "detail": "Ein validierter kompatibler Account ist nötig; ausgewählte Workspace-Ordner bestimmen den Dateizugriff."
+      },
+      {
+        "title": "2. Editieren und speichern",
+        "detail": "Dateien mit CodeMirror bearbeiten und bewusst speichern. Suche und Sprachunterstützung haben begrenzten Umfang."
+      },
+      {
+        "title": "3. Runner und Integrationen prüfen",
+        "detail": "Der native Runner ist keine PTY-Shell; Sprachserver benötigen installierte Server, GitHub eine Desktop-Verbindung und einen Account."
+      }
     ],
-    points: [
-      'Settings und Files werden lokal persistiert.',
-      'TitleBar bietet Open Folder, Sidebar Toggle, Zen Mode und Command Palette.',
-      'Bottom Tab nutzt terminal/problems als Arbeitsfenster.',
+    "points": [
+      "Zitierte absolute Windows-Befehlspfade mit Leerzeichen haben einen bekannten Fehler; relative Ausführung bestand die native Charakterisierung.",
+      "Debugging ist simuliert, Marketplace-Installationen verwalten lokale Einträge ohne akzeptierten Paket-Host.",
+      "Native Installer, echte Sprachserver und Live-GitHub-Flows sind keine lokal abgenommenen Zusagen."
     ],
-    commands: ['Ctrl/Cmd+S', 'Ctrl/Cmd+B', 'Ctrl/Cmd+`', 'Ctrl/Cmd+W', 'Ctrl/Cmd+P', 'Ctrl/Cmd+Shift+P', 'F1', 'Shift x2'],
-    tags: ['ide', 'editor', 'panels', 'desktop'],
-    sources: ['Nexus Code/src/App.jsx', 'Nexus Code/src/pages/Editor.jsx', 'Nexus Code/src/components/editor/Sidebar.jsx'],
+    "app": "code",
+    "category": "overview",
+    "audience": "user",
+    "commands": [
+      "Open selected folder",
+      "Save file",
+      "Check runner status"
+    ],
+    "tags": [
+      "usage",
+      "code",
+      "capability"
+    ],
+    "sources": [
+      "Nexus Code/src/components/editor/CodeEditor.jsx",
+      "Nexus Code/src/components/editor/Terminal.jsx",
+      "docs/USER_GUIDE.md",
+      "docs/DEVELOPER_GUIDE.md"
+    ]
   },
   {
-    id: 'code-panels-guide',
-    title: 'Nexus Code Panel Guide',
-    app: 'code',
-    category: 'view',
-    summary:
-      'Die Sidebar steuert Explorer, Search, Problems, Git, Debug und Extensions als zentrale Arbeitskontexte.',
-    guide: [
-      { title: '1. Explorer', detail: 'Dateien/Folder anlegen, oeffnen, umbenennen, loeschen und strukturieren.' },
-      { title: '2. Analyse Panels', detail: 'Search fuer globale Suche, Problems fuer Diagnostics, Debug fuer Laufzeitpunkte.' },
-      { title: '3. Delivery Panels', detail: 'Git fuer Sync/Versionierung und Extensions fuer Erweiterungsverwaltung.' },
+    "id": "code-panels-guide",
+    "title": "Nexus Code: Panel-Status",
+    "summary": "Explorer, Search, Problems und Git haben reale, begrenzte Pfade; Debug und Marketplace sind Vorschauen.",
+    "guide": [
+      {
+        "title": "1. Dateien",
+        "detail": "Explorer für ausgewählte Ordner und Dateien nutzen."
+      },
+      {
+        "title": "2. Diagnose",
+        "detail": "Search arbeitet mit geladenem, begrenztem Bestand; Problems und LSP benötigen passende Voraussetzungen."
+      },
+      {
+        "title": "3. Vorschauen erkennen",
+        "detail": "Debug hat keinen verbundenen DAP-Prozess; Marketplace-Einträge sind kein ausführbarer Erweiterungs-Host."
+      }
     ],
-    points: [
-      'Aktiver Panelstatus ist klar ueber Sidebar Indicator sichtbar.',
-      'Panel kann eingeklappt werden, um Editorflaeche zu vergroessern.',
-      'Problems Badge signalisiert offene Issues direkt am Editor.',
+    "points": [
+      "Lokale Git-Funktionen sind implementiert; strukturierte Remote-Aktionen sind nicht vollständig vorhanden.",
+      "GitHub-Verbindung erfordert Desktop und Account; Live-Abnahme bleibt offen.",
+      "Eine sichtbare Schaltfläche beweist keine Laufzeitfähigkeit."
     ],
-    commands: ['toggle-panel(explorer|search|problems|git|debug|extensions)'],
-    tags: ['panels', 'explorer', 'git', 'debug', 'problems'],
-    sources: ['Nexus Code/src/components/editor/Sidebar.jsx', 'Nexus Code/src/pages/Editor.jsx'],
+    "app": "code",
+    "category": "view",
+    "audience": "user",
+    "commands": [
+      "Open Explorer",
+      "Check capability status"
+    ],
+    "tags": [
+      "usage",
+      "code",
+      "capability"
+    ],
+    "sources": [
+      "Nexus Code/src/components/editor/Sidebar.jsx",
+      "docs/USER_GUIDE.md"
+    ]
   },
   {
     id: 'code-workflow-guide',
@@ -172,7 +213,7 @@ export const wikiEntriesSecondary: WikiEntry[] = [
       { title: '3. Schnellnavigation', detail: 'Command Palette (Ctrl+P/Ctrl+Shift+P) und Shift Shift Spotlight einsetzen.' },
     ],
     points: [
-      'Command Aktionen enthalten new-file, toggle-terminal, github-sync und open-settings.',
+      'Quick Actions öffnen vorhandene Funktionen; GitHub benötigt eine Desktop-Verbindung und einen Account.',
       'Keyboard Shortcuts global registriert.',
       'Zen Mode und Sidebar Visibility lassen Fokuskontexte bauen.',
     ],
@@ -186,7 +227,7 @@ export const wikiEntriesSecondary: WikiEntry[] = [
     app: 'code',
     category: 'workflow',
     summary:
-      'Vollstaendige Desktop-IDE Keybind-Matrix fuer Editor, Panels, Command Palette und Terminal.',
+      'Vorhandene Desktop-Keybinds fuer Editor, Panels, Command Palette und Terminal.',
     guide: [
       { title: '1. Core Navigation', detail: 'Ctrl/Cmd+P, Ctrl/Cmd+Shift+P und F1 als zentralen Launcher nutzen.' },
       { title: '2. Editor Loop', detail: 'Speichern, Tab-Management und Terminal-Toggles ohne Maus trainieren.' },
@@ -194,7 +235,7 @@ export const wikiEntriesSecondary: WikiEntry[] = [
     ],
     points: [
       'Global: Ctrl/Cmd+S, Ctrl/Cmd+N, Ctrl/Cmd+B, Ctrl/Cmd+`.',
-      'Terminal: Ctrl/Cmd+Shift+` (new terminal), Ctrl+C (interrupt), Ctrl+L (clear).',
+      'Runner: Session- und Output-Aktionen sind kein Nachweis einer PTY oder dauerhaften Shell.',
       'Navigation: Ctrl/Cmd+W close tab, Ctrl/Cmd+, settings, F1 command palette.',
       'Palette: Ctrl/Cmd+Shift+P toggle command palette, Ctrl/Cmd+P quick open.',
       'Spotlight: Shift x2 toggle.',

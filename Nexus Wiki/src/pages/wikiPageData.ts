@@ -1,5 +1,5 @@
 import { BookOpen, Check, ChevronRight, Code, Compass, Copy, Cpu, Database, Grid3X3, Layers, LayoutDashboard, Menu, Monitor, Rocket, Search, Settings2, Shield, Smartphone, Sparkles, Terminal, Workflow, X } from "lucide-react";
-import { apps, categories, entries, viewMatrix, type AppId, type CategoryId, type WikiEntry } from "../data/wikiData";
+import { apps, categories, entries, viewMatrix, type AppId, type CategoryId, type WikiEntry, type WikiAudience } from "../data/wikiData";
 import { englishEntryTranslations } from "../data/wikiEntryTranslations";
 
 type SectionId =
@@ -81,21 +81,21 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
     de: {
       title: "Getting Started 🚀",
       subtitle:
-        "Setup, Start, Build und Release-Einstieg fuer das gesamte Nexus Ecosystem. Hier findest du die Basis-Route fuer neue Entwickler und Operator.",
+        "Apps wählen, lokale Arbeit fortsetzen und die Grenzen von Archiv, Code und Cloud verstehen. Entwickler-Setup und Betrieb stehen in eigenen Bereichen.",
       bullets: [
-        "📦 Setup-Skripte, Build-Kommandos und Verify-Gates direkt nutzbar.",
-        "🧭 Monorepo Scope, App-Rollen und Deploy-Pfade klar getrennt.",
-        "✅ Alles in einer Read-First Reihenfolge fuer schnellen Onboarding-Flow.",
+        "📦 Main/Mobile für lokale Arbeit, Nexus Code für separate Dateibearbeitung.",
+        "🧭 Code-Archiv liest und exportiert vorhandene Dateien.",
+        "✅ Voraussetzungen und Vorschauen vor der Nutzung prüfen.",
       ],
     },
     en: {
       title: "Getting Started 🚀",
       subtitle:
-        "Setup, startup, build and release onboarding for the full Nexus ecosystem. This is the fastest route for new developers and operators.",
+        "Choose apps, resume local work and understand archive, Code and cloud limits. Developer setup and operations have separate areas.",
       bullets: [
-        "📦 Setup scripts, build commands and verify gates ready to run.",
-        "🧭 Monorepo scope, app roles and deploy paths explained clearly.",
-        "✅ Read-first order for fast onboarding without guessing.",
+        "📦 Main/Mobile for local work, Nexus Code for separate file editing.",
+        "🧭 Code archive reads and exports existing files.",
+        "✅ Check prerequisites and previews before use.",
       ],
     },
   },
@@ -169,21 +169,21 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
     de: {
       title: "Nexus Code + Code Mobile 💻",
       subtitle:
-        "Desktop IDE und mobile IDE in einem Bereich: Explorer, Search, Git, Debug, Extensions, Editor, Settings und nativeFS Flows.",
+        "Separate Code-Apps mit unterschiedlichen Voraussetzungen. Desktop nutzt CodeMirror und einen einfachen Runner; Debug und Marketplace sind Vorschauen.",
       bullets: [
         "🛠️ Panel-Stacks, Editor-Loops und Diagnostics verstaendlich aufbereitet.",
         "📟 Code Mobile mit nativer Dateibruecke und Touch-Adaptions.",
-        "⚙️ Settings + Workflows fuer schnelle Delivery in beiden Surfaces.",
+        "⚙️ Sprachserver und GitHub sind bedingt verfügbar; vollständige Desktop-/Mobile-Parität ist nicht zugesagt.",
       ],
     },
     en: {
       title: "Nexus Code + Code Mobile 💻",
       subtitle:
-        "Desktop IDE and mobile IDE in one area: explorer, search, git, debug, extensions, editor, settings and nativeFS flows.",
+        "Separate Code apps with different prerequisites. Desktop uses CodeMirror and a simple runner; Debug and marketplace are previews.",
       bullets: [
         "🛠️ Panel stacks, editor loops and diagnostics mapped clearly.",
         "📟 Code Mobile with native file bridge and touch adaptation.",
-        "⚙️ Settings and workflows for fast delivery on both surfaces.",
+        "⚙️ Language servers and GitHub are conditional; full desktop/mobile parity is not promised.",
       ],
     },
   },
@@ -371,9 +371,9 @@ const uiCopy: Record<
     appFilterAll: "🌌 Alle Apps",
     categoryFilterAll: "🗂️ Alle Kategorien",
     navGroup: {
-      intro: "Einstieg",
-      guides: "App Guides",
-      knowledge: "Wissenszonen",
+      intro: "Bedienung",
+      guides: "Entwicklung",
+      knowledge: "Betrieb · öffentlicher Kontext",
     },
     searchPlaceholder: "Suche nach View, Feature, Command, Markdown, nexus-kanban, Diagnostics ...",
     searchScopeGlobal: "Globale Suche aktiv (alle Bereiche)",
@@ -412,9 +412,9 @@ const uiCopy: Record<
     appFilterAll: "🌌 All apps",
     categoryFilterAll: "🗂️ All categories",
     navGroup: {
-      intro: "Onboarding",
-      guides: "App Guides",
-      knowledge: "Knowledge Zones",
+      intro: "Usage",
+      guides: "Development",
+      knowledge: "Operations · public context",
     },
     searchPlaceholder: "Search views, features, commands, markdown, nexus-kanban, diagnostics ...",
     searchScopeGlobal: "Global search active (all sections)",
@@ -536,18 +536,21 @@ const coverageCopy: Record<
   },
 };
 
-const navigationGroups: Array<{ id: NavGroupId; sections: SectionId[] }> = [
+const navigationGroups: Array<{ id: NavGroupId; audience: WikiAudience; sections: SectionId[] }> = [
   {
     id: "intro",
-    sections: ["getting-started", "architecture"],
+    audience: "user",
+    sections: ["getting-started", "nexus-main", "nexus-mobile", "nexus-code", "markdown-lab", "settings-workflows"],
   },
   {
     id: "guides",
-    sections: ["nexus-main", "nexus-mobile", "nexus-code", "nexus-control"],
+    audience: "developer",
+    sections: ["architecture", "api-reference", "coverage"],
   },
   {
     id: "knowledge",
-    sections: ["markdown-lab", "settings-workflows", "security-Account features", "api-reference", "coverage"],
+    audience: "operator",
+    sections: ["nexus-control", "security-Account features"],
   },
 ];
 
@@ -879,20 +882,18 @@ function byCategory(ids: CategoryId[]) {
 
 const sectionBaseEntries: Record<SectionId, WikiEntry[]> = {
   "getting-started": entries.filter(
-    (entry) => entry.app === "ecosystem" || entry.category === "overview" || entry.category === "ops",
+    (entry) => entry.audience === "user" && (entry.app === "ecosystem" || entry.category === "overview"),
   ),
   architecture: entries.filter(
     (entry) =>
-      entry.app === "runtime" ||
-      entry.category === "runtime" ||
-      (entry.app === "ecosystem" && entry.category !== "view"),
+      entry.audience === "developer",
   ),
-  "nexus-main": byApp(["main"]),
-  "nexus-mobile": byApp(["mobile"]),
-  "nexus-code": byApp(["code", "code-mobile"]),
+  "nexus-main": byApp(["main"]).filter((entry) => entry.audience === "user"),
+  "nexus-mobile": [...byApp(["mobile"]), ...entries.filter((entry) => entry.id === "main-code-view-guide")].filter((entry) => entry.audience === "user"),
+  "nexus-code": byApp(["code", "code-mobile"]).filter((entry) => entry.audience === "user"),
   "nexus-control": byApp(["control"]),
-  "markdown-lab": byCategory(["markdown"]),
-  "settings-workflows": byCategory(["settings", "workflow"]),
+  "markdown-lab": byCategory(["markdown"]).filter((entry) => entry.audience === "user"),
+  "settings-workflows": byCategory(["settings", "workflow"]).filter((entry) => entry.audience === "user"),
   "security-Account features": byCategory(["security"]),
   "api-reference": entries.filter(
     (entry) =>

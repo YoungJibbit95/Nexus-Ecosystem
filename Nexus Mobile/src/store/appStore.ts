@@ -1,3 +1,4 @@
+import { executeReminderCommand, type ReminderCommandResult } from '@nexus/core/reminders/reminderDomain'
 import { createWithEqualityFn as create } from 'zustand/traditional'
 import { persist } from 'zustand/middleware'
 import { genId } from '../lib/utils'
@@ -184,8 +185,8 @@ interface Store {
   // Reminders
   addRem: (r: Omit<Reminder, 'id' | 'done'>) => void
   delRem: (id: string) => void
-  doneRem: (id: string) => void
-  snoozeRem: (id: string, minutes: number) => void
+  doneRem: (id: string) => Promise<ReminderCommandResult>
+  snoozeRem: (id: string, minutes: number) => Promise<ReminderCommandResult>
   updateReminder: (id: string, p: Partial<Reminder>) => void
 
   // Folders
@@ -515,29 +516,14 @@ export const useApp = create<Store>()(
           reminders: s.reminders.filter(r => r.id !== id)
         })),
 
-      doneRem: id =>
-        set(s => {
-          const current = s.reminders.find((reminder) => reminder.id === id)
-          if (!current) return s
-          get().logActivity('reminder', 'completed', current.title, { targetId: current.id, targetView: 'reminders' })
-          return {
-            reminders: s.reminders.map(r =>
-              r.id === id ? { ...r, done: true } : r
-            )
-          }
-        }),
-
-      snoozeRem: (id, minutes) => {
-        const snoozeUntil = new Date(
-          Date.now() + minutes * 60000
-        ).toISOString()
-
-        set(s => ({
-          reminders: s.reminders.map(r =>
-            r.id === id ? { ...r, snoozeUntil } : r
-          )
-        }))
+      doneRem: async id => {
+        const reminder = get().reminders.find(item => item.id === id)
+        const result = await executeReminderCommand('mobile', {kind:'complete',id})
+        if (result.ok && reminder) get().logActivity('reminder', reminder.repeat === 'none' ? 'completed' : 'occurrence-completed', reminder.title, {targetId:id,targetView:'reminders'})
+        return result
       },
+
+      snoozeRem: (id, minutes) => executeReminderCommand('mobile', {kind:'snooze',id,minutes}),
 
       updateReminder: (id, p) =>
         set(s => ({

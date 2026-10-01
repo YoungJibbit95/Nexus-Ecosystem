@@ -31,7 +31,7 @@ Egal ob du …
 - 📂 Projekte planst
 - 📝 strukturierte Notizen schreibst
 - 💡 brainstormst oder Ideen sammelst
-- 💻 Code entwickelst und testest
+- 💻 vorhandene Code-Dateien liest und exportierst
 - ⏰ Erinnerungen verwaltest
 - 🧠 komplexe Zusammenhänge visualisierst
 
@@ -50,9 +50,9 @@ Erstelle visuelle Strukturen mit Widgets, verbinde Elemente und denke frei – o
 Markdown-Editor mit Toolbar, Split-View, Pinning, Volltextsuche und Tag-System.
 Schnell schreiben. Klar strukturieren. Sofort wiederfinden.
 
-## 💻 Code Editor
-Monaco-basiert mit Projekt-Sidebar und integrierter REPL für JS/TS sowie Python (Pyodide).
-Schreiben. Testen. Iterieren – direkt in Nexus.
+## 💻 Code-Archiv
+Vorhandene Dateien nach Namen suchen, Quelltext lesen und einzelne Dateien oder das gesamte Archiv mit Ordnerdaten exportieren.
+Das Archiv führt keinen Code aus. Bearbeiten erfolgt in der separaten Desktop-App Nexus Code; ein JSON-Archiv ist kein automatischer Projektimport.
 
 ## 🔔 Reminders
 Intelligente Erinnerungen mit Toasts, Audio, Snooze-Funktion, Wiederholungen und Überfällig-Markierung.
