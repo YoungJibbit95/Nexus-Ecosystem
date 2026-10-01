@@ -59,3 +59,10 @@ pnpm-debug.log*
 # .NET / Avalonia
 **/bin/
 **/obj/
+
+# Generated Nexus Code V2 evidence artifacts
+docs/nexus-code-v2/evidence/**/*.json
+docs/nexus-code-v2/evidence/**/*.log
+docs/nexus-code-v2/evidence/**/*.txt
+docs/nexus-code-v2/evidence/**/*.png
+docs/nexus-code-v2/evidence/**/*.gz
