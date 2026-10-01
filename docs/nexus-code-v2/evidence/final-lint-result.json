@@ -1,7 +1,0 @@
-{
-  "command": "npm --prefix \"./Nexus Code\" run lint",
-  "exitCode": 0,
-  "durationMs": 53565.0,
-  "log": "final-lint.log",
-  "scope": "Final documentation/native-harness packet; renderer-focused ESLint config"
-}
