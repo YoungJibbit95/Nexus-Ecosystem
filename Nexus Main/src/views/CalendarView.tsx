@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Bell,
   Calendar,
+  CalendarDays,
+  CalendarRange,
   CheckSquare,
   ChevronLeft,
   ChevronRight,
@@ -9,6 +11,7 @@ import {
   Flag,
   GripVertical,
   ListFilter,
+  ListChecks,
   Maximize2,
   Plus,
   Upload,
@@ -112,6 +115,7 @@ const VIEW_LABEL: Record<CalendarDisplayMode, string> = {
   week: "Woche",
   month: "Monat",
 };
+const VIEW_ICON = { day: Calendar, week: CalendarDays, month: CalendarRange, agenda: ListChecks };
 
 const PREVIOUS_PERIOD_LABEL: Record<CalendarDisplayMode, string> = {
   agenda: "Vorheriger Tag",
@@ -829,10 +833,14 @@ export function CalendarView({
   const [priorityFilter, setPriorityFilter] =
     useState<CalendarPriorityFilter>("all");
   const [density, setDensity] = useState<CalendarDensity>("comfortable");
-  const [calendarMode, setCalendarMode] = useState<CalendarDisplayMode>("agenda");
+  const [calendarMode, setCalendarMode] = useState<CalendarDisplayMode>("day");
   const [agendaImportRequest, setAgendaImportRequest] = useState(0);
   const agendaNavigationCursor = useRef(''), agendaImportCursor = useRef(0);
   const planningRequest = usePlanningNavigation('main');
+  const calendarActive = useActiveViewCommandScope();
+  useEffect(() => {
+    if (!calendarActive) setCalendarMode('day');
+  }, [calendarActive]);
   useEffect(() => { if (planningRequest) setCalendarMode('agenda'); }, [planningRequest]);
   const [composerType, setComposerType] = useState<CalendarItemType>("task");
   const [composerTitle, setComposerTitle] = useState("");
@@ -1538,10 +1546,11 @@ export function CalendarView({
             <div className="nx-calendar-toolbar-group nx-calendar-view-group">
               <span className="nx-calendar-group-label">Ansicht</span>
               <div
-                className="nx-calendar-segment nx-calendar-mode-switch"
+                className="nx-calendar-segment nx-calendar-mode-switch nx-calendar-view-tabs"
+                role="group"
                 aria-label="Kalenderansicht"
               >
-                {(["agenda", "day", "week", "month"] as const).map((mode) => (
+                {(["day", "week", "month", "agenda"] as const).map((mode) => (
                   <button
                     key={mode}
                     type="button"
@@ -1549,6 +1558,7 @@ export function CalendarView({
                     onClick={() => setCalendarMode(mode)}
                     aria-pressed={calendarMode === mode}
                   >
+                    {React.createElement(VIEW_ICON[mode], { size: 15, 'aria-hidden': true })}
                     {VIEW_LABEL[mode]}
                   </button>
                 ))}
@@ -1865,9 +1875,9 @@ export function CalendarView({
             importRequest={agendaImportRequest}
             navigationCursor={agendaNavigationCursor}
             importCursor={agendaImportCursor}
-            viewSwitcher={<div className="nx-agenda-calendar-modes" aria-label="Kalenderansicht">
-              {(['agenda', 'day', 'week', 'month'] as const).map(mode => (
-                <button key={mode} type="button" aria-pressed={mode === calendarMode} onClick={() => setCalendarMode(mode)}>{VIEW_LABEL[mode]}</button>
+            viewSwitcher={<div className="nx-agenda-calendar-modes nx-calendar-view-tabs" role="group" aria-label="Kalenderansicht">
+              {(['day', 'week', 'month', 'agenda'] as const).map(mode => (
+                <button key={mode} type="button" aria-pressed={mode === calendarMode} onClick={() => setCalendarMode(mode)}>{React.createElement(VIEW_ICON[mode], { size: 15, 'aria-hidden': true })}{VIEW_LABEL[mode]}</button>
               ))}
             </div>}
           />

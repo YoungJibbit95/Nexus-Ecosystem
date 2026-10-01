@@ -802,3 +802,31 @@
     max-width: 320px;
   }
 }
+
+/* Compact desktop composition reserves the viewport for the actual day plan. */
+@media (min-width: 801px) {
+  .nx-agenda-workspace { gap: 9px; padding: 12px 16px; }
+  .nx-agenda-workspace h1 { font-size: 23px; margin: 2px 0; }
+  .nx-agenda-header p { font-size: 12px; }
+  .nx-agenda-eyebrow { font-size: 9px; }
+  .nx-agenda-datebar { gap: 8px; }
+  .nx-agenda-create-actions { width: auto; }
+  .nx-agenda-button, .nx-agenda-calendar-modes button, .nx-agenda-tools button { min-height: 34px; padding: 7px 10px; }
+  .nx-agenda-week button { grid-template-columns: auto auto; justify-content: center; gap: 5px; min-height: 40px; padding: 5px; }
+  .nx-agenda-week button strong { font-size: 18px; }
+  .nx-agenda-week button small { display: none; }
+  .nx-agenda-overview > div { padding: 8px 12px; grid-template-columns: 22px auto 1fr; gap: 7px; }
+  .nx-agenda-overview svg { grid-row: auto; }
+  .nx-agenda-overview strong { font-size: 19px; }
+  .nx-agenda-coverage { padding: 4px 10px; }
+  .nx-agenda-tools { padding-bottom: 5px; }
+  .nx-agenda-columns { height: 100%; align-items: stretch; gap: 12px; }
+  .nx-agenda-timeline, .nx-agenda-task-panel { height: 100%; padding: 14px !important; }
+  .nx-agenda-section-head { margin-bottom: 9px; gap: 8px; }
+  .nx-agenda-timeline-list { flex: 1; min-height: 0; overflow: auto; align-content: start; gap: 6px; }
+  .nx-agenda-time-entry { padding: 10px 0; }
+  .nx-agenda-task-list { flex: 1; min-height: 0; max-height: none; gap: 7px; }
+  .nx-agenda-task-card { padding: 10px; }
+  .nx-agenda-search { margin: 9px 0; padding: 7px 9px; }
+  .nx-agenda-empty-state { min-height: 150px; padding: 18px 12px; }
+}

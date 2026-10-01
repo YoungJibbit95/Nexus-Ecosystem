@@ -16,8 +16,8 @@
 
 .nx-canvas-v6 .nx-canvas-topbar-inner {
   display: flex !important;
-  width: max-content !important;
-  min-width: 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
   flex-wrap: nowrap !important;
   align-items: center !important;
   gap: 8px !important;
@@ -632,4 +632,13 @@
   #root .nx-app-shell .nx-canvas-sidebar-scrim {
     backdrop-filter: none;
   }
+}
+/* Keep the complete desktop command bar inside its available width. */
+@media (min-width: 1601px) {
+  #root .nx-app-shell .nx-canvas-v6 .nx-canvas-topbar { padding: 6px 8px !important; overflow: visible !important; }
+  #root .nx-app-shell .nx-canvas-v6 .nx-canvas-topbar-inner { display: grid !important; grid-template-columns: minmax(220px, 340px) minmax(0, 1fr) !important; width: 100% !important; min-width: 0 !important; padding: 0 !important; }
+  #root .nx-app-shell .nx-canvas-v6 .nx-canvas-toolbar-context { display: grid !important; grid-template-columns: auto minmax(0, 1fr) auto !important; width: 100% !important; min-width: 0 !important; }
+  #root .nx-app-shell .nx-canvas-v6 .nx-canvas-title-area { grid-template-columns: minmax(0, 1fr) !important; min-width: 0 !important; }
+  #root .nx-app-shell .nx-canvas-v6 .nx-canvas-title-chip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #root .nx-app-shell .nx-canvas-v6 .nx-canvas-toolbar-groups { flex-wrap: wrap !important; min-width: 0 !important; overflow: visible !important; padding: 0 !important; }
 }

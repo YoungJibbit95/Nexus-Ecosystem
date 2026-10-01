@@ -5,12 +5,12 @@
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) !important;
   grid-template-rows: auto auto !important;
-  gap: 7px !important;
+  gap: 5px !important;
   width: 100% !important;
   height: auto !important;
   min-height: 0 !important;
   max-height: none !important;
-  padding: 8px 9px !important;
+  padding: 6px 8px !important;
   overflow: visible !important;
   border: 1px solid rgba(var(--nx-shell-accent-rgb, 47, 142, 255), 0.25) !important;
   background:
@@ -26,7 +26,7 @@
 
 #root .nx-app-shell .nx-notes-main .nx-notes-workbar-main {
   display: grid !important;
-  grid-template-columns: minmax(280px, 1.35fr) minmax(210px, 0.8fr) auto !important;
+  grid-template-columns: minmax(230px, 1fr) auto auto !important;
   grid-template-areas: "title meta actions";
   align-items: center !important;
   gap: 7px !important;
@@ -210,7 +210,7 @@
   overflow: visible !important;
 }
 
-#root .nx-app-shell .nx-notes-main .nx-notes-command-primary,
+#root .nx-app-shell .nx-notes-main .nx-notes-workbar .nx-notes-command-primary,
 #root .nx-app-shell .nx-notes-main .nx-notes-context-strip {
   display: flex !important;
   align-items: center !important;
@@ -225,7 +225,7 @@
   mask-image: none !important;
 }
 
-#root .nx-app-shell .nx-notes-main .nx-notes-command-primary {
+#root .nx-app-shell .nx-notes-main .nx-notes-workbar .nx-notes-command-primary {
   grid-area: primary;
   justify-content: flex-end !important;
 }
@@ -243,7 +243,9 @@
   text-transform: uppercase;
 }
 
-#root .nx-app-shell .nx-notes-main .nx-notes-stat-pill {
+#root .nx-app-shell .nx-notes-main .nx-notes-workbar .nx-notes-stat-pill {
+  width: auto !important;
+  min-width: 0 !important;
   flex: 0 0 auto !important;
   display: inline-flex !important;
   align-items: center;
@@ -256,7 +258,9 @@
   white-space: nowrap;
 }
 
-#root .nx-app-shell .nx-notes-main .nx-notes-strip-actions {
+#root .nx-app-shell .nx-notes-main .nx-notes-workbar .nx-notes-strip-actions {
+  flex: 0 0 auto !important;
+  width: auto !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: flex-start !important;
@@ -542,4 +546,13 @@
   #root .nx-app-shell .nx-notes-v6 .nx-notes-sidebar {
     transition: none;
   }
+}
+
+@container (min-width: 981px) {
+  #root .nx-app-shell .nx-notes-main .nx-notes-workbar .nx-notes-command-primary { flex-wrap: nowrap !important; }
+  #root .nx-app-shell .nx-notes-main .nx-notes-workbar .nx-notes-strip-actions { flex-wrap: nowrap !important; }
+}
+@container (min-width: 1200px) {
+  #root .nx-app-shell .nx-notes-main .nx-notes-workbar .nx-notes-format-toolbar { grid-template-columns: minmax(0, 1fr) auto auto !important; grid-template-areas: "core enhanced tags"; gap: 8px !important; }
+  #root .nx-app-shell .nx-notes-main .nx-notes-workbar .nx-notes-toolbar-tags { justify-content: flex-end !important; max-width: 240px !important; }
 }

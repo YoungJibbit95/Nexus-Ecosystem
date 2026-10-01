@@ -29,8 +29,9 @@ const pause = () => new Promise(resolve => setTimeout(resolve, 50))
 const wait = async (condition: () => unknown, description: string) => { for (let i = 0; i < 400; i++) { if (condition()) return; await pause() }; throw new Error(`Timed out: ${description}`) }
 const root = createRoot(document.getElementById('root')!)
 let client: 'main' | 'mobile' = 'main', view = 'tasks'
+let layoutFrame = false
 const render = () => flushSync(() => root.render(client === 'main'
-  ? <MainViewHost view={view as any} mountedViews={['tasks', 'calendar', 'dashboard', 'flux', 'notes', 'canvas']} availableViews={['tasks', 'calendar', 'dashboard', 'flux', 'notes', 'canvas']} reducedMotion onRequestViewChange={next => { view = String(next); render() }} onPrefetchView={() => {}} onOpenWalkthrough={() => {}} />
+  ? <div className={layoutFrame ? 'nx-app-shell' : undefined} data-nx-color-mode="dark" style={{ height: '100%' }}><div style={{ height: '100%', width: '100%', minWidth: 0, position: 'relative', zIndex: 1 }}><MainViewHost view={view as any} mountedViews={['tasks', 'calendar', 'dashboard', 'flux', 'notes', 'canvas']} availableViews={['tasks', 'calendar', 'dashboard', 'flux', 'notes', 'canvas']} reducedMotion onRequestViewChange={next => { view = String(next); render() }} onPrefetchView={() => {}} onOpenWalkthrough={() => {}} /></div></div>
   : <MobileViewHost view={view as any} mountedViews={['calendar', 'dashboard', 'flux', 'notes', 'canvas']} availableViews={['calendar', 'dashboard', 'flux', 'notes', 'canvas']} reducedMotion onRequestViewChange={next => { view = String(next); render() }} />))
 const active = () => client === 'main' ? document.querySelector(`.nx-v6-view-shell[data-view="${view}"][data-active="true"]`)! : [...document.querySelectorAll('.nx-mobile-view-layer')].find(element => (element as HTMLElement).style.display !== 'none')!
 const reveal = (element: Element) => {
@@ -63,13 +64,46 @@ const click = (text: string, area: Element = active()) => {
   flushSync(() => button.click())
 }
 const submit = () => flushSync(() => active().querySelector<HTMLFormElement>('form[aria-label="Manuelle Planungsaktion"]')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
-const ack = () => wait(() => !workspaceOperation.isActive() && [...active().querySelectorAll('[role="status"]')].some(element => element.textContent?.includes('Dauerhaft gespeichert')), 'acknowledged form result')
+const ack = () => wait(() => !workspaceOperation.isActive() && [...active().querySelectorAll('[role="status"]')].some(element => element.textContent?.includes('Dauerhaft gespeichert')), 'acknowledged form result').catch(error => { throw new Error(`${error.message}: ${active().querySelector('form[aria-label="Manuelle Planungsaktion"]')?.textContent}`) })
 const keepConflict = () => flushSync(() => [...active().querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find(input => input.parentElement?.textContent?.includes('Konflikte'))!.click())
-async function switchView(next: string) { view = next; render(); await wait(() => active() && (next === 'calendar' ? active().querySelector('form[aria-label="Manuelle Planungsaktion"]') : next === 'notes' ? active().querySelector('textarea') : next === 'canvas' ? active().querySelector('button') : active().querySelector(next === 'tasks' ? '.nx-task-card' : '.nx-planning-today-card')), `${client} ${next} actual view`); await pause() }
+async function switchView(next: string) {
+  view = next; render()
+  await wait(() => active() && (next === 'calendar' ? active().querySelector(client === 'main' ? '[aria-label="Kalenderansicht"]' : 'form[aria-label="Manuelle Planungsaktion"]') : next === 'notes' ? active().querySelector('textarea') : next === 'canvas' ? active().querySelector('button') : active().querySelector(next === 'tasks' ? '.nx-task-card' : '.nx-planning-today-card')), `${client} ${next} actual view`)
+  await pause()
+  if (next === 'calendar' && client === 'main' && !active().querySelector('.nx-agenda-workspace')) click('Agenda', active().querySelector('[aria-label="Kalenderansicht"]')!)
+  if (next === 'calendar') await wait(() => active().querySelector('form[aria-label="Manuelle Planungsaktion"]'), 'actual planning form')
+  await pause()
+}
+(window as any).inspectMainLayout = async (next: string) => {
+  client = 'main'; layoutFrame = true; await switchView(next)
+  const editor = active().querySelector<HTMLElement>('.nx-agenda-editor-layer')
+  if (editor && !editor.hidden) flushSync(() => active().querySelector<HTMLButtonElement>('[aria-label="Planungseditor schließen"]')!.click())
+  await new Promise(resolve => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(resolve)), 250))
+  const selector = next === 'canvas' ? '.nx-canvas-topbar' : next === 'notes' ? '.nx-notes-workbar' : '.nx-agenda-workspace'
+  const panel = active().querySelector<HTMLElement>(selector)!
+  if (!panel.checkVisibility() || panel.getBoundingClientRect().width < innerWidth / 2) throw new Error(`Missing visible ${next} layout`)
+  const controls = [...panel.querySelectorAll<HTMLElement>('button,input,select,summary')].filter(element => element.checkVisibility() && !element.closest('.nx-canvas-mobile-menu,.nx-notes-more-actions-menu'))
+  return { view: next, width: innerWidth, height: innerHeight, panel: panel.getBoundingClientRect().toJSON(), overflowing: controls.filter(element => { const box = element.getBoundingClientRect(); return box.left < -1 || box.right > innerWidth + 1 }).map(element => element.title || element.textContent?.trim()) }
+}
 
 async function run() {
   await Promise.all([mainApp.persist.rehydrate(), mobileApp.persist.rehydrate(), mainCanvas.persist.rehydrate(), mobileCanvas.persist.rehydrate()])
   const day = zonedDate(new Date().toISOString(), 'Europe/Berlin'), tomorrow = nextCivilDay(day)
+  if (stage === 'calendar-entry') {
+    await mainCommands.ready(); view = 'calendar'; render()
+    await wait(() => active()?.querySelector('.nx-calendar-timeline-panel'), 'Calendar starts in day view')
+    const modes = () => active().querySelector('[aria-label="Kalenderansicht"]')!
+    assert(modes().querySelector('[aria-pressed="true"]')?.textContent === 'Tag', 'Calendar starts in day view with a clearly selected view button')
+    assert(modes().querySelectorAll('button svg').length === 4, 'All four Calendar view buttons have a visible icon and text label')
+    click('Agenda', modes()); await wait(() => active().querySelector('.nx-agenda-workspace'), 'manual Agenda switch')
+    await switchView('notes'); view = 'calendar'; render()
+    await wait(() => active().querySelector('.nx-calendar-timeline-panel'), 'return to day view')
+    assert(modes().querySelector('[aria-pressed="true"]')?.textContent === 'Tag', 'Returning to Calendar resets a previously selected Agenda to day view')
+    requestPlanningNavigation('main', { mode: 'task', initialTitle: 'Explicit planning request' })
+    await wait(() => active().querySelector('.nx-agenda-editor-layer')?.getAttribute('hidden') === null, 'explicit planning request opens Agenda')
+    assert(Boolean(active().querySelector('.nx-agenda-workspace')), 'Explicit planning actions still open the Agenda editor')
+    return { ok: true, checks, evidence }
+  }
   if (stage === 'agenda-clarity') {
     await mainCommands.ready(); await switchView('calendar')
     const workspace = () => active().querySelector<HTMLElement>('.nx-agenda-workspace')!
@@ -281,7 +315,7 @@ async function run() {
   assert(active().textContent?.includes('Frist heute'), 'Actual Main Dashboard exposes Task deadline reason in Today')
   await switchView('flux')
   assert(active().querySelector('.nx-planning-today-card')?.textContent?.includes('1 eindeutige offene Aufgaben'), 'Actual Main Flux consumes same Today derivation')
-  await switchView('calendar'); click('Arbeitsblock'); change(field('Aufgabe für Arbeitsblock'), task.id); change(field('Planungsbeginn'), `${tomorrow}T10:00`); change(field('Arbeitsdauer in Minuten'), '30'); keepConflict(); submit(); await ack()
+  await switchView('calendar'); click('Arbeitsblock'); await pause(); change(field('Planungszeitzone'), 'Europe/Berlin'); change(field('Aufgabe für Arbeitsblock'), task.id); change(field('Planungsbeginn'), `${tomorrow}T10:00`); change(field('Arbeitsdauer in Minuten'), '30'); keepConflict(); submit(); await ack()
   const futureId = mainPlanning.capturePlanning().blocks.at(-1)!.id
   flushSync(() => field('Beim Abschluss Erinnerung stoppen: Selected linked point').click())
   click('Abschließen'); await wait(() => mainApp.getState().tasks[0].status === 'done' && !workspaceOperation.isActive(), 'acknowledged completion')
@@ -338,7 +372,7 @@ async function run() {
   await wait(() => relationArea.querySelector('select'), 'actual Note context controls opened')
   click('Ziel fokussieren', relationArea); await wait(() => view === 'notes' && mainApp.getState().activeNoteId === note.id, 'Calendar typed Note context opens exact entity')
   assert(view === 'notes' && mainApp.getState().activeNoteId === note.id, 'Actual Agenda Note context navigation focuses exact existing entity')
-  await switchView('calendar'); mainApp.setState(state => ({ notes: state.notes.filter(item => item.id !== note.id), openNoteIds: [], activeNoteId: null }))
+  await switchView('calendar'); click('Verknüpfungen'); change(field('Aufgabe für Verknüpfungen'), noteTask.id); mainApp.setState(state => ({ notes: state.notes.filter(item => item.id !== note.id), openNoteIds: [], activeNoteId: null }))
   await wait(() => active().textContent?.includes('Verknüpftes Ziel fehlt'), 'deleted Note link visible')
   const brokenArea = active().querySelector(`[aria-label="Kontextverknüpfungen: ${noteTask.title}"]`)!;
   (brokenArea as HTMLDetailsElement).open = true; await wait(() => brokenArea.querySelector('select'), 'actual broken Note context controls opened')
