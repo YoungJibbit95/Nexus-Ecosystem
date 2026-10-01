@@ -17,7 +17,7 @@ app.whenReady().then(async () => {
       if (stage === 'agenda-clarity') {
         await window.webContents.executeJavaScript('new Promise(resolve => { const poll = () => window.planningAgendaDisclosureReady || window.planningInteractionResult ? resolve() : setTimeout(poll, 25); poll() })')
         if (!await window.webContents.executeJavaScript('Boolean(window.planningInteractionResult)')) {
-          await window.webContents.executeJavaScript('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
+          await window.webContents.executeJavaScript('new Promise(resolve => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(resolve)), 350))')
           if (process.env.NEXUS_PLANNING_SCREENSHOTS) { await mkdir(process.env.NEXUS_PLANNING_SCREENSHOTS, { recursive: true }); await writeFile(path.join(process.env.NEXUS_PLANNING_SCREENSHOTS, 'agenda-default.png'), (await window.webContents.capturePage()).toPNG()) }
           window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' }); window.webContents.sendInputEvent({ type: 'char', keyCode: '\r' }); window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' })
           await window.webContents.executeJavaScript('window.resumePlanningAgendaDisclosure()')
@@ -52,20 +52,28 @@ app.whenReady().then(async () => {
           if (process.env.NEXUS_PLANNING_SCREENSHOTS) await writeFile(path.join(process.env.NEXUS_PLANNING_SCREENSHOTS, `agenda-${name}.png`), (await window.webContents.capturePage()).toPNG())
         }
         result.checks.push('Main Agenda has no horizontal overflow at desktop/narrow widths and actual browser zoom 200%')
-        const popupControls = "Array.from(document.querySelector('.nx-calendar-agenda-dialog').querySelectorAll('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), summary, [href], [tabindex]:not([tabindex=\"-1\"])')).filter(element => element.checkVisibility() && element.getClientRects().length > 0)"
+        const popupControls = "Array.from(document.querySelector('.nx-agenda-editor').querySelectorAll('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled)')).filter(element => element.checkVisibility() && element.getClientRects().length > 0)"
         await window.webContents.executeJavaScript(`(${popupControls}).at(-1).focus()`)
         result.evidence.popupKeyboard = { before: await window.webContents.executeJavaScript('document.activeElement?.outerHTML') }
         window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' }); window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' })
-        if (!await window.webContents.executeJavaScript(`document.activeElement === (${popupControls})[0]`)) throw new Error(`Agenda popup Tab did not wrap to first control: ${await window.webContents.executeJavaScript('document.activeElement?.outerHTML')}`)
+        await window.webContents.executeJavaScript(`new Promise((resolve, reject) => { let tries = 0; const poll = () => document.activeElement === (${popupControls})[0] ? resolve() : ++tries < 100 ? setTimeout(poll, 10) : reject(new Error('Entry drawer Tab did not wrap to first control')); poll() })`)
         window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab', modifiers: ['shift'] }); window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab', modifiers: ['shift'] })
-        if (!await window.webContents.executeJavaScript(`document.activeElement === (${popupControls}).at(-1)`)) throw new Error('Agenda popup Shift-Tab did not wrap to last control')
-        result.checks.push('Native Tab and Shift-Tab retain keyboard focus within the Agenda popup')
+        await window.webContents.executeJavaScript(`new Promise((resolve, reject) => { let tries = 0; const poll = () => document.activeElement === (${popupControls}).at(-1) ? resolve() : ++tries < 100 ? setTimeout(poll, 10) : reject(new Error('Entry drawer Shift-Tab did not wrap to last control')); poll() })`)
+        result.checks.push('Native Tab and Shift-Tab retain keyboard focus within the entry drawer')
         window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' }); window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' })
-        await window.webContents.executeJavaScript("new Promise((resolve, reject) => { let tries = 0; const poll = () => !document.querySelector('.nx-calendar-agenda-dialog') ? resolve() : ++tries < 200 ? setTimeout(poll, 25) : reject(new Error('Native Escape did not close Agenda popup')); poll() })")
+        await window.webContents.executeJavaScript("new Promise((resolve, reject) => { let tries = 0; const poll = () => document.querySelector('.nx-agenda-editor-layer')?.hidden ? resolve() : ++tries < 200 ? setTimeout(poll, 25) : reject(new Error('Native Escape did not close the entry drawer')); poll() })")
         await window.webContents.executeJavaScript('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
-        if (!await window.webContents.executeJavaScript("document.querySelector('.nx-calendar-timeline-panel') && document.activeElement?.textContent.trim() === 'Agenda'")) throw new Error('Closing Agenda popup did not restore Calendar and launcher focus')
-        result.checks.push('Native Escape closes Agenda, restores the previous Calendar mode and returns focus to its launcher')
+        if (!await window.webContents.executeJavaScript("document.querySelector('.nx-agenda-workspace') && document.activeElement?.hasAttribute('data-agenda-open-editor')")) throw new Error('Closing the entry drawer did not retain Agenda and restore launcher focus')
+        result.checks.push('Native Escape closes the entry drawer, keeps the Agenda workspace and returns focus to its launcher')
+        await window.webContents.executeJavaScript("Array.from(document.querySelector('[aria-label=\"Kalenderansicht\"]').querySelectorAll('button')).find(button => button.textContent.trim() === 'Tag').click()")
+        await window.webContents.executeJavaScript("new Promise(resolve => { const poll = () => document.querySelector('.nx-calendar-timeline-panel') ? resolve() : setTimeout(poll, 10); poll() })")
+        await window.webContents.executeJavaScript("Array.from(document.querySelector('[aria-label=\"Kalenderansicht\"]').querySelectorAll('button')).find(button => button.textContent.trim() === 'Agenda').click()")
+        await window.webContents.executeJavaScript("new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+        if (!await window.webContents.executeJavaScript("document.querySelector('.nx-agenda-editor-layer')?.hidden && document.querySelector('.nx-agenda-columns')?.checkVisibility()")) throw new Error('Returning to Agenda reopened a consumed editor or import request')
+        result.checks.push('Returning to Agenda keeps consumed entry and import requests closed')
         window.webContents.setZoomFactor(1); window.setContentSize(1440, 1100)
+        await window.webContents.executeJavaScript("new Promise(resolve => { const poll = () => innerWidth === 1440 ? setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(resolve)), 350) : setTimeout(poll, 10); poll() })")
+        if (process.env.NEXUS_PLANNING_SCREENSHOTS) await writeFile(path.join(process.env.NEXUS_PLANNING_SCREENSHOTS, 'agenda-complete.png'), (await window.webContents.capturePage()).toPNG())
       }
       if (stage === 'agenda-accessibility') { result.checks.push('Native Tab/Shift-Tab move through actual Agenda form fields'); window.setContentSize(1440, 1100) }
     }
