@@ -1,36 +1,14 @@
 "use strict";
 
-const crypto = require("crypto");
 const fs = require("fs").promises;
 const os = require("os");
 const path = require("path");
-const { safeStorage } = require("electron");
+const { safeStorage: electronSafeStorage } = require("electron");
 
 const STORE_VERSION = 1;
 const DEFAULT_STORE_FILE = "github-token-store.json";
-const FALLBACK_CIPHER = "aes-256-gcm";
 
-const machineFingerprint = (userDataPath) => {
-  const user = (() => {
-    try {
-      return os.userInfo();
-    } catch {
-      return {};
-    }
-  })();
-
-  return [
-    "nexus-code-token-store",
-    process.platform,
-    process.arch,
-    os.hostname(),
-    user.username || "",
-    user.homedir || os.homedir(),
-    userDataPath,
-  ].join("|");
-};
-
-const isSafeStorageAvailable = () => {
+const isSafeStorageAvailable = (safeStorage) => {
   try {
     return Boolean(safeStorage?.isEncryptionAvailable?.());
   } catch {
@@ -38,51 +16,18 @@ const isSafeStorageAvailable = () => {
   }
 };
 
-const encryptWithSafeStorage = (plainText) => ({
+const secureStorageUnavailableError = () => new Error(
+  "OS secure storage is unavailable. GitHub OAuth credentials were not saved. Enable the OS credential store and sign in again.",
+);
+
+const encryptWithSafeStorage = (safeStorage, plainText) => ({
   mode: "safeStorage",
   cipherText: safeStorage.encryptString(plainText).toString("base64"),
 });
 
-const decryptWithSafeStorage = (entry) => (
+const decryptWithSafeStorage = (safeStorage, entry) => (
   safeStorage.decryptString(Buffer.from(String(entry.cipherText || ""), "base64"))
 );
-
-const deriveFallbackKey = (userDataPath, salt) => crypto.scryptSync(
-  machineFingerprint(userDataPath),
-  Buffer.from(salt, "base64"),
-  32,
-);
-
-const encryptWithFallback = (plainText, userDataPath) => {
-  const salt = crypto.randomBytes(16);
-  const iv = crypto.randomBytes(12);
-  const key = deriveFallbackKey(userDataPath, salt.toString("base64"));
-  const cipher = crypto.createCipheriv(FALLBACK_CIPHER, key, iv);
-  const encrypted = Buffer.concat([cipher.update(plainText, "utf8"), cipher.final()]);
-  return {
-    mode: "machineLocal",
-    cipher: FALLBACK_CIPHER,
-    salt: salt.toString("base64"),
-    iv: iv.toString("base64"),
-    tag: cipher.getAuthTag().toString("base64"),
-    cipherText: encrypted.toString("base64"),
-  };
-};
-
-const decryptWithFallback = (entry, userDataPath) => {
-  const key = deriveFallbackKey(userDataPath, String(entry.salt || ""));
-  const decipher = crypto.createDecipheriv(
-    entry.cipher || FALLBACK_CIPHER,
-    key,
-    Buffer.from(String(entry.iv || ""), "base64"),
-  );
-  decipher.setAuthTag(Buffer.from(String(entry.tag || ""), "base64"));
-  const decrypted = Buffer.concat([
-    decipher.update(Buffer.from(String(entry.cipherText || ""), "base64")),
-    decipher.final(),
-  ]);
-  return decrypted.toString("utf8");
-};
 
 const sanitizeMetadata = (metadata = {}) => {
   const result = {};
@@ -97,6 +42,7 @@ const sanitizeMetadata = (metadata = {}) => {
 };
 
 const createSecureTokenStore = (options = {}) => {
+  const safeStorage = options.safeStorage || electronSafeStorage;
   const getUserDataPath = typeof options.getUserDataPath === "function"
     ? options.getUserDataPath
     : () => options.userDataPath || path.join(os.homedir(), ".nexus-code");
@@ -133,26 +79,15 @@ const createSecureTokenStore = (options = {}) => {
     await fs.rename(tempPath, storePath);
   };
 
-  const encrypt = (plainText) => {
-    const userDataPath = getUserDataPath();
-    if (isSafeStorageAvailable()) {
-      return encryptWithSafeStorage(plainText);
-    }
-    return encryptWithFallback(plainText, userDataPath);
-  };
-
   const decrypt = (entry) => {
     if (!entry || typeof entry !== "object") return null;
-    if (entry.mode === "safeStorage") {
-      if (!isSafeStorageAvailable()) {
-        throw new Error("OS secure storage is unavailable for this token.");
-      }
-      return decryptWithSafeStorage(entry);
+    if (entry.mode !== "safeStorage") {
+      throw new Error("Unsupported token storage mode.");
     }
-    if (entry.mode === "machineLocal") {
-      return decryptWithFallback(entry, getUserDataPath());
+    if (!isSafeStorageAvailable(safeStorage)) {
+      throw secureStorageUnavailableError();
     }
-    throw new Error("Unsupported token storage mode.");
+    return decryptWithSafeStorage(safeStorage, entry);
   };
 
   return {
@@ -161,9 +96,12 @@ const createSecureTokenStore = (options = {}) => {
       const plainText = String(token || "");
       if (!serviceName) throw new Error("Token service name is required.");
       if (!plainText) throw new Error("Token value is required.");
+      if (!isSafeStorageAvailable(safeStorage)) {
+        throw secureStorageUnavailableError();
+      }
       const store = await readStore();
       store.entries[serviceName] = {
-        ...encrypt(plainText),
+        ...encryptWithSafeStorage(safeStorage, plainText),
         metadata: sanitizeMetadata(metadata),
         updatedAt: new Date().toISOString(),
       };
@@ -182,6 +120,13 @@ const createSecureTokenStore = (options = {}) => {
       const store = await readStore();
       const entry = store.entries[serviceName];
       if (!entry) return null;
+      if (entry.mode === "machineLocal") {
+        delete store.entries[serviceName];
+        await writeStore(store);
+        throw new Error(
+          "Legacy machine-local GitHub credential was removed because OS secure storage is required. Sign in again.",
+        );
+      }
       return decrypt(entry);
     },
 
