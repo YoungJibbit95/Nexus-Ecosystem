@@ -12,7 +12,7 @@ const { redactSensitiveText } = require("./services/processRunner.cjs");
 const { createSanitizedProcessEnv } = require("./services/safeProcessEnv.cjs");
 const { createNavigationPolicy } = require("./services/navigationPolicy.cjs");
 
-const DEV = process.env.ELECTRON_DEV === "true";
+const DEV = !app.isPackaged && process.env.ELECTRON_DEV === "true";
 const DEV_URL = process.env.NEXUS_CODE_DEV_URL || "http://127.0.0.1:5175";
 const WINDOW_SHOW_FALLBACK_MS = 4_500;
 const MAX_PATH_LENGTH = 4096;
@@ -442,6 +442,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      devTools: DEV,
       backgroundThrottling: false,
       webSecurity: true,
       allowRunningInsecureContent: false,

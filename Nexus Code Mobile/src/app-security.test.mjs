@@ -52,3 +52,9 @@ test('Code Mobile clears local credentials even when server revocation fails', a
   })
   assert.deepEqual(calls, ['revoke', 'clear'])
 })
+
+test('Code Mobile production Android WebView disables mixed content', async () => {
+  const config = await readFile(new URL('../capacitor.config.ts', import.meta.url), 'utf8')
+  assert.match(config, /allowMixedContent:\s*false/)
+  assert.doesNotMatch(config, /allowMixedContent:\s*true/)
+})
