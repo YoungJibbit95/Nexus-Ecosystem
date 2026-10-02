@@ -35,5 +35,8 @@ jobs:
       - name: Install package dependencies
         run: node tools/install-public-packages.mjs
 
+      - name: Run Nexus Code security attack regression
+        run: npm --prefix "./Nexus Code" run test:security
+
       - name: Run public repository release checks
         run: npm run release:gate -- --ci --public-only
