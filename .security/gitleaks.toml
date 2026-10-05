@@ -1,0 +1,7 @@
+title = "Nexus source secret scanning"
+[extend]
+useDefault = true
+
+# No history baseline, path-wide fixture exclusion or credential suppression.
+# Exact, reviewed non-secret source lines are recorded in synthetic-lines.json.
+# Inline gitleaks:allow comments and .gitleaksignore are disabled by the runner.

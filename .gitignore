@@ -66,3 +66,6 @@ docs/nexus-code-v2/evidence/**/*.log
 docs/nexus-code-v2/evidence/**/*.txt
 docs/nexus-code-v2/evidence/**/*.png
 docs/nexus-code-v2/evidence/**/*.gz
+
+# Runtime account state is never a source fixture.
+/API/nexus-control-plane/data/users.json

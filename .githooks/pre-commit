@@ -1,0 +1,3 @@
+#!/bin/sh
+# Opt-in repository hook; never overwrite an existing user hook.
+exec node .security/scan.mjs staged

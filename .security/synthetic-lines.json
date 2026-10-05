@@ -1,0 +1,32 @@
+[
+  {
+    "file": "Nexus Code/src/testing/ideCoreSmoke.mjs",
+    "rule": "generic-api-key",
+    "lineSha256": "4030f957d801dcbdabdb1d7a2171e5d6f9e06cba94a00b7f8d12cca0c68d19ef",
+    "reason": "Pure login-payload unit fixture; no request is sent by this case."
+  },
+  {
+    "file": "Nexus Main/src/app/mainAppConfig.ts",
+    "rule": "generic-api-key",
+    "lineSha256": "371b53e57bed69e0cba5b0fa0acc92c523b042c1133bd5e2b81a7bef638f92b3",
+    "reason": "Public local-storage slot name for walkthrough state, not an authentication secret."
+  },
+  {
+    "file": "packages/nexus-core/src/reminders/browserReminderController.tsx",
+    "rule": "generic-api-key",
+    "lineSha256": "4d47460a38723efe585865306deab8db58f2feee2290bfd7b40cf091e5c60088",
+    "reason": "IndexedDB delivery-ledger storage key; used only for local getItem/setItem, not authentication."
+  },
+  {
+    "file": "packages/nexus-core/test/devtools-artifacts.test.mjs",
+    "rule": "private-key",
+    "lineSha256": "95a7d73cedc0a864b75cbf97765d685f0e58cf72de53181c54b79a73738695ff",
+    "reason": "Deliberately invalid PEM-shaped payload in redaction unit test; assertions reject sensitive-key-material output."
+  },
+  {
+    "file": "docs/PROJECT_BOARD.md",
+    "rule": "generic-api-key",
+    "lineSha256": "74eb1af093929b47ed68ae7fed240985abb184df67988be915472b022d96d888",
+    "reason": "Public GitHub repository identifier in a deployment prerequisite note; the matched code span is the known NexusAPI repository name, not credential material."
+  }
+]
