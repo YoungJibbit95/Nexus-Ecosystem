@@ -71,6 +71,10 @@ jobs:
         run: |
           node --test tools/android-workflow.test.mjs tools/release-hardening.test.mjs
           node tools/android-bundle-native-regression.mjs --java-home "$JAVA_HOME"
+      - name: Install and audit shared-core dependencies
+        run: |
+          npm ci --prefix packages/nexus-core
+          npm audit --prefix packages/nexus-core --audit-level=moderate
       - name: Install application dependencies
         working-directory: "${{ matrix.app_dir }}"
         run: npm ci
