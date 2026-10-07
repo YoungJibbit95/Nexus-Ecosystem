@@ -104,7 +104,10 @@ async function run() {
     assert(!key(document.body, 'g') && Boolean(document.querySelector('.nx-files-list')), 'Cached hidden Files does not toggle its grid while Notes is active')
     await switchView('flux')
     const count = useApp.getState().tasks.length
-    assert(key(document.body, 't', { ctrlKey: true, shiftKey: true }) && useApp.getState().tasks.length === count + 1, 'Active Flux retains its intentional Ctrl+Shift+T quick action')
+    assert(key(document.body, 't', { ctrlKey: true, shiftKey: true }) && useApp.getState().tasks.length === count, 'Active Flux Ctrl+Shift+T opens capture without creating a placeholder')
+    await waitFor(() => document.querySelector('.nx-agenda-editor-layer:not([hidden]) .nx-agenda-editor'))
+    assert(view === 'calendar', 'Flux task capture hands off to the acknowledged Agenda editor')
+    key(document.body, 'Escape')
   }
 
   await switchView('tasks')

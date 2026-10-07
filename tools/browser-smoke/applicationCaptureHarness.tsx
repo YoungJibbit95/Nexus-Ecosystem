@@ -47,8 +47,9 @@ const change = (element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElem
 const field = (label: string) => { const element = [...dialog()!.querySelectorAll('label')].find(element => element.textContent === label)!; return document.getElementById(element.htmlFor) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement }
 const submit = () => flushSync(() => dialog()!.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
 const acknowledge = () => wait(() => !workspaceOperation.isActive() && dialog()?.textContent?.includes('Gespeichert. ID:'), 'capture acknowledgement')
-const go = async (next: string) => { view = next; render(); await wait(() => !document.body.textContent?.includes('Lade View...') && !document.body.textContent?.includes('Loading view...'), 'actual view loaded') }
-const dashboardOpen = async (kind: 'note'|'reminder') => { await go('dashboard'); if (client === 'main') { if (kind === 'reminder') { click('Weitere'); click('Erinnerung') } else click('Neue Notiz') } else { click('Neu erstellen'); await wait(() => [...document.querySelectorAll('button')].some(button => button.textContent?.trim() === '+ Note'), 'mobile capture sheet'); click(kind === 'note' ? '+ Note' : '+ Reminder') }; await wait(dialog, 'dashboard shared capture dialog') }
+const go = async (next: string) => { view = next; render(); await wait(() => !document.body.textContent?.includes('Lade View...') && !document.body.textContent?.includes('Loading view...'), 'actual view loaded'); if (client === 'main' && next === 'dashboard') await wait(() => document.querySelector('[data-product-overview="dashboard"][data-today-tasks]'), 'Dashboard sources ready') }
+const taskHeading = client === 'main' ? 'Was möchtest du erledigen?' : 'Aufgabe erfassen', eventHeading = client === 'main' ? 'Welcher Termin steht an?' : 'Feste Verpflichtung erfassen'
+const dashboardOpen = async (kind: 'note'|'reminder') => { await go('dashboard'); if (client === 'main') { click(kind === 'reminder' ? 'Erinnerung' : 'Neue Notiz') } else { click('Neu erstellen'); await wait(() => [...document.querySelectorAll('button')].some(button => button.textContent?.trim() === '+ Note'), 'mobile capture sheet'); click(kind === 'note' ? '+ Note' : '+ Reminder') }; await wait(dialog, 'dashboard shared capture dialog') }
 const paletteQuery = async (query: string) => {
   if (client === 'main') flushSync(() => window.dispatchEvent(new CustomEvent('nx-open-spotlight', { detail: { query } })))
   else { click('Open actual mobile palette'); await wait(() => Boolean(document.querySelector('input[placeholder="Suche nach Views, Aktionen, Themes..."]')), 'mobile palette query'); change(document.querySelector<HTMLInputElement>('input[placeholder="Suche nach Views, Aktionen, Themes..."]')!, query) }
@@ -152,7 +153,7 @@ function failWrites(key: string, tag: string) {
     if (client === 'main') {
       click('Note'); await wait(dialog, 'actual Sidebar shared Note form')
       assert(field('Titel').value === 'Untitled', 'Sidebar Note shares visible defaults'); click('Abbrechen', dialog()!)
-      click('Task'); await wait(() => document.body.querySelector('form[aria-label="Manuelle Planungsaktion"] h3')?.textContent === 'Aufgabe erfassen', 'actual Sidebar unsaved Task form')
+      click('Task'); await wait(() => document.body.querySelector('form[aria-label="Manuelle Planungsaktion"] h3')?.textContent === taskHeading, 'actual Sidebar unsaved Task form')
       assert(app.getState().tasks.length === 0, 'Sidebar Task uses existing unsaved planning owner')
     } else {
       for (const [command, mode] of [['New Note','note'],['Capture Reminder','reminder'],['New Task','task'],['Capture Fixed Event','event']]) {
@@ -161,16 +162,16 @@ function failWrites(key: string, tag: string) {
         else { await wait(() => document.body.querySelector('form[aria-label="Manuelle Planungsaktion"] h3')?.textContent === (mode === 'task' ? 'Aufgabe erfassen' : 'Feste Verpflichtung erfassen'), 'mobile toolbar planning form'); assert(app.getState().tasks.length === 0 && planning.capturePlanning().events.length === 0, `Mobile toolbar ${mode} remains unsaved`) }
       }
     }
-    await go('tasks'); click('Neuer Task'); await wait(() => document.body.querySelector('form[aria-label="Manuelle Planungsaktion"] h3')?.textContent === 'Aufgabe erfassen', 'Task capture destination')
+    await go('tasks'); click('Neuer Task'); await wait(() => document.body.querySelector('form[aria-label="Manuelle Planungsaktion"] h3')?.textContent === taskHeading, 'Task capture destination')
     assert(view === 'calendar' && app.getState().tasks.length === 0, 'Task shell opens shared unsaved planning destination')
-    click('Neuer Kalendereintrag'); await wait(() => document.body.querySelector('form[aria-label="Manuelle Planungsaktion"] h3')?.textContent === 'Feste Verpflichtung erfassen', 'Event capture destination')
+    click('Neuer Kalendereintrag'); await wait(() => document.body.querySelector('form[aria-label="Manuelle Planungsaktion"] h3')?.textContent === eventHeading, 'Event capture destination')
     assert(planning.capturePlanning().events.length === 0, 'Event shell opens shared unsaved planning destination')
     assert(app.getState().tasks === ignored.tasks && app.getState().codes === ignored.codes && app.getState().folders === ignored.folders && (client === 'main' ? mainCanvas : mobileCanvas).getState().canvases === ignored.canvases, 'Note/Reminder captures preserve unrelated source references')
     for (const origin of ['shell','palette','dashboard']) {
       if (origin === 'shell') { await go('tasks'); click('Neuer Task') }
       else if (origin === 'palette') await paletteQuery(`task: ${client}-${origin}-task`)
-      else { await go('dashboard'); if (client === 'main') click('Neuer Task'); else { click('Neu erstellen'); await wait(() => [...document.querySelectorAll('button')].some(button => button.textContent?.trim() === '+ Task'), 'dashboard Task action'); click('+ Task') } }
-      await wait(() => document.querySelector('form[aria-label="Manuelle Planungsaktion"] h3')?.textContent === 'Aufgabe erfassen', 'shared capture Task form')
+      else { await go('dashboard'); if (client === 'main') click('Neue Aufgabe'); else { click('Neu erstellen'); await wait(() => [...document.querySelectorAll('button')].some(button => button.textContent?.trim() === '+ Task'), 'dashboard Task action'); click('+ Task') } }
+      await wait(() => document.querySelector('form[aria-label="Manuelle Planungsaktion"] h3')?.textContent === taskHeading, 'shared capture Task form')
       change(document.querySelector<HTMLInputElement>('input[aria-label="Planungstitel"]')!, `${client}-${origin}-task`)
       const form = document.querySelector<HTMLFormElement>('form[aria-label="Manuelle Planungsaktion"]')!
       flushSync(() => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
@@ -179,8 +180,9 @@ function failWrites(key: string, tag: string) {
       assert(task?.id && Object.values(planning.capturePlanning().receipts).some(receipt => receipt.ids.includes(task.id)), `${origin} Task submit returns canonical owner ID/receipt`); taskIds.push(task.id)
     }
     await paletteQuery(`task: ${client}-dashboard-task`)
-    await wait(() => document.querySelector('form[aria-label="Manuelle Planungsaktion"] h3')?.textContent === 'Aufgabe erfassen', 'new identical Task intent')
+    await wait(() => document.querySelector('form[aria-label="Manuelle Planungsaktion"] h3')?.textContent === taskHeading, 'new identical Task intent')
     const repeatedTaskForm = document.querySelector<HTMLFormElement>('form[aria-label="Manuelle Planungsaktion"]')!
+    await wait(() => !repeatedTaskForm.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled, 'new identical Task intent is ready')
     assert(!repeatedTaskForm.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled, 'New Task intent with unchanged draft gets a fresh command identity')
     flushSync(() => repeatedTaskForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
     await wait(() => repeatedTaskForm.textContent?.includes('Dauerhaft gespeichert'), 'new identical Task acknowledgement')
@@ -188,23 +190,26 @@ function failWrites(key: string, tag: string) {
     assert(repeatedTask?.title === `${client}-dashboard-task`, 'Explicit new identical Task intent creates a separately acknowledged ID'); taskIds.push(repeatedTask.id)
     for (const origin of ['shell','palette']) {
       if (origin === 'shell') click('Neuer Kalendereintrag'); else await paletteQuery(`event: ${client}-${origin}-event`)
-      await wait(() => document.querySelector('form[aria-label="Manuelle Planungsaktion"] h3')?.textContent === 'Feste Verpflichtung erfassen', 'shared Event form')
+      await wait(() => document.querySelector('form[aria-label="Manuelle Planungsaktion"] h3')?.textContent === eventHeading, 'shared Event form')
       change(document.querySelector<HTMLInputElement>('input[aria-label="Planungstitel"]')!, `${client}-${origin}-event`)
-      change(document.querySelector<HTMLInputElement>('input[aria-label="Planungszeitzone"]')!, 'Europe/Berlin')
+      change(document.querySelector<HTMLInputElement | HTMLSelectElement>('[aria-label="Planungszeitzone"]')!, 'Europe/Berlin')
       change(document.querySelector<HTMLInputElement>('input[aria-label="Planungsbeginn"]')!, origin === 'shell' ? '2026-10-02T10:00' : '2026-10-02T12:00')
       change(document.querySelector<HTMLInputElement>('input[aria-label="Planungsende"]')!, origin === 'shell' ? '2026-10-02T11:00' : '2026-10-02T13:00')
       const form = document.querySelector<HTMLFormElement>('form[aria-label="Manuelle Planungsaktion"]')!
-      const conflict = [...form.querySelectorAll<HTMLLabelElement>('label')].find(label => label.textContent?.includes('ausdrücklich behalten'))!.querySelector<HTMLInputElement>('input')!
+      const conflict = [...form.querySelectorAll<HTMLLabelElement>('label')].find(label => label.textContent?.includes('Konflikte'))!.querySelector<HTMLInputElement>('input')!
       flushSync(() => conflict.click()); flushSync(() => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
       await wait(() => form.textContent?.includes('Dauerhaft gespeichert'), `${origin} Event acknowledgement`)
       const event = planning.capturePlanning().events.find(item => item.title === `${client}-${origin}-event`)!
       assert(event?.id && Object.values(planning.capturePlanning().receipts).some(receipt => receipt.ids.includes(event.id)), `${origin} Event submit returns canonical owner ID/receipt`); eventIds.push(event.id)
     }
     await paletteQuery(`event: ${client}-palette-event`)
-    await wait(() => document.querySelector('form[aria-label="Manuelle Planungsaktion"] h3')?.textContent === 'Feste Verpflichtung erfassen', 'new identical Event intent')
+    await wait(() => document.querySelector('form[aria-label="Manuelle Planungsaktion"] h3')?.textContent === eventHeading, 'new identical Event intent')
     const repeatedEventForm = document.querySelector<HTMLFormElement>('form[aria-label="Manuelle Planungsaktion"]')!
+    await wait(() => !repeatedEventForm.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled, 'new identical Event intent is ready')
     assert(!repeatedEventForm.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled, 'New Event intent with unchanged draft gets a fresh command identity')
-    const repeatConflict = [...repeatedEventForm.querySelectorAll<HTMLLabelElement>('label')].find(label => label.textContent?.includes('ausdrücklich behalten'))!.querySelector<HTMLInputElement>('input')!
+    change(repeatedEventForm.querySelector<HTMLInputElement>('[aria-label="Planungsbeginn"]')!, '2026-10-02T12:00')
+    change(repeatedEventForm.querySelector<HTMLInputElement>('[aria-label="Planungsende"]')!, '2026-10-02T13:00')
+    const repeatConflict = [...repeatedEventForm.querySelectorAll<HTMLLabelElement>('label')].find(label => label.textContent?.includes('Konflikte'))!.querySelector<HTMLInputElement>('input')!
     flushSync(() => repeatConflict.click()); flushSync(() => repeatedEventForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
     await wait(() => repeatedEventForm.textContent?.includes('Dauerhaft gespeichert'), 'new identical Event acknowledgement')
     const repeatedEvent = planning.capturePlanning().events.find(item => !eventIds.includes(item.id))!

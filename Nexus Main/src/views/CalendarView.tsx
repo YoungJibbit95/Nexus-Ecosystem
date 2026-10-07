@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { openProductTarget, useProductNavigationTarget } from '../app/useProductNavigation';
 import {
   Bell,
   Calendar,
@@ -838,10 +839,22 @@ export function CalendarView({
   const agendaNavigationCursor = useRef(''), agendaImportCursor = useRef(0);
   const planningRequest = usePlanningNavigation('main');
   const calendarActive = useActiveViewCommandScope();
+  const [agendaReadRequest, setAgendaReadRequest] = useState<{ sequence: number; planningRequestId: string }>();
+  const navigationMessage = useProductNavigationTarget('agenda', target => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(target.day)) return false;
+    const date = new Date(`${target.day}T12:00:00`);
+    if (!Number.isFinite(date.getTime()) || toDateKey(date) !== target.day) return false;
+    agendaNavigationCursor.current = planningRequest?.requestId || '';
+    setSelectedDateKey(target.day);
+    setViewMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+    setCalendarMode('agenda');
+    setAgendaReadRequest(value => ({ sequence: (value?.sequence || 0) + 1, planningRequestId: planningRequest?.requestId || '' }));
+    return true;
+  });
   useEffect(() => {
     if (!calendarActive) setCalendarMode('day');
   }, [calendarActive]);
-  useEffect(() => { if (planningRequest) setCalendarMode('agenda'); }, [planningRequest]);
+  useEffect(() => { if (calendarActive && planningRequest && agendaNavigationCursor.current !== planningRequest.requestId) setCalendarMode('agenda'); }, [planningRequest, calendarActive]);
   const [composerType, setComposerType] = useState<CalendarItemType>("task");
   const [composerTitle, setComposerTitle] = useState("");
   const [composerPriority, setComposerPriority] =
@@ -1866,9 +1879,12 @@ export function CalendarView({
   if (calendarMode === 'agenda') return (
     <DndProvider backend={HTML5Backend}>
       <div className="nx-calendar-view nx-calendar-mode-agenda nx-calendar-workspace-host">
+        {navigationMessage && <p role="alert">{navigationMessage}</p>}
         <DropAgenda dateKey={selectedDateKey} onDropItem={handleDropItem}>
           <MainPlanningSurface
             selectedDay={selectedDateKey}
+            readRequest={agendaReadRequest}
+            onOpenTask={id => openProductTarget({ kind: 'task', id }, setView)}
             onDayChange={setSelectedDateKey}
             setView={setView}
             quickEntry={quickEntry}
@@ -1885,7 +1901,7 @@ export function CalendarView({
       </div>
     </DndProvider>
   );
-  return <DndProvider backend={HTML5Backend}>{calendarContent}</DndProvider>;
+  return <DndProvider backend={HTML5Backend}>{navigationMessage && <p role="alert">{navigationMessage}</p>}{calendarContent}</DndProvider>;
 }
 
 export default CalendarView;

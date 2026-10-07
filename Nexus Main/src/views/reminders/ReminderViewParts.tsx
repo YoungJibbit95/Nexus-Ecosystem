@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import { isViewCommandScopeActive, useActiveViewCommandScope } from '../../app/ViewCommandScope';
 import { createReminderTimeEdit, resolveReminderTimeEdit } from "@nexus/core/time/reminderTimeEdit";
 import { executeReminderCommand, type ReminderCommandResult } from "@nexus/core/reminders/reminderDomain";
 import {
@@ -164,6 +165,29 @@ export function ReminderModal({
   const t = useTheme();
   const rgb = hexToRgb(t.accent);
   const { addRem, updateReminder, tasks, notes: noteEntries, openNote, setNote } = useApp();
+  const active = useActiveViewCommandScope(), dialogRef = useRef<HTMLDivElement>(null), titleId = useId();
+  const openerRef = useRef(document.activeElement as HTMLElement | null);
+  const closeRef = useRef(onClose); closeRef.current = onClose;
+  useEffect(() => {
+    if (!active) return;
+    const opener = openerRef.current;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const controls = () => [...dialog.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]')].filter(item => item.checkVisibility());
+    controls().find(item => item.tagName === 'INPUT')?.focus();
+    const keydown = (event: KeyboardEvent) => {
+      if (!isViewCommandScopeActive(active) || event.defaultPrevented || event.isComposing) return;
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeRef.current(); }
+      if (event.key === 'Tab') {
+        const items = controls(), first = items[0], last = items[items.length - 1];
+        if (!first) { event.preventDefault(); dialog.focus(); }
+        else if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+      }
+    };
+    window.addEventListener('keydown', keydown, true);
+    return () => { window.removeEventListener('keydown', keydown, true); if (opener?.isConnected && opener.checkVisibility() && !dialog.contains(opener)) opener.focus(); };
+  }, [active]);
 
   const [timeEdit] = useState(() => createReminderTimeEdit(reminder?.datetime));
   const [title, setTitle] = useState(reminder?.title ?? "");
@@ -264,11 +288,12 @@ export function ReminderModal({
     >
       <motion.div
         initial={panelInitial}
+        ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
         animate={{ scale: 1, y: 0, opacity: 1 }}
         exit={panelInitial}
         transition={panelTransition}
         onClick={(event) => event.stopPropagation()}
-        style={{ width: 440, maxHeight: "85vh", display: "flex", flexDirection: "column" }}
+        style={{ width: 440, maxWidth: 'calc(100vw - 24px)', maxHeight: "85vh", display: "flex", flexDirection: "column" }}
       >
         <Glass glow style={{ padding: 0, display: "flex", flexDirection: "column", maxHeight: "85vh" }}>
           <div
@@ -295,12 +320,13 @@ export function ReminderModal({
               >
                 <Bell size={15} style={{ color: t.accent }} />
               </div>
-              <span style={{ fontSize: 15, fontWeight: 800 }}>
+              <span id={titleId} style={{ fontSize: 15, fontWeight: 800 }}>
                 {reminder ? "Edit Reminder" : "New Reminder"}
               </span>
             </div>
             <button
               onClick={onClose}
+              aria-label="Erinnerung schließen"
               style={{
                 background: "none",
                 border: "none",
@@ -349,7 +375,6 @@ export function ReminderModal({
             {tab === "basic" && (
               <div style={{ padding: "16px 20px" }}>
                 <input
-                  autoFocus
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
                   placeholder="Reminder title…"

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect, useId } from 'react'
+import { useProductNavigationTarget } from '../app/useProductNavigation'
 import {
   Plus,
   Trash2,
@@ -855,6 +856,13 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([])
   const [batchTagInput, setBatchTagInput] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const navigationMessage = useProductNavigationTarget('task', target => {
+    if (!useApp.getState().tasks.some(task => task.id === target.id)) return false
+    searchInputRef.current?.focus()
+    setNewStatus(null)
+    setEditId(target.id)
+    return true
+  })
   const [workMode, setWorkMode] = useState<TaskWorkMode>(() => {
     if (typeof window === 'undefined') return 'board'
     const saved = window.localStorage.getItem(TASK_MODE_STORAGE_KEY)
@@ -1088,6 +1096,7 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
 
   return (
     <DndProvider backend={HTML5Backend}>
+      {navigationMessage && <p role="alert">{navigationMessage}</p>}
       <div className="nx-tasks-v6 nx-release-view" style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden', background:'linear-gradient(140deg, rgba(255,255,255,0.018), rgba(255,255,255,0.006))' }}>
         <div className="nx-tasks-toolbar nx-release-toolbar" style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px 5px', flexShrink:0, background:'transparent' }}>
           <div style={{ position:'relative', flex:'1 1 420px', maxWidth:460 }}>
