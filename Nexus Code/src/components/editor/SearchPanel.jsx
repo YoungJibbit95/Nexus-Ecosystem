@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { WORKBENCH_MOTION } from "../../theme/workbenchTokens.ts";
 import {
   DEFAULT_SEARCH_OPTIONS,
   SEARCH_DEBOUNCE_MS,
@@ -30,6 +31,8 @@ import {
   PanelFooter,
   PanelHeader,
   PanelIconButton,
+  PanelInput,
+  useNexusReducedMotion,
   PanelShell,
   PanelState,
 } from "./panels/PanelChrome.jsx";
@@ -43,17 +46,10 @@ function HighlightedLine({ match }) {
   const after = excerpt.slice(end);
 
   return (
-    <span className="text-gray-400">
+    <span className="nx-panel-secondary">
       {before}
       {highlighted && (
-        <mark
-          style={{
-            background: "rgba(168,85,247,0.35)",
-            color: "#f3e8ff",
-            borderRadius: "2px",
-            padding: "0 1px",
-          }}
-        >
+        <mark className="nx-panel-match">
           {highlighted}
         </mark>
       )}
@@ -67,16 +63,7 @@ function OptionButton({ active, onClick, title, icon: Icon, label }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-7 min-w-0 items-center justify-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold leading-tight transition-colors"
-      style={{
-        background: active
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)"
-          : "rgba(255,255,255,0.01)",
-        color: active ? "var(--nexus-primary, #7c8cff)" : "#8b93a7",
-        border: active
-          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.17)"
-          : "1px solid rgba(255,255,255,0.035)",
-      }}
+      className="nx-panel-button"
       title={title}
       aria-pressed={active}
     >
@@ -91,14 +78,13 @@ function OptionButton({ active, onClick, title, icon: Icon, label }) {
 function ScopeInput({ label, value, onChange, placeholder }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[9px] font-semibold uppercase text-gray-500">
+      <span className="mb-1 block text-[9px] font-semibold uppercase nx-panel-muted">
         {label}
       </span>
-      <input
+      <PanelInput
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="min-h-8 w-full rounded-md border border-white/[0.05] bg-white/[0.018] px-2.5 py-1.5 text-[11px] leading-snug text-gray-300 outline-none placeholder:text-gray-700 focus:border-sky-300/[0.28] focus:bg-white/[0.032]"
       />
     </label>
   );
@@ -173,6 +159,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
   const [collapsed, setCollapsed] = useState({});
   const [showScopes, setShowScopes] = useState(false);
   const [isDebouncing, setIsDebouncing] = useState(false);
+  const reduceMotion = useNexusReducedMotion();
   const inputRef = useRef(null);
   const runIdRef = useRef(0);
 
@@ -353,43 +340,32 @@ export default function SearchPanel({ files = [], onFileSelect }) {
       >
         <form onSubmit={submitSearch} className="space-y-1.5">
           <div
-            className="flex min-h-8 items-center gap-1.5 rounded-md px-2.5 py-1.5"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.006))",
-              border: draft.query
-                ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)"
-                : "1px solid rgba(255,255,255,0.04)",
-              transition: "border-color 0.2s ease",
-            }}
+            className="flex min-w-0 items-center gap-1.5"
           >
-            <Search size={13} className="shrink-0 text-gray-500" />
-            <input
+            <Search size={13} className="shrink-0 nx-panel-muted" />
+            <PanelInput
               ref={inputRef}
               value={draft.query}
               onChange={(event) => updateDraft({ query: event.target.value })}
               placeholder="Search files..."
-              className="min-w-0 flex-1 bg-transparent text-xs text-gray-200 outline-none placeholder:text-gray-600"
+              className="flex-1"
+              aria-label="Search files"
             />
             {draft.query && (
-              <motion.button
+              <button
                 type="button"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                whileHover={{ scale: 1.12 }}
-                whileTap={{ scale: 0.92 }}
                 onClick={clearSearch}
-                className="shrink-0 rounded-md p-1 text-gray-500 hover:bg-white/[0.07] hover:text-gray-300"
+                className="shrink-0 rounded-md p-1 nx-panel-muted hover:bg-[var(--wb-hover)]"
                 title="Suche leeren"
               >
                 <X size={11} />
-              </motion.button>
+              </button>
             )}
           </div>
 
           <div
             className="grid gap-1.5"
-            style={{ gridTemplateColumns: "repeat(auto-fit, minmax(66px, 1fr))" }}
+            style={{ gridTemplateColumns: "repeat(auto-fit, minmax(76px, 1fr))" }}
           >
             <OptionButton
               active={draft.caseSensitive}
@@ -415,16 +391,8 @@ export default function SearchPanel({ files = [], onFileSelect }) {
               onClick={() => setShowScopes((value) => !value)}
               aria-expanded={scopeControlsVisible}
               title="Include-/Exclude-Scopes anzeigen"
-              className="flex min-h-7 min-w-0 items-center justify-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold leading-tight transition-colors"
-              style={{
-                background: scopeControlsVisible
-                  ? "rgba(56,189,248,0.07)"
-                  : "rgba(255,255,255,0.01)",
-                color: scopeControlsVisible ? "#93c5fd" : "#8b93a7",
-                border: scopeControlsVisible
-                  ? "1px solid rgba(56,189,248,0.14)"
-                  : "1px solid rgba(255,255,255,0.035)",
-              }}
+              className="nx-panel-button"
+              data-active={scopeControlsVisible}
             >
               <SlidersHorizontal size={12} className="shrink-0" />
               <span className="min-w-0 break-words text-center" style={{ overflowWrap: "anywhere" }}>
@@ -436,10 +404,10 @@ export default function SearchPanel({ files = [], onFileSelect }) {
           <AnimatePresence initial={false}>
             {scopeControlsVisible ? (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
+                initial={reduceMotion ? false : { opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.18 }}
+                transition={{ duration: reduceMotion ? 0 : WORKBENCH_MOTION.regular }}
                 style={{ overflow: "hidden" }}
               >
                 <div className="grid grid-cols-1 gap-2 rounded-md border border-white/[0.035] bg-black/[0.1] p-2">
@@ -477,19 +445,19 @@ export default function SearchPanel({ files = [], onFileSelect }) {
       <PanelBody>
         {showResults && (
           <div
-            className="sticky top-0 z-10 mx-2 mt-2 rounded-md border px-2.5 py-1.5 backdrop-blur-sm"
+            className="sticky top-0 z-10 mx-2 mt-2 rounded-md border px-2.5 py-1.5"
             style={{
               background:
-                "rgba(5,8,15,0.9)",
-              borderColor: "rgba(255,255,255,0.04)",
+                "var(--wb-surface-panel)",
+              borderColor: "var(--wb-border-subtle)",
             }}
           >
             <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="break-words text-[11px] font-semibold text-gray-300" style={{ overflowWrap: "anywhere" }}>
+                <p className="break-words text-[11px] font-semibold nx-panel-secondary" style={{ overflowWrap: "anywhere" }}>
                   {totalLabel} Treffer in {result.matchedFiles} Dateien
                 </p>
-                <p className="break-words text-[10px] text-gray-600" style={{ overflowWrap: "anywhere" }}>
+                <p className="break-words text-[10px] nx-panel-muted" style={{ overflowWrap: "anywhere" }}>
                   {result.scannedFiles} gescannt, {result.skippedFiles} uebersprungen
                 </p>
               </div>
@@ -513,7 +481,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
 
         <AnimatePresence mode="popLayout">
           {showResults &&
-            groups.map((group, index) => {
+            groups.map((group) => {
               const groupKey = group.fileId || group.path;
               const isCollapsed = Boolean(collapsed[groupKey]);
               const color = group.color || getExtColor(group.fileName);
@@ -522,11 +490,11 @@ export default function SearchPanel({ files = [], onFileSelect }) {
               return (
                 <motion.div
                   key={group.fileId || group.path}
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  initial={reduceMotion ? false : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
                   exit={{ opacity: 0, height: 0 }}
-                  transition={{ delay: Math.min(index * 0.025, 0.16), duration: 0.18 }}
-                className="mx-2 mt-1 overflow-hidden rounded-md border border-white/[0.028] bg-white/[0.006]"
+                  transition={{ duration: reduceMotion ? 0 : WORKBENCH_MOTION.regular }}
+                  className="nx-panel-result-group mx-2 mt-1 overflow-hidden rounded border"
                 >
                   <div className="group flex w-full items-center gap-1.5 px-2.5 py-1.5 transition-colors hover:bg-white/[0.026]">
                     <button
@@ -537,10 +505,10 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                     >
                       <motion.div
                         animate={{ rotate: isCollapsed ? -90 : 0 }}
-                        transition={{ duration: 0.18 }}
+                        transition={{ duration: reduceMotion ? 0 : WORKBENCH_MOTION.regular }}
                         className="shrink-0"
                       >
-                        <ChevronDown size={12} className="text-gray-600" />
+                        <ChevronDown size={12} className="nx-panel-muted" />
                       </motion.div>
                       <span
                         className="shrink-0 rounded px-1 py-0.5 text-[9px] font-bold"
@@ -550,13 +518,13 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span
-                          className="block break-words text-[12px] font-medium leading-snug text-gray-300"
+                          className="block break-words text-[12px] font-medium leading-snug nx-panel-secondary"
                           style={{ overflowWrap: "anywhere" }}
                         >
                           {group.fileName}
                         </span>
                         {group.path && group.path !== group.fileName && (
-                          <span className="block break-words text-[10px] leading-snug text-gray-600" style={{ overflowWrap: "anywhere" }}>
+                          <span className="block break-words text-[10px] leading-snug nx-panel-muted" style={{ overflowWrap: "anywhere" }}>
                             {group.path}
                           </span>
                         )}
@@ -564,7 +532,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                     </button>
                     <button
                       type="button"
-                      className="shrink-0 rounded-md p-1 text-gray-600 opacity-70 transition-colors hover:bg-white/[0.07] hover:text-sky-200 group-hover:opacity-100"
+                      className="shrink-0 rounded-md p-1 nx-panel-muted opacity-70 transition-colors hover:bg-white/[0.07] hover:text-sky-200 group-hover:opacity-100"
                       title="Datei oeffnen"
                       onClick={(event) => {
                         event.stopPropagation();
@@ -576,8 +544,8 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                     <span
                       className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
                       style={{
-                        background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14)",
-                        color: "var(--nexus-primary, #7c8cff)",
+                        background: "var(--wb-selection)",
+                        color: "var(--wb-selection-text)",
                       }}
                     >
                       {group.perFileLimitReached
@@ -589,10 +557,10 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                   <AnimatePresence>
                     {!isCollapsed && (
                       <motion.div
-                        initial={{ opacity: 0, height: 0 }}
+                        initial={reduceMotion ? false : { opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.18 }}
+                        transition={{ duration: reduceMotion ? 0 : WORKBENCH_MOTION.regular }}
                         style={{ overflow: "hidden" }}
                       >
                         {group.matches.map((match, matchIndex) => (
@@ -607,13 +575,13 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                             >
                               <span
                                 className="mt-0.5 w-12 shrink-0 text-right font-mono text-[10px]"
-                                style={{ color: "#4b5563" }}
+                                style={{ color: "var(--wb-text-muted)" }}
                                 title={`Line ${match.lineNumber}, Column ${match.column}`}
                               >
                                 {match.lineNumber}:{match.column}
                               </span>
                               <span
-                                className="min-w-0 flex-1 whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed group-hover:text-gray-300"
+                                className="min-w-0 flex-1 whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed"
                                 style={{ overflowWrap: "anywhere" }}
                               >
                                 <HighlightedLine match={match} />
@@ -622,7 +590,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                             <button
                               type="button"
                               onClick={() => copyMatch(group, match)}
-                              className="mt-0.5 shrink-0 rounded-md p-1 text-gray-700 opacity-0 transition-opacity hover:bg-white/[0.08] hover:text-gray-300 group-hover:opacity-100"
+                              className="mt-0.5 shrink-0 rounded-md p-1 nx-panel-muted opacity-70 transition-opacity hover:bg-[var(--wb-hover)] group-hover:opacity-100"
                               title="Trefferzeile kopieren"
                             >
                               <Copy size={11} />
@@ -664,11 +632,11 @@ export default function SearchPanel({ files = [], onFileSelect }) {
       {(appliedQuery || result.warnings.length > 0) && (
         <PanelFooter>
           <div className="flex items-center justify-between gap-2">
-            <span className="min-w-0 break-words text-[10px] text-gray-600" style={{ overflowWrap: "anywhere" }}>
+            <span className="min-w-0 break-words text-[10px] nx-panel-muted" style={{ overflowWrap: "anywhere" }}>
               {footerText}
             </span>
             {result.durationMs > 0 && (
-              <span className="shrink-0 text-[10px] text-gray-700">
+              <span className="shrink-0 text-[10px] nx-panel-muted">
                 {result.durationMs} ms
               </span>
             )}

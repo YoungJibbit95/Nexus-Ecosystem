@@ -1,3 +1,5 @@
+@import "./components/editor/panels/panelChrome.css";
+
 :root {
     --nexus-primary: #7c8cff;
     --nexus-primary-rgb: 124, 140, 255;
@@ -1591,44 +1593,7 @@ textarea.nx-typing-active,
     min-height: 1.5rem;
 }
 
-.nx-editor-panel-shell {
-    color: var(--nexus-text, #e5e7eb);
-    border-radius: inherit;
-    background:
-        radial-gradient(circle at 12% 0%, rgba(var(--nexus-primary-rgb), 0.018), transparent 14rem),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.004)),
-        rgba(3, 6, 11, 0.9) !important;
-    backdrop-filter: var(--nexus-panel-filter, blur(7px) saturate(104%)) !important;
-    -webkit-backdrop-filter: var(--nexus-panel-filter, blur(7px) saturate(104%)) !important;
-}
-
-.nx-editor-panel-header,
-.nx-editor-panel-footer {
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.024), rgba(255, 255, 255, 0.006)),
-        rgba(0, 0, 0, 0.12);
-    border-color: rgba(154, 166, 204, 0.07) !important;
-}
-
-.nx-editor-panel-body {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(var(--nexus-primary-rgb), 0.28) transparent;
-}
-
-.nx-editor-panel-actions > * {
-    min-width: 1.75rem;
-    border-radius: 0.45rem !important;
-}
-
-.nx-editor-panel-section,
-.nx-editor-panel-state {
-    border-radius: 0.5rem !important;
-    border-color: rgba(154, 166, 204, 0.052) !important;
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.004)),
-        rgba(255, 255, 255, 0.009);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.024);
-}
+/* PanelChrome owns shared panel styles in panels/panelChrome.css. */
 
 .nx-code-extensions-panel-header {
     min-width: 0;

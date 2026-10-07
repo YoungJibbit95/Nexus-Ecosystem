@@ -1,6 +1,6 @@
 # Migration roadmap
 
-Preserve the requested wave order. Current-main reconciliation established `0cb408b` as the implementation base; later authorized workspace consolidation resolved the primary checkout's old merge through its owning workflow. Preserve foreign work and use the main Nexus-Ecosystem folder for continuation. [Historical comparison](11-main-reconciliation.md) and [implemented Wave 1](12-wave-1-foundation.md) retain provenance.
+Preserve the requested wave order. The 2026-10-07 continuation contract divides waves into independently reviewable, usable Beta PR packets. [Packet 2A](14-wave-2a-visual-foundation.md) establishes the semantic visual foundation. Work only in the permanent `Nexus-Code-v2-wave-1` folder; the older consolidation instruction is superseded. After each PR, stop until `WEITER`; check merge status and newest main before a new branch. No automatic stacking, merging or releases. [Historical comparison](11-main-reconciliation.md) and [implemented Wave 1](12-wave-1-foundation.md) retain provenance.
 
 | Wave | Bounded change | Required evidence / exit |
 | --- | --- | --- |

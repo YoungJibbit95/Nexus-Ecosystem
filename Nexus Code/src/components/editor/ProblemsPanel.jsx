@@ -12,7 +12,6 @@ import {
   Shrink,
   XCircle,
 } from "lucide-react";
-import { motion } from "framer-motion";
 import {
   getProblemFilePath,
   getProblemKey,
@@ -26,6 +25,7 @@ import {
   PanelFooter,
   PanelHeader,
   PanelIconButton,
+  PanelInput,
   PanelShell,
   PanelState,
 } from "./panels/PanelChrome.jsx";
@@ -43,31 +43,31 @@ function getSeverityMeta(problem) {
     return {
       icon: XCircle,
       label: "Error",
-      iconClass: "text-red-500",
-      dotClass: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.45)]",
+      iconClass: "text-[var(--wb-danger)]",
+      dotClass: "bg-[var(--wb-danger)]",
     };
   }
   if (severity === "warning") {
     return {
       icon: AlertTriangle,
       label: "Warning",
-      iconClass: "text-yellow-500",
-      dotClass: "bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.35)]",
+      iconClass: "text-[var(--wb-warning)]",
+      dotClass: "bg-[var(--wb-warning)]",
     };
   }
   if (severity === "info") {
     return {
       icon: Info,
       label: "Info",
-      iconClass: "text-blue-500",
-      dotClass: "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.35)]",
+      iconClass: "text-[var(--wb-info)]",
+      dotClass: "bg-[var(--wb-info)]",
     };
   }
   return {
     icon: Lightbulb,
     label: "Hint",
-    iconClass: "text-sky-400",
-    dotClass: "bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.3)]",
+    iconClass: "text-[var(--wb-info)]",
+    dotClass: "bg-[var(--wb-info)]",
   };
 }
 
@@ -299,24 +299,25 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
         }
       >
         <div className="space-y-2">
-          <div className="grid min-w-0 gap-1.5 md:grid-cols-[minmax(12rem,1fr)_auto]">
+          <div className="nx-problems-filter-grid">
             <div className="relative min-w-0">
               <Search
                 size={13}
-                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500"
+                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 nx-panel-muted"
               />
-              <input
+              <PanelInput
                 type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Message, Datei oder Code"
-                className="h-8 w-full rounded-md border border-white/[0.04] bg-white/[0.015] pl-8 pr-8 text-[12px] text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-sky-300/[0.22] focus:bg-white/[0.03]"
+                aria-label="Filter diagnostics"
+                style={{ paddingLeft: "32px", paddingRight: "32px" }}
               />
               {query ? (
                 <button
                   type="button"
                   onClick={() => setQuery("")}
-                  className="absolute right-1.5 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded-full text-gray-600 transition-colors hover:bg-white/[0.08] hover:text-gray-300"
+                  className="absolute right-1.5 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded-full nx-panel-muted transition-colors hover:bg-[var(--wb-hover)]"
                   title="Suche leeren"
                 >
                   <RotateCcw size={11} />
@@ -334,13 +335,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                     key={item.id}
                     type="button"
                     onClick={() => setFilter(item.id)}
-                    className="inline-flex min-h-6 min-w-0 items-center gap-1.5 rounded px-2 text-[10px] font-semibold leading-tight transition-colors"
-                    style={{
-                      background: active
-                        ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.11)"
-                        : "transparent",
-                      color: active ? "var(--nexus-primary, #7c8cff)" : "#7f8798",
-                    }}
+                    className="nx-panel-button"
                     aria-pressed={active}
                   >
                     <span className="truncate">{item.label}</span>
@@ -362,11 +357,11 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
         onKeyDown={handleListKeyDown}
       >
         {normalizedProblems.length > 0 || filtersActive ? (
-          <div className="mb-2 flex min-w-0 items-center justify-between gap-2 px-1 text-[10px] text-gray-500">
+          <div className="mb-2 flex min-w-0 items-center justify-between gap-2 px-1 text-[10px] nx-panel-muted">
             <span className="truncate">
               {filteredProblems.length} sichtbar{filtersActive ? " mit Filter" : ""}
             </span>
-            <span className="hidden shrink-0 text-gray-600 sm:inline">
+            <span className="hidden shrink-0 nx-panel-muted sm:inline">
               Pfeiltasten navigieren, Enter oeffnet
             </span>
           </div>
@@ -391,32 +386,24 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                 <button
                   type="button"
                   onClick={() => toggleGroup(file)}
-                  className="mb-1 flex w-full items-start gap-2 rounded-md border px-2.5 py-1.5 text-left transition-colors hover:bg-white/[0.028]"
-                  style={{
-                    background: collapsed ? "rgba(255,255,255,0.008)" : "rgba(255,255,255,0.014)",
-                    borderColor:
-                      tone === "danger"
-                        ? "rgba(239,68,68,0.2)"
-                        : tone === "warning"
-                          ? "rgba(251,191,36,0.18)"
-                          : "rgba(255,255,255,0.06)",
-                  }}
+                  className="nx-panel-result-group mb-1 flex w-full items-start gap-2 rounded border px-2.5 py-1.5 text-left"
+                  aria-expanded={!collapsed}
                 >
                   <ChevronDown
                     size={12}
-                    className={`mt-0.5 shrink-0 text-gray-600 transition-transform ${collapsed ? "-rotate-90" : ""}`}
+                    className={`mt-0.5 shrink-0 nx-panel-muted transition-transform ${collapsed ? "-rotate-90" : ""}`}
                   />
                   <MapPin size={12} className="mt-0.5 shrink-0 text-sky-300/70" />
                   <span className="min-w-0 flex-1">
                     <span
-                      className="block break-words text-[11px] font-semibold leading-snug text-gray-300"
+                      className="block break-words text-[11px] font-semibold leading-snug nx-panel-secondary"
                       style={{ overflowWrap: "anywhere" }}
                       title={file}
                     >
                       {fileName}
                     </span>
                     {file !== fileName ? (
-                      <span className="block break-words text-[9px] leading-snug text-gray-600" style={{ overflowWrap: "anywhere" }}>
+                      <span className="block break-words text-[9px] leading-snug nx-panel-muted" style={{ overflowWrap: "anywhere" }}>
                         {file}
                       </span>
                     ) : null}
@@ -439,20 +426,15 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                     .join(" ");
 
                   return (
-                    <motion.button
+                    <button
                       key={problem.id || getProblemKey(problem, globalIndex)}
                       type="button"
-                      whileHover={{ x: 2 }}
                       onFocus={() => setActiveIndex(globalIndex)}
                       onClick={() => selectProblem(problem, globalIndex)}
                       data-active={active ? "true" : "false"}
                       role="option"
                       aria-selected={active}
-                      className={`group flex w-full cursor-pointer items-start gap-2.5 rounded-md border px-2.5 py-1.5 text-left outline-none transition-colors ${
-                        active
-                          ? "border-sky-300/[0.14] bg-white/[0.028]"
-                          : "border-transparent hover:border-white/[0.026] hover:bg-white/[0.018]"
-                      }`}
+                      className="nx-panel-result-row group flex w-full cursor-pointer items-start gap-2.5 px-2.5 py-1.5 text-left"
                       title={`${meta.label}: ${problem.message}`}
                     >
                       <div className="mt-1 flex items-center gap-1">
@@ -462,21 +444,21 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
 
                       <div className="min-w-0 flex-1">
                         <p
-                          className="mb-0.5 break-words text-[12px] leading-snug text-gray-300 transition-colors group-hover:text-white"
+                          className="mb-0.5 break-words text-[12px] leading-snug nx-panel-secondary transition-colors"
                           style={{ overflowWrap: "anywhere" }}
                         >
                           {problem.message}
                         </p>
                         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5">
-                          <span className="font-mono text-[10px] text-gray-600">
+                          <span className="font-mono text-[10px] nx-panel-muted">
                             Ln {problem.startLineNumber}, Col {problem.startColumn}
                           </span>
-                          <span className="min-w-0 break-words text-[10px] text-gray-600/70" style={{ overflowWrap: "anywhere" }}>
+                          <span className="min-w-0 break-words text-[10px] nx-panel-muted" style={{ overflowWrap: "anywhere" }}>
                             {sourceLabel}
                           </span>
                         </div>
                       </div>
-                    </motion.button>
+                    </button>
                   );
                   })}
                 </div>
@@ -489,7 +471,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
 
       <PanelFooter>
         <div className="grid gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-gray-500">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] nx-panel-muted">
             <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
               {filter === "all" ? "Alle Severities" : `Filter: ${filter}`}
               {activeProblem ? ` - ${getProblemFilePath(activeProblem).split(/[\\/]/).pop()}` : ""}

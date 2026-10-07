@@ -2,7 +2,24 @@
 
 The existing IDE has useful density and panel chrome, but surfaces compete through glow, gradients, blur, rounded cards and repeated status/command controls. Inspect [fixture baseline](evidence/visual-baseline.md) and the production gate screenshots before editing. These are observed baseline constraints, not an approved V2 design.
 
-## Proposed tokens (design contract, not implemented CSS)
+## Implemented semantic foundation — packet 2A
+
+`src/theme/workbenchTokens.ts` owns the strict, pure derived palette. The existing `resolveNexusTheme` exports it alongside every legacy variable. It has no persistence or document effects. `PanelChrome` consumes the scoped `panelChrome.css`; Search and Problems migrate their inputs, text, selection and motion to this vocabulary. The editor, shell, menus and other domain internals retain their current owners.
+
+| Token family | Role |
+| --- | --- |
+| `--wb-surface-window/chrome/panel/editor/overlay/blocking` | Surface levels 0–5; opaque panel colors derive from existing background/custom-surface settings |
+| `--wb-text-primary/secondary/muted`, `--wb-input-text/placeholder` | Readable text against the corresponding derived surfaces; existing syntax colors remain separate |
+| `--wb-border-subtle/strong`, `--wb-focus`, `--wb-selection/text` | Quiet separators, visible controls, 2px keyboard outline and persistent selected row |
+| `--wb-accent/success/warning/danger/info` | Theme-adjusted readable accents and status colors; text/icons continue to explain status |
+| `--wb-space-1…7`, `--wb-radius-control/overlay` | 2/4/6/8/12/16/24px spacing and 4/8px radii |
+| `--wb-motion-quick/regular/ease` | 100/140ms color transitions; shared numeric duration for remaining Search transitions |
+
+Shared panel shell/section movement, blur and decorative gradients are removed. Reduced motion respects the application class and system preference, including live application changes. Problems rows no longer move on hover. Narrow Problems filters use panel width rather than window width, and constrained header/footer regions scroll to preserve the result body at zoom. Other custom effect settings remain available to legacy consumers. Full light-theme support outside migrated panels is not claimed.
+
+Only the dedicated `.nx-editor-panel-*` override block moved out of `globals.css`; unrelated legacy and responsive rules remain. Small, scoped selectors override the remaining shell control cascade where necessary. Token-only levels 0/1/3/4/5 are available for their future owning waves; this packet does not remap the entire shell.
+
+## Original design reference (historical target)
 
 | Surface | Role | Initial dark reference |
 | --- | --- | --- |

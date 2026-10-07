@@ -1,3 +1,5 @@
+import { createWorkbenchTokens } from "./workbenchTokens.ts";
+
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 export const DEFAULT_THEME_ID = "nexus_vibrant";
@@ -617,6 +619,19 @@ export function resolveNexusTheme(settings = {}) {
   };
 
   const cssVars = {
+    ...createWorkbenchTokens({
+      window: backgroundType === "solid" ? backgroundValue : "#07080d",
+      editor: backgroundType === "solid" ? backgroundValue : "#07080d",
+      surface: effectiveSurfaceHex,
+      input: inputSurface,
+      text: colors.text,
+      muted: colors.muted,
+      accent: primary,
+      success: colors.success,
+      warning: colors.warning,
+      danger: colors.danger,
+      info: colors.info,
+    }),
     "--nexus-bg": backgroundType === "solid" ? backgroundValue : "#07080d",
     "--nexus-bg-image": backgroundType === "gradient" ? backgroundValue : "none",
     "--nexus-bg-type": backgroundType,

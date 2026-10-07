@@ -1,6 +1,6 @@
 # Nexus Code V2 — audit and continuation packet
 
-Historical Phase 0 / Wave 0 (2026-09-30), reconciled current main and completed Wave 1 foundation (2026-10-01). Start with [reconciliation](11-main-reconciliation.md), [Wave 1 implementation](12-wave-1-foundation.md), [diagnostics](13-diagnostics.md), [test results](09-test-strategy.md) and [next session](10-next-session.md). Wave 2/UI redesign has not started.
+Historical Phase 0 / Wave 0 (2026-09-30) and Wave 1 foundation (2026-10-01) remain complete. Current work is Nexus Code V2 Beta [packet 2A: semantic visual foundation](14-wave-2a-visual-foundation.md), based on current main `5532beb`. Start with the [next-session checkpoint](10-next-session.md), [local workspace state](LOCAL_WORKSPACE_STATE.md), [Wave 1 implementation](12-wave-1-foundation.md) and [UI system](05-ui-system.md). The complete shell has not been redesigned.
 
 - [01 Problem inventory and exact classes](01-problem-inventory.md)
 - [02 Target product](02-target-product.md)

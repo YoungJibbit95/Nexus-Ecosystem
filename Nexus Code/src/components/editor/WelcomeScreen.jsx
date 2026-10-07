@@ -26,6 +26,7 @@ const containerVariants = {
   },
 };
 
+/** @type {import('framer-motion').Variants} */
 const itemVariants = {
   hidden: { opacity: 0, y: 4 },
   visible: {

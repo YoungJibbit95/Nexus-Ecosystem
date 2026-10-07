@@ -4,6 +4,8 @@ Date: 2026-09-30. Base: `10f8684`. REAL = actual implementation; PARTIAL = limit
 
 Current addendum (2026-10-01): [main `0cb408b`](11-main-reconciliation.md) contains the later Windows quoting fix. The original quoted-script native assertion now passes; this historical table does not describe it as a current open defect. PTY/debug/marketplace and installed/live acceptance gaps remain.
 
+Current addendum (2026-10-07): [V2 Beta packet 2A](14-wave-2a-visual-foundation.md) adds strict theme-derived visual tokens, shared PanelChrome styling and Search/Problems visual consumers. Their keyboard, focus, resize, custom-color and motion behavior is qualified in actual Electron component fixtures. These fixtures do not establish authenticated sessions or live language/provider capability. Existing Wave 1 ports, command authority, settings seam and save ownership remain present. Current upstream security supersedes historical security descriptions.
+
 | Feature | Status | Evidence / current limit | Allowed product description |
 | --- | --- | --- | --- |
 | App boot/routing | REAL | App/boot hook; production signed-out launch captured | Account-gated desktop app |
@@ -35,7 +37,7 @@ Current addendum (2026-10-01): [main `0cb408b`](11-main-reconciliation.md) conta
 | Local Git status/diff/stage/unstage/commit/branches/log/remotes | REAL | Service argv contracts; native status/stage/commit passed | Local Git workflow |
 | Structured fetch/pull/push/clone/discard/hunk stage | NOT PRESENT | No dedicated accepted IPC workflow | Unavailable until implemented/accepted |
 | GitHub repos/issues/PR/reviews/projects | REAL, live unverified | Native REST/GraphQL/auth service; fixture errors/UI only | Desktop + connected GitHub required |
-| GitHub token encryption | REAL, graded limitation | safeStorage with machine-local fallback | Encryption backend grade must be visible/explicit |
+| GitHub token encryption | REAL, current upstream policy | Persistent credentials require Electron safeStorage; legacy fallback is rejected | Secure storage must be available; credentials remain native-owned |
 | Debug process/breakpoints/stack/variables/step | SIMULATED | Static values/generated stack/timers; no DAP | Experimental preview or unavailable |
 | Extension manifest validation/contributions | REAL, LIMITED | Restricted local themes/snippets/keybindings/action routes | Built-in/declarative extensions |
 | Marketplace download/update/execution host | SIMULATED/NOT PRESENT | Install updates records only; no actual package runtime | No marketplace or VS Code compatibility claim |
