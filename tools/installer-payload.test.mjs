@@ -55,6 +55,9 @@ test('static payload discards executable packaging metadata and recipe preserves
   const linux=createInstallerRecipe({...f.options,payload:f.options.output,project:path.join(f.root,'linux-project'),target:'linux',arch:'x64'})
   assert.deepEqual(linux.config.linux.target,['AppImage','deb'])
   assert.equal(linux.config.linux.maintainer,metadata.author)
+  assert.equal(linux.config.appImage.artifactName,'Nexus_Code_${version}_x64.AppImage')
+  assert.equal(linux.config.deb.artifactName,'Nexus_Code_${version}_x64.deb')
+  assert.equal(mac.config.dmg.artifactName,'Nexus_Code_${version}_arm64.dmg')
   assert.equal(metadata.homepage,'https://nexusproject.dev')
 })
 

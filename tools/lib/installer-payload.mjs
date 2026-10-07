@@ -136,7 +136,8 @@ export function createInstallerRecipe({ repoRoot, app, payload, project, target,
   const png = app === 'Nexus Main' ? 'icons/512x512.png' : 'assets/icons/512x512.png'
   fs.copyFileSync(path.join(definition.source, png), path.join(resources, 'icon.png'))
   fs.writeFileSync(path.join(projectRoot, 'package.json'), JSON.stringify(definition.metadata, null, 2) + '\n')
-  const artifactName = `${definition.prefix}_\${version}_\${arch}`
+  // Keep the reviewed handoff names stable across platform-specific arch aliases.
+  const artifactName = `${definition.prefix}_\${version}_${arch}`
   const config = {
     extends: null, appId: definition.appId, productName: definition.product, electronVersion: definition.electronVersion,
     npmRebuild: false, nodeGypRebuild: false, buildDependenciesFromSource: false, asar: true, forceCodeSigning: signed,
