@@ -839,7 +839,7 @@ export function CalendarView({
   const agendaNavigationCursor = useRef(''), agendaImportCursor = useRef(0);
   const planningRequest = usePlanningNavigation('main');
   const calendarActive = useActiveViewCommandScope();
-  const [agendaReadRequest, setAgendaReadRequest] = useState(0);
+  const [agendaReadRequest, setAgendaReadRequest] = useState<{ sequence: number; planningRequestId: string }>();
   const navigationMessage = useProductNavigationTarget('agenda', target => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(target.day)) return false;
     const date = new Date(`${target.day}T12:00:00`);
@@ -848,7 +848,7 @@ export function CalendarView({
     setSelectedDateKey(target.day);
     setViewMonth(new Date(date.getFullYear(), date.getMonth(), 1));
     setCalendarMode('agenda');
-    setAgendaReadRequest(value => value + 1);
+    setAgendaReadRequest(value => ({ sequence: (value?.sequence || 0) + 1, planningRequestId: planningRequest?.requestId || '' }));
     return true;
   });
   useEffect(() => {

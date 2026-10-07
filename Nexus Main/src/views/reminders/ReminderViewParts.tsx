@@ -166,10 +166,11 @@ export function ReminderModal({
   const rgb = hexToRgb(t.accent);
   const { addRem, updateReminder, tasks, notes: noteEntries, openNote, setNote } = useApp();
   const active = useActiveViewCommandScope(), dialogRef = useRef<HTMLDivElement>(null), titleId = useId();
+  const openerRef = useRef(document.activeElement as HTMLElement | null);
   const closeRef = useRef(onClose); closeRef.current = onClose;
   useEffect(() => {
     if (!active) return;
-    const opener = document.activeElement as HTMLElement | null;
+    const opener = openerRef.current;
     const dialog = dialogRef.current;
     if (!dialog) return;
     const controls = () => [...dialog.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]')].filter(item => item.checkVisibility());
@@ -374,7 +375,6 @@ export function ReminderModal({
             {tab === "basic" && (
               <div style={{ padding: "16px 20px" }}>
                 <input
-                  autoFocus
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
                   placeholder="Reminder title…"

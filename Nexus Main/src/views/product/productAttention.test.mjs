@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { emptyPlanningDocument } from '../../../../packages/nexus-core/src/planning/domain.ts'
 import { selectProductAttention } from './productAttention.ts'
+import * as productAttention from './productAttention.ts'
 import { createProductNavigation } from '../../app/productNavigation.ts'
 
 const task = (id, extra = {}) => ({ id, title: id, desc: '', status: 'todo', priority: 'mid', created: '2026-10-01T00:00:00Z', updated: '2026-10-01T00:00:00Z', ...extra })
@@ -68,4 +69,27 @@ test('navigation is once-only, cached-owner scoped and generation bound', () => 
   assert.equal(nav.consume(second, 'g2', true), 'pending')
   assert.equal(nav.consume(third, 'g2', true), 'ready')
   assert.equal(nav.consume(third, 'g2', true), 'pending')
+})
+
+test('invalid projection inputs surface a read error without clearing sources or inventing an empty day', () => {
+  const input = { tasks: [task('legacy', { dependsOnTaskIds: 42 })], reminders: [], planning: emptyPlanningDocument('test'), now: '2026-10-07T08:00:00Z', timeZone: 'Europe/Berlin' }
+  const before = structuredClone(input)
+  const failed = productAttention.readProductAttention(input)
+  assert.equal(failed.overview, null)
+  assert.match(failed.error, /nicht.*ausgewertet/)
+  assert.deepEqual(input, before)
+  const recovered = productAttention.readProductAttention({ ...input, tasks: [task('valid', { priority: 'high' })] })
+  assert.equal(recovered.error, '')
+  assert.equal(recovered.overview.suggestion.target.id, 'valid')
+  const invalidZone = productAttention.readProductAttention({ ...input, tasks: [], timeZone: 'Invalid/Zone' })
+  assert.equal(invalidZone.overview, null)
+})
+
+test('empty input is stable; due-soon and overdue reminders retain explicit, actionable reasons', () => {
+  assert.deepEqual(select().attention, [])
+  assert.equal(select().suggestion, null)
+  const result = select({ tasks: [task('soon', { deadline: '2026-10-08T08:00:00Z', priority: 'high' })], reminders: [{ id: 'late', title: 'Call', datetime: '2026-10-07T07:00:00Z', done: false }] })
+  assert.deepEqual(result.attention.find(item => item.key === 'task:soon').reasons, ['due-soon', 'high-priority', 'unplanned'])
+  assert.deepEqual(result.attention.find(item => item.key === 'reminder:late').target, { kind: 'reminder', id: 'late' })
+  assert.deepEqual(result.attention.find(item => item.key === 'reminder:late').reasons, ['overdue'])
 })

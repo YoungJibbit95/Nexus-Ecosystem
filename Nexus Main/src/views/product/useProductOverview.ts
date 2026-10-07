@@ -5,7 +5,7 @@ import type { TaskRecord } from '@nexus/core/planning/domain'
 import { useActiveViewCommandScope } from '../../app/ViewCommandScope'
 import { useApp } from '../../store/appStore'
 import { planningCommands, usePlanning, usePlanningError } from '../../store/planningStore'
-import { selectProductAttention } from './productAttention'
+import { readProductAttention } from './productAttention'
 
 const hasStorageError = () => persistenceRegistry.getStatuses().some(status => Boolean(status.error))
 export function useProductOverview() {
@@ -18,6 +18,7 @@ export function useProductOverview() {
   const [ready, setReady] = useState(false), [loadError, setLoadError] = useState('')
   const retry = useCallback(async () => {
     setLoadError('')
+    setClock(value => ({ ...value }))
     try { await planningCommands.ready(); setReady(true) } catch { setLoadError('Deine Übersicht konnte nicht vollständig geladen werden.') }
   }, [])
   useEffect(() => { void retry() }, [retry])
@@ -29,6 +30,6 @@ export function useProductOverview() {
     window.addEventListener('focus', refresh); document.addEventListener('visibilitychange', refresh)
     return () => { clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh) }
   }, [active, operation.kind])
-  const overview = useMemo(() => selectProductAttention({ tasks: tasks as unknown as TaskRecord[], reminders, planning, ...clock }), [tasks, reminders, planning, clock])
-  return { overview, ready, error: loadError || error, storageError, operation, retry }
+  const projection = useMemo(() => readProductAttention({ tasks: tasks as unknown as TaskRecord[], reminders, planning, ...clock }), [tasks, reminders, planning, clock])
+  return { overview: projection.overview, ready, error: projection.error || loadError || error, storageError, operation, retry }
 }

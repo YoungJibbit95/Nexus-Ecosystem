@@ -1,6 +1,6 @@
 # Nexus V7 product map
 
-Source audit: 2026-10-07. Product base: qualified Security commit 19daae5, following dd0dab0.
+Source audit: 2026-10-07. Inspected base: qualified Security commit 19daae5, following dd0dab0; implementation rebased onto its merged main result b15a532 (#440) and the subsequent packaging-only main 5532beb (#441). This is the before-change audit. Wave A delivery and qualification are recorded in `NEXUS_V7_PRODUCT_ARCHITECTURE.md`; Dashboard/Flux and exact-target navigation debt described below was addressed there, while other view debt remains future work.
 
 ## Evidence inspected
 
@@ -8,7 +8,7 @@ Source audit: 2026-10-07. Product base: qualified Security commit 19daae5, follo
 
 Actual source: Main App/shell/view host/registry/command scope; Dashboard and its top sections, derived data, layout and widgets; Flux; Tasks/modal/date helper; Calendar and MainAgendaWorkspace; Reminders/service; Notes/draft/editor; Canvas/store/entity navigation; Files/workspace sync; SettingsShell/modules/theme storage. Shared planning domain/today/commands/navigation, capture owner, durable persistence, workspace operation and recovery contracts. Mobile Dashboard/Flux/Agenda and shared client boundaries. Existing unit runner and task/planning/capture/persistence browser harnesses.
 
-Historical Code plan's main/push advice is obsolete for this task. The current user contract excludes Code and remote publication. The short runtime/registry docs also describe adoption as future work although current source already has cached command scope and shared capture routing.
+Historical Code plan's main/push advice is obsolete for this task. The original audit packet excluded Code and remote publication; the follow-up orchestration packet authorizes one PR and CI qualification, while Code remains excluded. The short runtime/registry docs also describe adoption as future work although current source already has cached command scope and shared capture routing.
 
 ## Current product map
 

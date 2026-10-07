@@ -66,7 +66,7 @@ type Feedback = {
 }
 export type MainAgendaWorkspaceProps = {
   selectedDay?: string
-  readRequest?: number
+  readRequest?: { sequence: number; planningRequestId: string }
   initialTaskId?: string
   initialStart?: string
   onDayChange?: (day: string) => void
@@ -205,8 +205,8 @@ export function MainAgendaWorkspace(props: MainAgendaWorkspaceProps) {
       })
   }, [navigation?.requestId, props.initialTaskId, props.initialStart, activeScope])
   useEffect(() => {
-    if (!isViewCommandScopeActive(activeScope) || !props.readRequest || props.readRequest === readCursor.current) return
-    readCursor.current = props.readRequest
+    if (!isViewCommandScopeActive(activeScope) || !props.readRequest || props.readRequest.sequence === readCursor.current || (navigation?.requestId || '') !== props.readRequest.planningRequestId) return
+    readCursor.current = props.readRequest.sequence
     setEditorOpen(false); setTool('day'); setSearch(''); setTaskFilter('today'); setHistory(false)
     const frame = requestAnimationFrame(() => headingRef.current?.focus())
     return () => cancelAnimationFrame(frame)

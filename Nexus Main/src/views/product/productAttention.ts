@@ -14,12 +14,13 @@ export const attentionReasonLabels: Record<AttentionReason, string> = {
   unresolved: 'Klärung nötig', unplanned: 'Noch nicht eingeplant', conflict: 'Zeitkonflikt',
 }
 const rank: Record<AttentionReason, number> = { conflict: 0, overdue: 1, unresolved: 2, blocked: 3, 'due-soon': 4, 'high-priority': 5, unplanned: 6 }
+type ProductAttentionInput = { tasks: TaskRecord[]; reminders: TodayReminder[]; planning: PlanningDocument; now: string; timeZone: string }
 export const compareAttention = (a: AttentionItem, b: AttentionItem) =>
   Math.min(...a.reasons.map(reason => rank[reason])) - Math.min(...b.reasons.map(reason => rank[reason])) ||
   (a.time === b.time ? 0 : a.time < b.time ? -1 : 1) || a.key.localeCompare(b.key, 'en')
 
 /** Read-only Main composition. Temporal/domain ownership remains in nexus-core. */
-export function selectProductAttention(input: { tasks: TaskRecord[]; reminders: TodayReminder[]; planning: PlanningDocument; now: string; timeZone: string }) {
+export function selectProductAttention(input: ProductAttentionInput) {
   const { tasks, reminders, planning, now, timeZone } = input
   const nowMs = instantEpoch(now), day = zonedDate(now, timeZone), horizon = planningDayHorizon(day, timeZone)
   const soon = nowMs + 48 * 60 * 60_000
@@ -39,7 +40,7 @@ export function selectProductAttention(input: { tasks: TaskRecord[]; reminders: 
           time = instantEpoch(civil.end)
           if (nowMs >= time) reasons.push('overdue')
           else if (instantEpoch(civil.start) < soon) reasons.push('due-soon')
-          details.push(`Frist ${task.deadline} · ${task.deadlineTimeZone}`)
+          details.push(`Frist ${new Date(`${task.deadline}T12:00:00Z`).toLocaleDateString('de-DE', { timeZone: 'UTC' })}${task.deadlineTimeZone !== timeZone ? ` · ${task.deadlineTimeZone}` : ''}`)
         } else {
           reasons.push('unresolved')
           details.push(`Frist ${task.deadline}: Datum oder Zeitzone prüfen`)
@@ -86,4 +87,10 @@ export function selectProductAttention(input: { tasks: TaskRecord[]; reminders: 
   const suggestion = attention.find(item => item.kind === 'task' && !plannedTasks.has(item.task!.id) && !item.reasons.some(reason => reason === 'blocked' || reason === 'unresolved')) || null
   return { day, timeZone, now, current, next, attention, suggestion, todayTaskCount: today.openTaskCount,
     overlappingNow: current.some((item, index) => current.slice(index + 1).some(other => intervalsOverlap(item, other))) }
+}
+
+/** A failed read is never an empty plan and never repairs or replaces source data. */
+export function readProductAttention(input: ProductAttentionInput) {
+  try { return { overview: selectProductAttention(input), error: '' } }
+  catch { return { overview: null, error: 'Deine Übersicht konnte nicht ausgewertet werden. Deine Einträge bleiben erhalten.' } }
 }

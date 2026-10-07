@@ -27,17 +27,19 @@ test('Files keeps workspace scope explicit, persistent, and separate from disk s
 test('Flux exposes source-backed low-activity states without bulk auto-resolution', async () => {
   const [view, css] = await Promise.all([
     read('./FluxView.tsx'),
-    read('./flux/FluxViewHardening.css'),
+    read('./product/productOverview.css'),
   ])
 
-  assert.match(view, /Lokaler Triage-Score/)
+  assert.match(view, /useProductOverview/)
   assert.match(view, /Lokale Quellen: Notes, Code, Tasks, Reminder und Systemereignisse/)
-  assert.match(view, /Keine Eintraege in dieser Queue-Ansicht/)
-  assert.match(view, /Es wurde nichts automatisch erledigt/)
-  assert.match(view, /reviewUrgentNow/)
+  assert.match(view, /Keine Einträge für diese Filter/)
+  assert.match(view, /openApplicationCapture/)
+  assert.match(view, /getApplicationCapture/)
+  assert.doesNotMatch(view, /doneRem|moveTask|addTask|addRem\(/)
   assert.doesNotMatch(view, /resolveUrgentNow/)
   assert.doesNotMatch(view, /startTopPriorityTasks/)
-  assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\) !important/)
+  assert.match(css, /@container \(max-width: 850px\)/)
+  assert.match(css, /:focus-visible/)
 })
 
 test('Settings separates accessibility and keeps details progressive on small screens', async () => {

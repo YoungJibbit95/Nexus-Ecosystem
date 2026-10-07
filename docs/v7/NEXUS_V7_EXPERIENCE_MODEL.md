@@ -4,7 +4,9 @@
 
 ## Hierarchy and density
 
-Dashboard answers the immediate question first: Now, then Next, then Needs attention. Now has the strongest type and one obvious action; actual commitments outrank a labelled local suggestion. Quick capture is visible without expanding a menu for common Task/Note/Reminder actions. Recent context and existing custom widgets follow orientation; widget layout preferences remain intact.
+Dashboard answers the immediate question first: Now, then Next, then Needs attention. Now has the strongest type and one obvious action; actual commitments outrank a labelled local suggestion. Quick capture is visible without expanding a menu for common Task/Note/Reminder/Event actions. Recent context and existing custom widgets follow orientation; widget layout preferences remain intact.
+
+Dashboard's compact attention list omits work whose only reason is lack of planned time; Flux keeps that backlog available. A suggestion already visible in Now is not repeated below. A current commitment never suppresses a separate urgent task.
 
 Flux foregrounds reasons and useful destinations. An item's title, why it appears and what can be done come before historical activity. Filters/search are tools for finding work, not a row of competing dashboards. History is secondary. No generic percentage is presented as an authoritative health or intelligence judgment.
 
@@ -33,6 +35,7 @@ Use spacing to separate major regions; use borders for selection, controls or a 
 | Conflict / uncertain | Explain what needs review | Keep explicit confirmation, never silently resolve |
 | Saving | Existing command pending state | No success before exact persistence acknowledgement |
 | Save/read failure | Visible error and a retry/review path | Preserve source/draft/journal; no false saved or empty state |
+| Projection failure | The summary is unavailable; source views and retained widgets remain | Preserve records/layout and recover on readable inputs |
 | Missing/stale navigation target | Record/workspace changed | Consume obsolete intent and ask to open current work again |
 
 Internal generation IDs, raw coverage/DST mechanics and storage jargon do not become normal Dashboard/Flux metadata. The owning advanced editor may expose details necessary for a user decision. A local ordering rule is labelled as local; Cerebri is never implied.
@@ -51,6 +54,6 @@ New orchestration regions need no decorative animation. Existing shell transitio
 
 ## Acceptance
 
-Inspect actual rendered Main views in the existing isolated browser harness style, including normal desktop, 1280px, narrow width, true 200% browser zoom, reduced motion and at least one custom/non-default theme. Review screenshots for hierarchy, clipping, scroll ownership, focus, long titles, empty/error/selected state, target density and contrast; source inspection alone is insufficient.
+Inspect actual rendered Main views in the existing isolated browser harness style, including normal desktop, 1280px, 1024px, narrow width, true 200% browser zoom, reduced motion and at least one custom/non-default theme. Review screenshots for hierarchy, clipping, scroll ownership, focus, long titles, empty/error/selected state, target density and contrast; source inspection alone is insufficient.
 
 Exercise exact Task/Reminder/Agenda navigation, a repeated request, cached hidden views, deleted IDs, workspace generation replacement, Escape/focus return, capture without placeholder creation, acknowledged save and storage failure. Protect planning/reminder/persistence contracts with the existing smallest relevant suites and repository public gate. Record measured results separately; this document is the acceptance contract, not evidence that unrun checks passed.

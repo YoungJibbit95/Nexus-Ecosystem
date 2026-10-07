@@ -1,6 +1,6 @@
 # Nexus V7 product architecture
 
-2026-10-07. Continuation of the current Runtime V2, acknowledged planning, reminder lifecycle, workspace handoff and Main View Registry. Wave A design; implementation and qualification must be recorded before treating this as delivered behavior.
+2026-10-07. Continuation of the current Runtime V2, acknowledged planning, reminder lifecycle, workspace handoff and Main View Registry. Bounded reconciliation against qualified main `5532beb` (#440/#441), reusing the previously qualified local orchestration work; final PR base updated to qualified `bcb7f52` (#444, Code-only changes). The product map is the before-change audit; the boundaries here describe the delivered orchestration model.
 
 ## Product loop and ownership
 
@@ -52,7 +52,7 @@ Dashboard prioritizes orientation above retained user widgets. Flux prioritizes 
 
 ## Main, Mobile and boundaries
 
-This is a Main composition wave. No shared public schema or persisted record format changes are planned; Mobile keeps the same underlying task/deadline/block/reminder semantics. Desktop layout is not copied to touch screens. Mobile orientation parity is a later bounded wave.
+This is a Main composition wave. No shared public schema or persisted record format changed; Mobile keeps the same underlying task/deadline/block/reminder semantics. Desktop layout is not copied to touch screens. Mobile orientation parity is a later bounded wave.
 
 Cerebri remains advisory: preview freshness, explicit acceptance and the no-direct-store-write rule remain authoritative. Any accepted suggestion still enters an explicit Nexus command. No new production runtime or fake intelligence is introduced.
 
@@ -69,4 +69,12 @@ H/M/L are relative judgments based on the source audit, not numerical measuremen
 | C | Honest planning advice and Mobile orientation parity | H | M / M / M | M / M | H |
 | D | Settings and shell interaction consolidation | M | M / M / M | M / M | M |
 
-Only A belongs to this implementation branch. Do not begin B–D after its qualification. No push, PR or merge is authorized by the product task.
+Only A belongs to this implementation branch. Do not begin B–D after its qualification. The follow-up packet authorizes one PR and its CI qualification. Do not merge, enable auto-merge, deploy or release.
+
+## Bounded reconciliation and acceptance
+
+Current main independently ranks Dashboard resume/urgency and Flux severity/backlog, with Planning Today repeated in both. The target shares attention decisions while retaining genuinely view-specific presentation: widget counters/recent lists stay with Dashboard; detailed filtering/history stay with Flux. Inert legacy top-section components are outside the active orchestration path.
+
+Projection failure is distinct from an empty day: the orchestration region shows an error, preserves source records and recovers when inputs become readable again. Dashboard widgets and layout controls remain usable. Planning-unavailable state disables orchestration commands rather than implying a writable schedule. This selector is Main-specific composition; temporal and command contracts remain shared core.
+
+Acceptance covers the pure reasons, exact and stale-target navigation, acknowledged capture/failure/reload, preserved widget customization and themes, hidden-view ownership, actual rendered Dashboard/Flux/Agenda at desktop/1280/1024/narrow/200%, reduced motion and production render retention. Attention initially mounts 50 rows with explicit expansion; recent history displays the latest 50 matches without deleting persisted history. Detailed run evidence belongs in workspace maintenance and the PR, not this product contract.

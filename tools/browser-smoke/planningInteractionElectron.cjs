@@ -27,11 +27,9 @@ app.whenReady().then(async () => {
         await window.webContents.executeJavaScript('new Promise(resolve => { const poll = () => window.planningAgendaKeyboardReady || window.planningInteractionResult ? resolve() : setTimeout(poll, 25); poll() })')
         if (!await window.webContents.executeJavaScript('Boolean(window.planningInteractionResult)')) {
           window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' }); window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' })
-          const tabbed = await window.webContents.executeJavaScript('document.activeElement?.getAttribute("aria-label") === "Aufgabenfrist"')
-          if (!tabbed) throw new Error('Native Agenda Tab did not focus the next deadline field')
+          await window.webContents.executeJavaScript('new Promise((resolve, reject) => { let tries = 0; const poll = () => document.activeElement?.getAttribute("aria-label") === "Aufgabenfrist" ? resolve() : ++tries < 100 ? setTimeout(poll, 10) : reject(new Error("Native Agenda Tab did not focus the next deadline field: " + document.activeElement?.outerHTML)); poll() })')
           window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab', modifiers: ['shift'] }); window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab', modifiers: ['shift'] })
-          const returned = await window.webContents.executeJavaScript('document.activeElement?.getAttribute("aria-label") === "Planungstitel"')
-          if (!returned) throw new Error('Native Agenda Shift-Tab did not return to title')
+          await window.webContents.executeJavaScript('new Promise((resolve, reject) => { let tries = 0; const poll = () => document.activeElement?.getAttribute("aria-label") === "Planungstitel" ? resolve() : ++tries < 100 ? setTimeout(poll, 10) : reject(new Error("Native Agenda Shift-Tab did not return to title: " + document.activeElement?.outerHTML)); poll() })')
           window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' }); window.webContents.sendInputEvent({ type: 'char', keyCode: '\r' }); window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' })
           await window.webContents.executeJavaScript('window.resumePlanningAgendaKeyboard()')
         }

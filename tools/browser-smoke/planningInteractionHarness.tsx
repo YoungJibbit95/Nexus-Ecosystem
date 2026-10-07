@@ -69,7 +69,7 @@ const ack = () => wait(() => !workspaceOperation.isActive() && [...active().quer
 const keepConflict = () => flushSync(() => [...active().querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find(input => input.parentElement?.textContent?.includes('Konflikte'))!.click())
 async function switchView(next: string) {
   view = next; render()
-  await wait(() => active() && (next === 'calendar' ? active().querySelector(client === 'main' ? '[aria-label="Kalenderansicht"]' : 'form[aria-label="Manuelle Planungsaktion"]') : next === 'notes' ? active().querySelector('textarea') : next === 'canvas' ? active().querySelector('button') : active().querySelector(next === 'tasks' ? '.nx-task-card' : '.nx-planning-today-card')), `${client} ${next} actual view`)
+  await wait(() => active() && (next === 'calendar' ? active().querySelector(client === 'main' ? '[aria-label="Kalenderansicht"]' : 'form[aria-label="Manuelle Planungsaktion"]') : next === 'notes' ? active().querySelector('textarea') : next === 'canvas' ? active().querySelector('button') : active().querySelector(next === 'tasks' ? '.nx-task-card' : client === 'main' ? '[data-product-overview][data-today-tasks]' : '.nx-planning-today-card')), `${client} ${next} actual view`)
   await pause()
   if (next === 'calendar' && client === 'main' && !active().querySelector('.nx-agenda-workspace')) click('Agenda', active().querySelector('[aria-label="Kalenderansicht"]')!)
   if (next === 'calendar') await wait(() => active().querySelector('form[aria-label="Manuelle Planungsaktion"]'), 'actual planning form')
@@ -349,10 +349,10 @@ async function run() {
   submit(); await ack()
   assert(mainPlanning.capturePlanning().availability?.coverage === 'complete', 'Actual availability form stores only explicitly confirmed source coverage')
   await switchView('dashboard')
-  assert(active().querySelector('.nx-planning-today-card')?.textContent?.includes('1 eindeutige offene Aufgaben'), 'Actual Main Dashboard counts due-plus-scheduled work once')
-  assert(active().textContent?.includes('Frist heute'), 'Actual Main Dashboard exposes Task deadline reason in Today')
+  assert(active().querySelector('[data-product-overview]')?.getAttribute('data-today-tasks') === '1', 'Actual Main Dashboard counts due-plus-scheduled work once')
+  assert(active().textContent?.includes('Frist '), 'Actual Main Dashboard exposes the source Task deadline')
   await switchView('flux')
-  assert(active().querySelector('.nx-planning-today-card')?.textContent?.includes('1 eindeutige offene Aufgaben'), 'Actual Main Flux consumes same Today derivation')
+  assert(active().querySelector('[data-product-overview]')?.getAttribute('data-today-tasks') === '1', 'Actual Main Flux consumes same Today derivation')
   await switchView('calendar'); click('Arbeitsblock'); await pause(); change(field('Planungszeitzone'), 'Europe/Berlin'); change(field('Aufgabe für Arbeitsblock'), task.id); change(field('Planungsbeginn'), `${tomorrow}T10:00`); change(field('Arbeitsdauer in Minuten'), '30'); keepConflict(); submit(); await ack()
   const futureId = mainPlanning.capturePlanning().blocks.at(-1)!.id
   flushSync(() => field('Beim Abschluss Erinnerung stoppen: Selected linked point').click())

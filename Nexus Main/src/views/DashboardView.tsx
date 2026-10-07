@@ -3,22 +3,18 @@ import { AnimatePresence } from "framer-motion";
 import { useApp } from "../store/appStore";
 import { shallow } from 'zustand/shallow';
 import { useActiveViewCommandScope } from '../app/ViewCommandScope';
-import { useCanvas } from "../store/canvasStore";
 import { useTheme } from "../store/themeStore";
-import { useWorkspaces } from "../store/workspaceStore";
-import { useWorkspaceFs } from "../store/workspaceFsStore";
 import { hexToRgb } from "../lib/utils";
 import { useRenderSurfaceBudget } from "../render/useRenderSurfaceBudget";
 import { useSurfaceMotionRuntime } from "../render/useSurfaceMotionRuntime";
 import { SNAP_ROW_HEIGHT } from "./dashboard/dashboardLayout";
-import { DashboardTopSections } from "./dashboard/DashboardTopSections";
+import { DashboardOverview } from "./product/DashboardOverview";
 import { DashboardWidgetGridSection } from "./dashboard/DashboardWidgetGridSection";
 import { DashboardEditActionBar } from "./dashboard/DashboardEditActionBar";
 import { asObjectArray } from "./dashboard/dashboardViewUtils";
 import { buildDashboardWidgetContent } from "./dashboard/widgetContent";
 import { useDashboardLayoutEditing } from "./dashboard/useDashboardLayoutEditing";
 import { useDashboardDerivedData } from "./dashboard/useDashboardDerivedData";
-import { MainPlanningTodayCard } from './planning/MainPlanningTodayCard';
 import "./dashboard/dashboard.css";
 
 export function DashboardView({ setView }: { setView?: (v: string) => void }) {
@@ -30,35 +26,18 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     codes: rawCodes,
     reminders: rawReminders,
     activities: rawActivities,
-    addNote,
-    addTask,
-    addRem,
-    addCode,
-    updateReminder,
   } = useApp(state => ({
     notes: state.notes, tasks: state.tasks, codes: state.codes,
     reminders: state.reminders, activities: state.activities,
-    addNote: state.addNote, addTask: state.addTask, addRem: state.addRem,
-    addCode: state.addCode, updateReminder: state.updateReminder,
   }), shallow);
-  const addCanvas = useCanvas((state) => state.addCanvas);
-  const canvases = useCanvas((state) => state.canvases);
-  const activeCanvasId = useCanvas((state) => state.activeCanvasId);
-  const { workspaces: rawWorkspaces, activeWorkspaceId } = useWorkspaces();
   const notes = asObjectArray<any>(rawNotes);
   const tasks = asObjectArray<any>(rawTasks);
   const codes = asObjectArray<any>(rawCodes);
   const reminders = asObjectArray<any>(rawReminders);
   const activities = asObjectArray<any>(rawActivities);
-  const workspaces = asObjectArray<any>(rawWorkspaces);
-  const workspaceRoot = useWorkspaceFs((state) => state.rootPath);
-  const lastSyncAt = useWorkspaceFs((state) => state.lastSyncAt);
-  const lastSyncMode = useWorkspaceFs((state) => state.lastSyncMode);
   const rgb = hexToRgb(t.accent);
 
   const [editLayout, setEditLayout] = useState(false);
-  const [todayMenuOpen, setTodayMenuOpen] = useState(false);
-  const [captureMenuOpen, setCaptureMenuOpen] = useState(false);
 
   const {
     gridRef,
@@ -85,20 +64,6 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     applyLayoutPreset,
   } = useDashboardLayoutEditing(editLayout);
 
-  const heroRenderDecision = useRenderSurfaceBudget({
-    id: "dashboard-hero",
-    surfaceClass: "hero-surface",
-    effectClass: "status-highlight",
-    interactionState: "idle",
-    visibilityState: active ? 'visible' : 'hidden',
-    budgetPriority: "high",
-    areaHint: 1200,
-    motionClassHint: "hero",
-    transformOwnerHint: "surface",
-    filterOwnerHint: "surface",
-    opacityOwnerHint: "surface",
-  });
-
   const contentRenderDecision = useRenderSurfaceBudget({
     id: "dashboard-content",
     surfaceClass: "panel-surface",
@@ -113,40 +78,14 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     opacityOwnerHint: "surface",
   });
 
-  const heroSurfaceMotion = useSurfaceMotionRuntime(heroRenderDecision, {
-    family: "hero",
-  });
   const contentSurfaceMotion = useSurfaceMotionRuntime(contentRenderDecision, {
     family: "content",
   });
 
   const reducedMotion =
     Boolean(t.qol?.reducedMotion) ||
-    heroSurfaceMotion.capability === "static-safe" ||
     contentSurfaceMotion.capability === "static-safe" ||
-    heroSurfaceMotion.complexity === "none" ||
     contentSurfaceMotion.complexity === "none";
-
-  const heroMotion = useMemo(
-    () => ({
-      allowEntry: heroSurfaceMotion.allowEntry && !reducedMotion,
-      allowHover: heroSurfaceMotion.allowHover && !reducedMotion,
-      allowStagger: heroSurfaceMotion.allowStagger && !reducedMotion,
-      hoverLiftPx: Math.max(0.6, heroSurfaceMotion.hoverLiftPx),
-      hoverScale: Math.max(1.002, heroSurfaceMotion.hoverScale),
-      transition: heroSurfaceMotion.transition,
-      timings: {
-        transformMs: Math.max(160, heroSurfaceMotion.timings.regularMs),
-        materialMs: Math.max(140, heroSurfaceMotion.timings.materialMs),
-        materialDelayMs: reducedMotion
-          ? 0
-          : Math.max(16, heroSurfaceMotion.timings.materialDelayMs),
-        easing: heroSurfaceMotion.timings.easing,
-        framerEase: heroSurfaceMotion.timings.framerEase,
-      },
-    }),
-    [heroSurfaceMotion, reducedMotion],
-  );
 
   const contentMotion = useMemo(
     () => ({
@@ -170,53 +109,12 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
   );
 
   const widgetEntryDelayMs = contentMotion.allowStagger ? 24 : 12;
-  const heroFramerEase = heroMotion.timings.framerEase;
   const contentFramerEase = contentMotion.timings.framerEase;
 
   const {
-    doneTasks,
-    pendingTasks,
-    overdueReminders,
-    pinnedNotes,
-    recentActivity,
-    noteSpark,
-    taskSpark,
-    recentNotes,
-    urgentReminders,
-    resumeLane,
-    tasksByStatus,
-    greeting,
-    today,
-    actIcon,
-    actColor,
-    todaySummary,
-    activeWorkspace,
-    runCaptureIntent,
-    snoozeOverdue,
-    lastSyncLabel,
-  } = useDashboardDerivedData({
-    notes,
-    tasks,
-    codes,
-    canvases,
-    activeCanvasId,
-    reminders,
-    activities,
-    workspaces,
-    activeWorkspaceId,
-    workspaceRoot,
-    lastSyncAt,
-    lastSyncMode,
-    setView,
-    addNote,
-    addTask,
-    addRem,
-    addCode,
-    addCanvas,
-    updateReminder,
-    accent: t.accent,
-    accent2: t.accent2,
-  });
+    doneTasks, pendingTasks, overdueReminders, pinnedNotes, recentActivity,
+    noteSpark, taskSpark, recentNotes, urgentReminders, tasksByStatus, actIcon, actColor,
+  } = useDashboardDerivedData({ notes, tasks, reminders, activities, accent: t.accent, accent2: t.accent2 });
   let widgetContent: Partial<Record<string, React.ReactNode>> = {};
   let widgetContentBuildError: string | null = null;
   try {
@@ -258,36 +156,8 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
           margin: "0 auto",
         }}
       >
-        <DashboardTopSections
-          t={t}
-          rgb={rgb}
-          today={today}
-          greeting={greeting}
-          pendingTasks={pendingTasks}
-          overdueReminders={overdueReminders}
-          setView={setView}
-          editLayout={editLayout}
-          setEditLayout={setEditLayout}
-          heroMotion={heroMotion}
-          heroFramerEase={heroFramerEase}
-          todaySummary={todaySummary}
-          todayMenuOpen={todayMenuOpen}
-          setTodayMenuOpen={setTodayMenuOpen}
-          snoozeOverdue={snoozeOverdue}
-          runCaptureIntent={runCaptureIntent}
-          captureMenuOpen={captureMenuOpen}
-          setCaptureMenuOpen={setCaptureMenuOpen}
-          activeWorkspace={activeWorkspace}
-          workspaceRoot={workspaceRoot}
-          lastSyncLabel={lastSyncLabel}
-          contentMotion={contentMotion}
-          contentFramerEase={contentFramerEase}
-          resumeLane={resumeLane}
-          widgetContentBuildError={widgetContentBuildError}
-          resetLayout={resetLayout}
-        />
-
-        <MainPlanningTodayCard setView={setView} />
+        <DashboardOverview navigate={setView} editLayout={editLayout} onEditLayout={() => setEditLayout(value => !value)} />
+        {widgetContentBuildError && <div role="alert"><p>Widgets konnten nicht vollständig angezeigt werden.</p><button type="button" onClick={resetLayout}>Widget-Layout zurücksetzen</button></div>}
 
         <DashboardWidgetGridSection
           gridRef={gridRef}
