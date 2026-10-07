@@ -1,0 +1,95 @@
+{
+  "actions": {
+    "actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09": {
+      "version": "v5",
+      "source": "https://api.github.com/repos/actions/checkout/git/ref/tags/v5",
+      "verifiedAt": "2026-10-07",
+      "verification": "Official upstream tag; annotated tags peeled to commit"
+    },
+    "actions/checkout@11d5960a326750d5838078e36cf38b85af677262": {
+      "version": "v4.4.0",
+      "source": "https://api.github.com/repos/actions/checkout/git/ref/tags/v4.4.0",
+      "verifiedAt": "2026-10-07",
+      "verification": "Official upstream tag; annotated tags peeled to commit"
+    },
+    "actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444": {
+      "version": "v5",
+      "source": "https://api.github.com/repos/actions/setup-node/git/ref/tags/v5",
+      "verifiedAt": "2026-10-07",
+      "verification": "Official upstream tag; annotated tags peeled to commit"
+    },
+    "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020": {
+      "version": "v4.4.0",
+      "source": "https://api.github.com/repos/actions/setup-node/git/ref/tags/v4.4.0",
+      "verifiedAt": "2026-10-07",
+      "verification": "Official upstream tag; annotated tags peeled to commit"
+    },
+    "actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961": {
+      "version": "v5",
+      "source": "https://api.github.com/repos/actions/setup-java/git/ref/tags/v5",
+      "verifiedAt": "2026-10-07",
+      "verification": "Official upstream tag; annotated tags peeled to commit"
+    },
+    "gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a": {
+      "version": "v4",
+      "source": "https://api.github.com/repos/gradle/actions/git/ref/tags/v4",
+      "verifiedAt": "2026-10-07",
+      "verification": "Official upstream tag; annotated tags peeled to commit"
+    },
+    "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02": {
+      "version": "v4.6.2",
+      "source": "https://api.github.com/repos/actions/upload-artifact/git/ref/tags/v4.6.2",
+      "verifiedAt": "2026-10-07",
+      "verification": "Official upstream tag; annotated tags peeled to commit"
+    },
+    "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093": {
+      "version": "v4.3.0",
+      "source": "https://api.github.com/repos/actions/download-artifact/git/ref/tags/v4.3.0",
+      "verifiedAt": "2026-10-07",
+      "verification": "Official upstream tag; annotated tags peeled to commit"
+    },
+    "github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2": {
+      "version": "v4",
+      "source": "https://api.github.com/repos/github/codeql-action/git/ref/tags/v4",
+      "verifiedAt": "2026-10-07",
+      "verification": "Official upstream tag; annotated tags peeled to commit"
+    },
+    "github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2": {
+      "version": "v4",
+      "source": "https://api.github.com/repos/github/codeql-action/git/ref/tags/v4",
+      "verifiedAt": "2026-10-07",
+      "verification": "Official upstream tag; annotated tags peeled to commit"
+    },
+    "actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48": {
+      "version": "v4.9.0",
+      "source": "https://api.github.com/repos/actions/dependency-review-action/git/ref/tags/v4.9.0",
+      "verifiedAt": "2026-10-07",
+      "verification": "Official upstream tag; annotated tags peeled to commit"
+    },
+    "actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d": {
+      "version": "v6",
+      "source": "https://api.github.com/repos/actions/configure-pages/git/ref/tags/v6",
+      "verifiedAt": "2026-10-07",
+      "verification": "Official upstream tag; annotated tags peeled to commit"
+    },
+    "actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9": {
+      "version": "v5",
+      "source": "https://api.github.com/repos/actions/upload-pages-artifact/git/ref/tags/v5",
+      "verifiedAt": "2026-10-07",
+      "verification": "Official upstream tag; annotated tags peeled to commit"
+    },
+    "actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346": {
+      "version": "v5",
+      "source": "https://api.github.com/repos/actions/deploy-pages/git/ref/tags/v5",
+      "verifiedAt": "2026-10-07",
+      "verification": "Official upstream tag; annotated tags peeled to commit"
+    }
+  },
+  "requiredWorkflows": [
+    "security-verify.yml",
+    "secret-scanning.yml",
+    "release-gate.yml",
+    "main-ui-gate.yml",
+    "dependency-review.yml"
+  ]
+}

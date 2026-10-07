@@ -14,7 +14,6 @@ const requireSignature = boolArg(
 const signatureAlgorithm = 'ECDSA_P256_SHA256'
 const signingKeyId = args.get('signing-key-id') ||
   process.env.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_ID ||
-  process.env.NEXUS_LAUNCHER_FEED_SIGNING_KEY_ID ||
   'nexus-installer-checksums-p256-v1'
 const outputPrefix = sanitizeOutputPrefix(args.get('output-prefix') || '')
 const checksumFileName = `${outputPrefix ? `${outputPrefix}-` : ''}SHA256SUMS.txt`
@@ -56,7 +55,7 @@ if (signingKey) {
   verifyGeneratedSignature(checksumText, signature, privateKey)
   await fs.writeFile(signaturePath, `${signature}\n`, 'utf8')
 } else if (requireSignature) {
-  console.error('[generate-installer-checksums] Missing checksum signing key. Set NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM, NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64, NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_FILE, or the launcher feed signing key fallback.')
+  console.error('[generate-installer-checksums] Missing checksum signing key. Set NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM, NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64, or NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_FILE.')
   process.exit(1)
 } else {
   console.warn('[generate-installer-checksums] WARN checksum manifest is unsigned; public releases must require checksum signatures')
@@ -116,18 +115,15 @@ function sha256File(filePath) {
 
 async function readSigningKey() {
   const inlinePem = args.get('signing-key-pem') ||
-    process.env.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM ||
-    process.env.NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM
+    process.env.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM
   if (inlinePem) return inlinePem.replaceAll('\\n', '\n')
 
   const inlineBase64 = args.get('signing-key-base64') ||
-    process.env.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64 ||
-    process.env.NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64
+    process.env.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64
   if (inlineBase64) return Buffer.from(inlineBase64, 'base64').toString('utf8')
 
   const keyFile = args.get('signing-key-file') ||
-    process.env.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_FILE ||
-    process.env.NEXUS_LAUNCHER_FEED_SIGNING_KEY_FILE
+    process.env.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_FILE
   if (keyFile) return fs.readFile(path.resolve(process.cwd(), keyFile), 'utf8')
 
   return null

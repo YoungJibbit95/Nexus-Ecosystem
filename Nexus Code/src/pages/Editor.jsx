@@ -17,6 +17,7 @@ import {
   XCircle,
 } from "lucide-react";
 import TitleBar from "../components/editor/TitleBar";
+import WorkspaceTrustNotice from "../components/editor/WorkspaceTrustNotice";
 import Sidebar from "../components/editor/Sidebar";
 import FileExplorer from "../components/editor/FileExplorer";
 import TabBar from "../components/editor/TabBar";
@@ -1823,6 +1824,7 @@ export default function Editor({
         />
       </div>
 
+      <WorkspaceTrustNotice key={workspacePath || 'no-workspace'} platform={platform} workspacePath={workspacePath} />
       <div
         className="nx-code-workbench flex-1 min-h-0 overflow-hidden relative"
         style={{ background: "rgba(0,0,0,0.08)" }}
@@ -1948,7 +1950,7 @@ export default function Editor({
                         onFileSelect={handleFileSelect}
                       />
                     )}
-                    {visibleActivePanel === "git" && <GitPanel files={files} />}
+                    {visibleActivePanel === "git" && <GitPanel files={files} workspacePath={workspacePath} />}
                     {(visibleActivePanel === "issues" ||
                       visibleActivePanel === "prs" ||
                       visibleActivePanel === "projects") && (

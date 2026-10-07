@@ -1,10 +1,14 @@
+import './signing-domains.test.mjs'
+import { artifacts, childEnv, regularFile } from '../.security/runtime.mjs'
 import assert from 'node:assert/strict'
 import { generateKeyPairSync } from 'node:crypto'
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { assertInstallerWorkflowPolicy } from './lib/installer-workflow-policy.mjs'
+import { assertAndroidWorkflowPolicy } from './lib/android-workflow-policy.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const generator = path.join(ROOT, 'tools', 'generate-installer-checksums.mjs')
@@ -12,13 +16,13 @@ const verifier = path.join(ROOT, 'tools', 'verify-signing-env.mjs')
 
 const runNode = (script, args, env = {}) => spawnSync(process.execPath, [script, ...args], {
   cwd: ROOT,
-  env: { ...process.env, ...env },
+  env: { ...childEnv(), ...env },
   encoding: 'utf8',
   windowsHide: true,
 })
 
 test('release checksum manifests are uniquely named, P-256 signed, and self-verified', async () => {
-  const tempRoot = path.join(ROOT, '.test-artifacts')
+  const tempRoot = artifacts()
   await mkdir(tempRoot, { recursive: true })
   const releaseDir = await mkdtemp(path.join(tempRoot, 'release-hardening-'))
   try {
@@ -43,12 +47,12 @@ test('release checksum manifests are uniquely named, P-256 signed, and self-veri
     assert.equal(metadata.signature.algorithm, 'ECDSA_P256_SHA256')
     assert.equal(metadata.artifacts[0].fileName, 'app-release.aab')
   } finally {
-    await rm(releaseDir, { recursive: true, force: true })
+    await removeRegularFixtureFiles(releaseDir)
   }
 })
 
 test('RSA and malformed signing material fail closed', async () => {
-  const tempRoot = path.join(ROOT, '.test-artifacts')
+  const tempRoot = artifacts()
   await mkdir(tempRoot, { recursive: true })
   const releaseDir = await mkdtemp(path.join(tempRoot, 'release-hardening-invalid-'))
   try {
@@ -67,7 +71,7 @@ test('RSA and malformed signing material fail closed', async () => {
     assert.notEqual(malformed.status, 0)
     assert.match(`${malformed.stdout}\n${malformed.stderr}`, /is invalid/)
   } finally {
-    await rm(releaseDir, { recursive: true, force: true })
+    await removeRegularFixtureFiles(releaseDir)
   }
 })
 
@@ -81,22 +85,22 @@ test('public release workflows enforce fresh artifacts, architecture, and signat
   ])
   assert.match(electronWorkflow, /target: "mac"[\s\S]*?arch: "arm64"/)
   assert.match(electronWorkflow, /target: "mac"[\s\S]*?arch: "x64"/)
-  assert.match(
-    electronWorkflow,
-    /- name: Build installer[\s\S]*?NEXUS_MAC_ARCH: "\$\{\{ matrix\.target == 'mac' && matrix\.arch \|\| '' \}\}"/,
-  )
-  assert.match(
-    electronWorkflow,
-    /- name: Build installer[\s\S]*?CSC_FORCE_CODE_SIGNING: "\$\{\{ matrix\.target == 'win'/,
-  )
+  assertInstallerWorkflowPolicy(electronWorkflow)
   assert.match(electronWorkflow, /codesign --verify --deep --strict/)
   assert.match(electronWorkflow, /Get-AuthenticodeSignature/)
   assert.match(electronWorkflow, /--output-prefix "\$\{\{ matrix\.app_slug \}\}-\$\{\{ matrix\.target \}\}-\$\{\{ matrix\.arch \}\}"/)
   assert.match(androidWorkflow, /bundleRelease/)
-  assert.match(androidWorkflow, /jarsigner -verify -strict -certs/)
+  assertAndroidWorkflowPolicy(androidWorkflow)
   assert.match(gate, /NEXUS_CONTROL_UI_ROOT/)
   assert.match(gate, /Nexus Control source required/)
   assert.match(packageJson, /build-ecosystem\.mjs --with-android --with-installers --strict-android --strict-installers/)
   assert.match(buildScript, /strictInstallers[\s\S]*?fs\.rm\(releaseRoot, \{ recursive: true, force: true \}\)/)
   assert.match(buildScript, /strictAndroid[\s\S]*?fs\.rm\(outputRoot, \{ recursive: true, force: true \}\)/)
 })
+
+async function removeRegularFixtureFiles(directory) {
+  const files = (await readdir(directory)).map(name => path.join(directory, name))
+  // Inventory every entry without following links before any cleanup; retain dirs.
+  for (const file of files) regularFile(file, path.dirname(directory))
+  for (const file of files) await unlink(file)
+}

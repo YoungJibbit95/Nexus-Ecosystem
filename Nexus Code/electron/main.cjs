@@ -11,6 +11,10 @@ const { createLspProcessService } = require("./services/lspProcessService.cjs");
 const { redactSensitiveText } = require("./services/processRunner.cjs");
 const { createSanitizedProcessEnv } = require("./services/safeProcessEnv.cjs");
 const { createNavigationPolicy } = require("./services/navigationPolicy.cjs");
+const { createWorkspaceTrustStore } = require("./services/workspaceTrustStore.cjs");
+const { assertTrustedSender, createTrustedIpc } = require("./services/ipcSecurity.cjs");
+const { stopProcessTree } = require("./services/stopProcessTree.cjs");
+const { applySecurityHeaders } = require("./services/contentSecurityPolicy.cjs");
 
 const DEV = !app.isPackaged && process.env.ELECTRON_DEV === "true";
 const DEV_URL = process.env.NEXUS_CODE_DEV_URL || "http://127.0.0.1:5175";
@@ -52,15 +56,30 @@ const DANGEROUS_TERMINAL_PATTERNS = [
 ];
 
 let mainWindow = null;
+const trustedIpc = createTrustedIpc(ipcMain, () => mainWindow);
 const activeProcesses = new Map();
 const allowedWorkspaceRoots = new Map();
-const gitService = createGitService();
+const workspaceTrust = createWorkspaceTrustStore({ getUserDataPath: () => app.getPath("userData") });
+const gitForRequest = (event) => {
+  const revision = workspaceTrust.getRevision();
+  return createGitService({
+  getContext: (cwd) => {
+    assertTrustedSender(event, mainWindow);
+    if (revision !== workspaceTrust.getRevision()) throw new Error("WORKSPACE_TRUST_REQUIRED: Workspace trust changed before Git execution.");
+    const root = findAllowedRootForCanonicalPath(cwd);
+    if (!root) throw new Error("Git path outside selected workspace.");
+    return { root, ...workspaceTrust.status(root) };
+  },
+  getSecurityDirectory: () => path.join(app.getPath("userData"), "secure"),
+  });
+};
 const tokenStore = createSecureTokenStore({
   getUserDataPath: () => app.getPath("userData"),
 });
 const githubAuthService = createGithubAuthService({ tokenStore });
 const githubService = createGithubService({ tokenStore });
 const lspProcessService = createLspProcessService({
+  authorize: (cwd) => assertExecutionAllowed(cwd),
   onNotification: (sessionId, payload) => {
     mainWindow?.webContents.send(`lsp:notification:${sessionId}`, payload);
   },
@@ -120,8 +139,14 @@ const isPathInsideOrSame = (candidatePath, rootPath) => {
 const listAllowedWorkspaceRoots = () => Array.from(allowedWorkspaceRoots.values());
 
 const findAllowedRootForCanonicalPath = (canonicalPath) => (
-  listAllowedWorkspaceRoots().find((root) => isPathInsideOrSame(canonicalPath, root)) || null
+  listAllowedWorkspaceRoots().sort((a, b) => b.length - a.length).find((root) => isPathInsideOrSame(canonicalPath, root)) || null
 );
+
+const assertExecutionAllowed = (cwd, revision = workspaceTrust.getRevision()) => {
+  const root = findAllowedRootForCanonicalPath(cwd);
+  if (!root) throw new Error("No selected workspace authorizes execution.");
+  workspaceTrust.assertTrusted(root, revision);
+};
 
 const registerWorkspaceRoot = async (dirPath) => {
   const candidate = path.resolve(assertPathInput(dirPath, "workspace root"));
@@ -132,6 +157,7 @@ const registerWorkspaceRoot = async (dirPath) => {
   }
 
   allowedWorkspaceRoots.set(normalizePathKey(realPath), realPath);
+  workspaceTrust.status(realPath);
   return realPath;
 };
 
@@ -185,7 +211,14 @@ const resolveWritableWorkspacePath = async (targetPath) => {
   assertWorkspaceReady();
 
   const requested = path.resolve(assertPathInput(targetPath));
-  const existing = await fs.stat(requested).catch(() => null);
+  const entry = await fs.lstat(requested).catch(error => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
+  const existing = entry && await fs.stat(requested).catch(error => {
+    if (entry.isSymbolicLink()) throw new Error("Unresolved symbolic link is not writable.");
+    throw error;
+  });
   if (existing) {
     return resolveWorkspacePath(requested, { allowRoot: false });
   }
@@ -204,6 +237,7 @@ const resolveWritableWorkspacePath = async (targetPath) => {
 };
 
 const assertNotProtectedWorkspacePath = (canonicalPath) => {
+  workspaceTrust.assertWritable(canonicalPath);
   const segments = canonicalPath.split(/[\\/]+/);
   if (segments.some((segment) => PROTECTED_WORKSPACE_NAMES.has(segment))) {
     throw new Error("Protected workspace metadata cannot be modified.");
@@ -290,6 +324,7 @@ const isExternalHttpUrl = (url) => {
 };
 
 const configureSessionSecurity = () => {
+  applySecurityHeaders({ targetSession: session.defaultSession, isDev: DEV, devUrl: DEV_URL });
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
     callback(false);
   });
@@ -326,9 +361,7 @@ const isBlockedDangerousTerminalCommand = (command) => {
 
 const terminateActiveProcesses = () => {
   for (const [id, proc] of activeProcesses.entries()) {
-    try {
-      proc.kill("SIGTERM");
-    } catch {}
+    stopProcessTree(proc);
     activeProcesses.delete(id);
   }
 };
@@ -352,7 +385,9 @@ const resolveTerminalWorkingDirectory = async (candidatePath) => {
 
 const resolveGitWorkingDirectory = async (candidatePath) => {
   const safePath = await resolveWorkspacePath(candidatePath, { allowRoot: true });
-  if (safePath.stats?.isDirectory()) return safePath.canonical;
+  if (safePath.stats?.isDirectory()) {
+    return safePath.canonical;
+  }
 
   const parentPath = await resolveWorkspacePath(path.dirname(safePath.canonical), {
     allowRoot: true,
@@ -370,8 +405,11 @@ const resolveLspWorkspaceRoot = async (candidatePath) => {
   return safePath.canonical;
 };
 
-const openSystemTerminal = async (candidatePath) => {
+const openSystemTerminal = async (candidatePath, event) => {
+  const revision = workspaceTrust.getRevision();
   const cwd = await resolveTerminalWorkingDirectory(candidatePath);
+  assertTrustedSender(event, mainWindow);
+  assertExecutionAllowed(cwd, revision);
   if (process.platform === "darwin") {
     const proc = spawn("open", ["-a", "Terminal", cwd], {
       detached: true,
@@ -408,6 +446,9 @@ const registerWebContentsGuards = () => {
   app.on("web-contents-created", (_event, contents) => {
     contents.on("will-attach-webview", (event) => {
       event.preventDefault();
+    });
+    contents.on("will-frame-navigate", (event) => {
+      if (!event.isMainFrame) event.preventDefault();
     });
 
     contents.on("will-navigate", (event, url) => {
@@ -572,6 +613,9 @@ function createWindow() {
       console.info("[Nexus Code] main window closed");
     }
     clearTimeout(fallbackShowTimer);
+    allowedWorkspaceRoots.clear();
+    terminateActiveProcesses();
+    lspProcessService.dispose();
     mainWindow = null;
   });
 
@@ -584,27 +628,68 @@ function createWindow() {
 
 // IPC: window controls
 
-ipcMain.on("window:minimize",  () => mainWindow?.minimize());
-ipcMain.on("window:maximize",  () => {
+trustedIpc.on("window:minimize",  () => mainWindow?.minimize());
+trustedIpc.on("window:maximize",  () => {
   if (!mainWindow) return;
   mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
 });
-ipcMain.on("window:close",     () => mainWindow?.close());
+trustedIpc.on("window:close",     () => mainWindow?.close());
 
-ipcMain.handle("window:is-maximized", () => mainWindow?.isMaximized() ?? false);
+trustedIpc.handle("window:is-maximized", () => mainWindow?.isMaximized() ?? false);
 
 // IPC: file system
 
-ipcMain.handle("dialog:open-folder", async () => {
-  if (!mainWindow) return null;
+trustedIpc.handle("dialog:open-folder", async (event) => {
+  assertTrustedSender(event, mainWindow);
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ["openDirectory"],
   });
+  assertTrustedSender(event, mainWindow);
   if (result.canceled) return null;
   return registerWorkspaceRoot(result.filePaths[0]);
 });
 
-ipcMain.handle("fs:read-directory", async (_event, dirPath) => {
+const resolveSelectedTrustRoot = async (event, rootPath) => {
+  assertTrustedSender(event, mainWindow);
+  const { canonical, root } = await resolveWorkspacePath(rootPath, { expected: "directory" });
+  assertTrustedSender(event, mainWindow);
+  if (normalizePathKey(canonical) !== normalizePathKey(root)) throw new Error("Select the workspace root to change trust.");
+  return root;
+};
+const announceTrust = (state) => {
+  mainWindow?.webContents.send("workspace:trust-changed", state);
+  return state;
+};
+trustedIpc.handle("workspace:trust-status", async (event, rootPath) => toIpcResponse(async () => (
+  workspaceTrust.status(await resolveSelectedTrustRoot(event, rootPath))
+)));
+let trustDialogOpen = false;
+trustedIpc.handle("workspace:request-trust", async (event, rootPath) => toIpcResponse(async () => {
+  if (trustDialogOpen) throw new Error("A workspace trust confirmation is already open.");
+  trustDialogOpen = true;
+  try {
+    const revision = workspaceTrust.getRevision();
+    const root = await resolveSelectedTrustRoot(event, rootPath);
+    const identity = workspaceTrust.identity(root);
+    const result = await dialog.showMessageBox(mainWindow, {
+      type: "warning", title: "Trust this workspace?", message: "Allow native execution for this folder?",
+      detail: `${root}\n\nTerminal, language servers and Git may execute code with your operating-system permissions. Only trust code you control or have reviewed. Revoking stops managed sessions; externally opened terminals and detached processes may continue.`,
+      buttons: ["Keep Restricted", "Trust Folder"], defaultId: 0, cancelId: 0, noLink: true,
+    });
+    await resolveSelectedTrustRoot(event, root);
+    if (result.response !== 1) return workspaceTrust.status(root);
+    return announceTrust(workspaceTrust.grant(root, revision, identity));
+  } finally { trustDialogOpen = false; }
+}));
+trustedIpc.handle("workspace:revoke-trust", async (event, rootPath) => toIpcResponse(async () => {
+  const root = await resolveSelectedTrustRoot(event, rootPath);
+  try {
+    // Stop all managed sessions, including nested selected roots and pending starts.
+    return workspaceTrust.revoke(root, () => { terminateActiveProcesses(); lspProcessService.dispose(); });
+  } finally { announceTrust(workspaceTrust.status(root)); }
+}));
+
+trustedIpc.handle("fs:read-directory", async (_event, dirPath) => {
   try {
     const safeDir = await resolveWorkspacePath(dirPath, {
       allowRoot: true,
@@ -649,7 +734,7 @@ ipcMain.handle("fs:read-directory", async (_event, dirPath) => {
   }
 });
 
-ipcMain.handle("fs:read-file", async (_event, filePath) => {
+trustedIpc.handle("fs:read-file", async (_event, filePath) => {
   try {
     const safeFile = await resolveWorkspacePath(filePath, {
       allowRoot: false,
@@ -667,7 +752,7 @@ ipcMain.handle("fs:read-file", async (_event, filePath) => {
   }
 });
 
-ipcMain.handle("fs:write-file", async (_event, filePath, content) => {
+trustedIpc.handle("fs:write-file", async (_event, filePath, content) => {
   try {
     const body = String(content ?? "");
     if (byteLength(body) > MAX_WRITE_BYTES) {
@@ -684,7 +769,7 @@ ipcMain.handle("fs:write-file", async (_event, filePath, content) => {
   }
 });
 
-ipcMain.handle("fs:mkdir", async (_event, dirPath) => {
+trustedIpc.handle("fs:mkdir", async (_event, dirPath) => {
   try {
     const safeDir = await resolveWritableWorkspacePath(dirPath);
     assertNotProtectedWorkspacePath(safeDir.canonical);
@@ -696,7 +781,7 @@ ipcMain.handle("fs:mkdir", async (_event, dirPath) => {
   }
 });
 
-ipcMain.handle("fs:delete", async (_event, targetPath) => {
+trustedIpc.handle("fs:delete", async (_event, targetPath) => {
   try {
     const safeTarget = await resolveWorkspacePath(targetPath, { allowRoot: false });
     assertNotProtectedWorkspacePath(safeTarget.canonical);
@@ -708,7 +793,7 @@ ipcMain.handle("fs:delete", async (_event, targetPath) => {
   }
 });
 
-ipcMain.handle("fs:rename", async (_event, oldPath, newPath) => {
+trustedIpc.handle("fs:rename", async (_event, oldPath, newPath) => {
   try {
     const safeOld = await resolveWorkspacePath(oldPath, { allowRoot: false });
     const safeNew = await resolveWritableWorkspacePath(newPath);
@@ -727,9 +812,9 @@ ipcMain.handle("fs:rename", async (_event, oldPath, newPath) => {
   }
 });
 
-ipcMain.handle("system:open-terminal", async (_event, cwd) => {
+trustedIpc.handle("system:open-terminal", async (event, cwd) => {
   try {
-    const opened = await openSystemTerminal(cwd);
+    const opened = await openSystemTerminal(cwd, event);
     return { ok: true, opened };
   } catch (error) {
     return { ok: false, error: error?.message || "Unknown terminal launch error" };
@@ -738,161 +823,164 @@ ipcMain.handle("system:open-terminal", async (_event, cwd) => {
 
 // IPC: Git and GitHub foundations
 
-ipcMain.handle("git:status", async (_event, repoPath) => toIpcResponse(async () => (
-  gitService.status(await resolveGitWorkingDirectory(repoPath))
+trustedIpc.handle("git:status", async (_event, repoPath) => toIpcResponse(async () => (
+  gitForRequest(_event).status(await resolveGitWorkingDirectory(repoPath))
 )));
 
-ipcMain.handle("git:diff", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
-  gitService.diff(await resolveGitWorkingDirectory(repoPath), options || {})
+trustedIpc.handle("git:diff", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
+  gitForRequest(_event).diff(await resolveGitWorkingDirectory(repoPath), options || {})
 )));
 
-ipcMain.handle("git:stage", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
-  gitService.stage(await resolveGitWorkingDirectory(repoPath), options || {})
+trustedIpc.handle("git:stage", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
+  gitForRequest(_event).stage(await resolveGitWorkingDirectory(repoPath), options || {})
 )));
 
-ipcMain.handle("git:unstage", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
-  gitService.unstage(await resolveGitWorkingDirectory(repoPath), options || {})
+trustedIpc.handle("git:unstage", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
+  gitForRequest(_event).unstage(await resolveGitWorkingDirectory(repoPath), options || {})
 )));
 
-ipcMain.handle("git:commit", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
-  gitService.commit(await resolveGitWorkingDirectory(repoPath), options || {})
+trustedIpc.handle("git:commit", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
+  gitForRequest(_event).commit(await resolveGitWorkingDirectory(repoPath), options || {})
 )));
 
-ipcMain.handle("git:branch", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
-  gitService.branch(await resolveGitWorkingDirectory(repoPath), options || {})
+trustedIpc.handle("git:branch", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
+  gitForRequest(_event).branch(await resolveGitWorkingDirectory(repoPath), options || {})
 )));
 
-ipcMain.handle("git:log", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
-  gitService.log(await resolveGitWorkingDirectory(repoPath), options || {})
+trustedIpc.handle("git:log", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
+  gitForRequest(_event).log(await resolveGitWorkingDirectory(repoPath), options || {})
 )));
 
-ipcMain.handle("git:remotes", async (_event, repoPath) => toIpcResponse(async () => (
-  gitService.remotes(await resolveGitWorkingDirectory(repoPath))
+trustedIpc.handle("git:remotes", async (_event, repoPath) => toIpcResponse(async () => (
+  gitForRequest(_event).remotes(await resolveGitWorkingDirectory(repoPath))
 )));
 
-ipcMain.handle("github:auth-status", async () => toIpcResponse(async () => (
+trustedIpc.handle("github:auth-status", async () => toIpcResponse(async () => (
   githubAuthService.getAuthStatus()
 )));
 
-ipcMain.handle("github:device-flow:start", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:device-flow:start", async (_event, options = {}) => toIpcResponse(async () => (
   githubAuthService.startDeviceFlow(options || {})
 )));
 
-ipcMain.handle("github:device-flow:poll", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:device-flow:poll", async (_event, options = {}) => toIpcResponse(async () => (
   githubAuthService.pollDeviceFlow(options || {})
 )));
 
-ipcMain.handle("github:sign-out", async () => toIpcResponse(async () => (
+trustedIpc.handle("github:sign-out", async () => toIpcResponse(async () => (
   githubAuthService.signOut()
 )));
 
-ipcMain.handle("github:viewer", async () => toIpcResponse(async () => (
+trustedIpc.handle("github:viewer", async () => toIpcResponse(async () => (
   githubService.getViewer()
 )));
 
-ipcMain.handle("github:repositories", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:repositories", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.listRepositories(options || {})
 )));
 
-ipcMain.handle("github:rate-limit", async () => toIpcResponse(async () => (
+trustedIpc.handle("github:rate-limit", async () => toIpcResponse(async () => (
   githubService.getRateLimit()
 )));
 
-ipcMain.handle("github:issues:list", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:issues:list", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.listIssues(options || {})
 )));
 
-ipcMain.handle("github:issues:get", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:issues:get", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.getIssue(options || {})
 )));
 
-ipcMain.handle("github:issues:create", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:issues:create", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.createIssue(options || {})
 )));
 
-ipcMain.handle("github:issues:update", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:issues:update", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.updateIssue(options || {})
 )));
 
-ipcMain.handle("github:issues:comments", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:issues:comments", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.listIssueComments(options || {})
 )));
 
-ipcMain.handle("github:issues:comment", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:issues:comment", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.createIssueComment(options || {})
 )));
 
-ipcMain.handle("github:pulls:list", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:pulls:list", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.listPullRequests(options || {})
 )));
 
-ipcMain.handle("github:pulls:get", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:pulls:get", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.getPullRequest(options || {})
 )));
 
-ipcMain.handle("github:pulls:create", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:pulls:create", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.createPullRequest(options || {})
 )));
 
-ipcMain.handle("github:pulls:update", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:pulls:update", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.updatePullRequest(options || {})
 )));
 
-ipcMain.handle("github:pulls:files", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:pulls:files", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.listPullRequestFiles(options || {})
 )));
 
-ipcMain.handle("github:pulls:commits", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:pulls:commits", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.listPullRequestCommits(options || {})
 )));
 
-ipcMain.handle("github:pulls:reviews", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:pulls:reviews", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.listPullRequestReviews(options || {})
 )));
 
-ipcMain.handle("github:pulls:review:create", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:pulls:review:create", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.createPullRequestReview(options || {})
 )));
 
-ipcMain.handle("github:pulls:merge", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:pulls:merge", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.mergePullRequest(options || {})
 )));
 
-ipcMain.handle("github:pulls:update-branch", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:pulls:update-branch", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.updatePullRequestBranch(options || {})
 )));
 
-ipcMain.handle("github:projects-v2:list", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:projects-v2:list", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.listProjectsV2(options || {})
 )));
 
-ipcMain.handle("github:projects-v2:get", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:projects-v2:get", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.getProjectV2(options || {})
 )));
 
-ipcMain.handle("github:projects-v2:items", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:projects-v2:items", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.listProjectV2Items(options || {})
 )));
 
-ipcMain.handle("github:projects-v2:item:add", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:projects-v2:item:add", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.addProjectV2ItemById(options || {})
 )));
 
-ipcMain.handle("github:projects-v2:item-field:update", async (_event, options = {}) => toIpcResponse(async () => (
+trustedIpc.handle("github:projects-v2:item-field:update", async (_event, options = {}) => toIpcResponse(async () => (
   githubService.updateProjectV2ItemFieldValue(options || {})
 )));
 
 // IPC: Language Server Protocol
 
-ipcMain.handle("lsp:start", async (_event, payload = {}) => toIpcResponse(async () => {
+trustedIpc.handle("lsp:start", async (event, payload = {}) => toIpcResponse(async () => {
+  const revision = workspaceTrust.getRevision();
   const workspaceRoot = await resolveLspWorkspaceRoot(payload.workspacePath);
+  assertExecutionAllowed(workspaceRoot, revision);
   return lspProcessService.startSession({
     languageId: payload.languageId,
     workspaceRoot,
+    assertPermit: () => { assertTrustedSender(event, mainWindow); assertExecutionAllowed(workspaceRoot, revision); },
   });
 }));
 
-ipcMain.handle("lsp:request", async (_event, payload = {}) => toIpcResponse(async () => (
+trustedIpc.handle("lsp:request", async (_event, payload = {}) => toIpcResponse(async () => (
   lspProcessService.request(
     payload.sessionId,
     String(payload.method || ""),
@@ -901,19 +989,19 @@ ipcMain.handle("lsp:request", async (_event, payload = {}) => toIpcResponse(asyn
   )
 )));
 
-ipcMain.handle("lsp:stop", async (_event, payload = {}) => toIpcResponse(async () => (
+trustedIpc.handle("lsp:stop", async (_event, payload = {}) => toIpcResponse(async () => (
   lspProcessService.stopSession(payload.sessionId)
 )));
 
-ipcMain.handle("lsp:list", async () => toIpcResponse(async () => (
+trustedIpc.handle("lsp:list", async () => toIpcResponse(async () => (
   lspProcessService.listSessions()
 )));
 
-ipcMain.handle("lsp:servers", async () => toIpcResponse(async () => (
+trustedIpc.handle("lsp:servers", async () => toIpcResponse(async () => (
   lspProcessService.listServerStatus()
 )));
 
-ipcMain.on("lsp:notify", (_event, payload = {}) => {
+trustedIpc.on("lsp:notify", (_event, payload = {}) => {
   try {
     lspProcessService.notify(
       payload.sessionId,
@@ -931,9 +1019,10 @@ const sendTerminalMessage = (sender, id, channel, payload) => {
   } catch {}
 };
 
-ipcMain.on("terminal:run", async (event, payload = {}) => {
+trustedIpc.on("terminal:run", async (event, payload = {}) => {
   let id = 0;
   try {
+    const revision = workspaceTrust.getRevision();
     id = assertTerminalId(payload.id);
     const normalized = String(payload.command || "").trim();
 
@@ -973,11 +1062,13 @@ ipcMain.on("terminal:run", async (event, payload = {}) => {
       return;
     }
 
+    const resolvedCwd = await resolveTerminalWorkingDirectory(payload.cwd);
+    assertTrustedSender(event, mainWindow);
+    assertExecutionAllowed(resolvedCwd, revision);
+    // No await between the final session/limit check and registration.
     const running = activeProcesses.get(id);
     if (running && !running.killed) {
-      try {
-        running.kill("SIGTERM");
-      } catch {}
+      stopProcessTree(running);
       activeProcesses.delete(id);
     }
 
@@ -990,16 +1081,17 @@ ipcMain.on("terminal:run", async (event, payload = {}) => {
       return;
     }
 
-    const resolvedCwd = await resolveTerminalWorkingDirectory(payload.cwd);
     const shellLaunch = resolveShellLaunch(normalized);
     const proc = spawn(shellLaunch.binary, shellLaunch.args, {
       cwd: resolvedCwd,
       env: createSanitizedProcessEnv({ FORCE_COLOR: "1" }),
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
+      detached: process.platform !== "win32",
       windowsVerbatimArguments: shellLaunch.windowsVerbatimArguments,
     });
 
+    proc.workspaceCwd = resolvedCwd;
     activeProcesses.set(id, proc);
     sendTerminalMessage(event.sender, id, "ready");
 
@@ -1014,14 +1106,14 @@ ipcMain.on("terminal:run", async (event, payload = {}) => {
     proc.on("error", (error) => {
       sendTerminalMessage(event.sender, id, "output", { type: "error", text: `Failed to start: ${error.message}` });
       sendTerminalMessage(event.sender, id, "exit", 1);
-      activeProcesses.delete(id);
+      if (activeProcesses.get(id) === proc) activeProcesses.delete(id);
     });
 
     proc.on("close", (code) => {
       const exitCode = typeof code === "number" ? code : 1;
       sendTerminalMessage(event.sender, id, "output", { type: "system", text: `\nProcess exited with code ${exitCode}` });
       sendTerminalMessage(event.sender, id, "exit", exitCode);
-      activeProcesses.delete(id);
+      if (activeProcesses.get(id) === proc) activeProcesses.delete(id);
     });
   } catch (error) {
     sendTerminalMessage(event.sender, id, "output", { type: "error", text: `Failed to start: ${error.message}` });
@@ -1029,7 +1121,7 @@ ipcMain.on("terminal:run", async (event, payload = {}) => {
   }
 });
 
-ipcMain.on("terminal:kill", (_event, id) => {
+trustedIpc.on("terminal:kill", (_event, id) => {
   let terminalId = null;
   try {
     terminalId = assertTerminalId(id);
@@ -1039,21 +1131,12 @@ ipcMain.on("terminal:kill", (_event, id) => {
 
   const proc = activeProcesses.get(terminalId);
   if (proc) {
-    try {
-      proc.kill("SIGTERM");
-    } catch {}
-
-    setTimeout(() => {
-      if (!proc.killed) {
-        try {
-          proc.kill("SIGKILL");
-        } catch {}
-      }
-    }, 1200);
+    stopProcessTree(proc);
+    activeProcesses.delete(terminalId);
   }
 });
 
-ipcMain.on("terminal:input", (_event, payload) => {
+trustedIpc.on("terminal:input", (_event, payload) => {
   let id = null;
   try {
     id = assertTerminalId(payload?.id);
@@ -1065,6 +1148,7 @@ ipcMain.on("terminal:input", (_event, payload) => {
   const proc = activeProcesses.get(id);
   if (!proc || proc.killed) return;
   try {
+    assertExecutionAllowed(proc.workspaceCwd);
     const text = String(input ?? "");
     if (text.length === 0 || byteLength(text) > MAX_TERMINAL_INPUT_LENGTH) return;
     proc.stdin?.write(text);

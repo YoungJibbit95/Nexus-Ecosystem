@@ -1,4 +1,4 @@
-import type { DirectoryEntry, GithubPort, Options, Platform, TerminalOutput } from './contracts.ts';
+import type { DirectoryEntry, GithubPort, Options, Platform, TerminalOutput, WorkspaceTrustState } from './contracts.ts';
 import { githubOperations } from './contracts.ts';
 import { createBridgeAdapter, decodeBoolean, decodeString, decodeUnknown, decodeVoid } from './bridgeAdapter.ts';
 import { isRecord } from './errors.ts';
@@ -23,8 +23,22 @@ function createPlatform(kind: Platform['kind'], source?: unknown): Platform {
   const github = Object.fromEntries(githubOperations.map(operation => [operation,
     (options?: Options | string) => native(`github.${operation}`, githubMethod(operation), options === undefined ? [] : [options]),
   ])) as Omit<GithubPort, 'capability'>;
+  const trustState = (value: unknown): WorkspaceTrustState => {
+    if (!isRecord(value) || typeof value.path !== 'string' || typeof value.trusted !== 'boolean' ||
+        value.mode !== (value.trusted ? 'trusted' : 'restricted') || typeof value.storageError !== 'boolean' ||
+        typeof value.revision !== 'number' || !Number.isSafeInteger(value.revision) || value.revision < 0 ||
+        (value.storageError && value.trusted)) throw new TypeError('Invalid workspace trust response');
+    return { path: value.path, trusted: value.trusted, mode: value.trusted ? 'trusted' : 'restricted', revision: value.revision, storageError: value.storageError };
+  };
   return {
     kind, os,
+    trust: {
+      capability: bridge.capability(['getWorkspaceTrust','requestWorkspaceTrust','revokeWorkspaceTrust','onWorkspaceTrustChanged']),
+      status: root => bridge.call('trust.status','getWorkspaceTrust',[root],trustState,true),
+      request: root => bridge.call('trust.request','requestWorkspaceTrust',[root],trustState,true),
+      revoke: root => bridge.call('trust.revoke','revokeWorkspaceTrust',[root],trustState,true),
+      onChanged: callback => bridge.subscribe('trust.onChanged','onWorkspaceTrustChanged',[],callback,trustState),
+    },
     window: {
       capability: bridge.capability(['minimize','maximize','close','isMaximized','onMaximized','onFullscreen']),
       minimize: () => plain('window.minimize','minimize',[],decodeVoid),

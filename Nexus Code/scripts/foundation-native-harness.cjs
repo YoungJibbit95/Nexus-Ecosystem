@@ -79,6 +79,11 @@ app.once('browser-window-created',(_event,window)=>{
         assert.doesNotMatch(JSON.stringify(git),/private\.txt|[A-Z]:\\/);
       });
       await check('real-runner-through-adapter-subscriptions-with-spaced-path',async()=>{
+        assert.equal((await call('trust','status',workspace)).data.trusted,false);
+        dialog.showMessageBox = async()=>({response:0});
+        assert.equal((await call('trust','request',workspace)).data.trusted,false);
+        dialog.showMessageBox = async()=>({response:1});
+        assert.equal((await call('trust','request',workspace)).data.trusted,true);
         const runner=path.join(workspace,'runner.cjs');
         fs.writeFileSync(runner,`process.stdout.write('adapter-stdout'); process.stderr.write('adapter-stderr'); process.stdin.once('data',data=>{process.stdout.write('input:'+data.toString().trim());process.exit(7);});setTimeout(()=>process.exit(9),5000);`);
         const result=await evaluate(`new Promise((resolve,reject)=>{
@@ -93,6 +98,7 @@ app.once('browser-window-created',(_event,window)=>{
         })`);
         const output=result.output.map(entry=>entry.text).join('\n');
         assert.match(output,/adapter-stdout/);assert.match(output,/adapter-stderr/);assert.match(output,/input:fixture-input/);assert.equal(result.code,7);
+        assert.equal((await call('trust','revoke',workspace)).data.trusted,false);
       });
       finish();
     } catch(error) {console.error(error);finish(error);}

@@ -6,6 +6,7 @@ const path = require("path");
 const { spawn } = require("child_process");
 const { redactSensitiveText } = require("./processRunner.cjs");
 const { createSanitizedProcessEnv } = require("./safeProcessEnv.cjs");
+const { stopProcessTree } = require("./stopProcessTree.cjs");
 
 const MAX_LSP_PAYLOAD_BYTES = 8 * 1024 * 1024;
 const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
@@ -376,7 +377,7 @@ function createLspProcessService(options = {}) {
   };
 
   const cleanupSession = (session, status = {}) => {
-    if (!sessions.has(session.id)) return;
+    if (sessions.get(session.id) !== session) return;
     sessions.delete(session.id);
     for (const pending of session.pending.values()) {
       clearTimeout(pending.timeout);
@@ -411,13 +412,16 @@ function createLspProcessService(options = {}) {
   };
 
   const writeMessage = (session, payload) => {
+    options.authorize?.(session.workspaceRoot);
     if (!session.proc || session.proc.killed) {
       throw new Error("LSP server is not running.");
     }
     session.proc.stdin.write(encodeJsonRpcMessage(payload));
   };
 
-  const startSession = async ({ languageId, workspaceRoot }) => {
+  const startSession = async ({ languageId, workspaceRoot, assertPermit = () => {} }) => {
+    options.authorize?.(workspaceRoot);
+    assertPermit();
     const normalizedLanguageId = normalizeLanguageId(languageId);
     if (!normalizedLanguageId) throw new Error("Language id is required.");
     if (!workspaceRoot) throw new Error("Workspace root is required.");
@@ -486,12 +490,21 @@ function createLspProcessService(options = {}) {
     }
 
     let proc = null;
+    options.authorize?.(workspaceRoot);
+    assertPermit();
+    // Another lookup may have completed while this start awaited availability.
+    // Reuse its registered child; never orphan a process behind the same id.
+    const concurrent = sessions.get(sessionId);
+    if (concurrent && !concurrent.proc.killed) {
+      return startSession({ languageId, workspaceRoot, assertPermit });
+    }
     try {
       proc = spawn(config.command, config.args, {
         cwd: workspaceRoot,
         env: createSanitizedProcessEnv(),
         stdio: ["pipe", "pipe", "pipe"],
         windowsHide: true,
+        detached: process.platform !== "win32",
       });
     } catch (error) {
       const message = redactSensitiveText(error?.message || "LSP server failed to start.");
@@ -542,11 +555,13 @@ function createLspProcessService(options = {}) {
     });
 
     proc.stdout.on("data", (chunk) => {
+      if (sessions.get(sessionId) !== session) return;
       session.buffer = Buffer.concat([session.buffer, chunk]);
       parseBufferedMessages(session, (message) => handleMessage(session, message));
     });
 
     proc.stderr.on("data", (chunk) => {
+      if (sessions.get(sessionId) !== session) return;
       session.stderr = `${session.stderr}${chunk.toString("utf8")}`.slice(-16_000);
       emitStatus(session, {
         state: "stderr",
@@ -555,6 +570,7 @@ function createLspProcessService(options = {}) {
     });
 
     proc.on("spawn", () => {
+      if (sessions.get(sessionId) !== session) return;
       rememberRuntime(normalizedLanguageId, {
         lastState: "running",
         lastError: null,
@@ -572,6 +588,7 @@ function createLspProcessService(options = {}) {
     });
 
     proc.on("error", (error) => {
+      if (sessions.get(sessionId) !== session) return;
       const message = redactSensitiveText(error?.message || "LSP server failed.");
       rememberRuntime(normalizedLanguageId, {
         lastError: message,
@@ -591,6 +608,7 @@ function createLspProcessService(options = {}) {
     });
 
     proc.on("close", (code) => {
+      if (sessions.get(sessionId) !== session) return;
       const exitCode = typeof code === "number" ? code : null;
       const message = session.stderr ? redactSensitiveText(session.stderr).slice(-2_000) : undefined;
       rememberRuntime(normalizedLanguageId, {
@@ -691,9 +709,7 @@ function createLspProcessService(options = {}) {
     stopSession(sessionId) {
       const session = sessions.get(String(sessionId || ""));
       if (!session) return false;
-      try {
-        session.proc.kill("SIGTERM");
-      } catch {}
+      stopProcessTree(session.proc);
       cleanupSession(session, { state: "stopped" });
       return true;
     },
@@ -737,9 +753,7 @@ function createLspProcessService(options = {}) {
 
     dispose() {
       for (const session of Array.from(sessions.values())) {
-        try {
-          session.proc.kill("SIGTERM");
-        } catch {}
+        stopProcessTree(session.proc);
         cleanupSession(session, { state: "stopped" });
       }
     },

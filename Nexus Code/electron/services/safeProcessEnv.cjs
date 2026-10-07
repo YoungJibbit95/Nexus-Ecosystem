@@ -43,22 +43,22 @@ const splitEnvList = (value) => String(value || "")
   .map((entry) => entry.trim())
   .filter(Boolean);
 
-const resolveEnvKey = (name) => Object.keys(process.env)
+const resolveEnvKey = (name, source) => Object.keys(source)
   .find((key) => key.toLowerCase() === String(name || "").toLowerCase());
 
-const createSanitizedProcessEnv = (overrides = {}) => {
+const createSanitizedProcessEnv = (overrides = {}, { allowExtra = true, source = process.env } = {}) => {
   const allowedNames = new Set(DEFAULT_ALLOWED_ENV_NAMES);
-  for (const key of EXTRA_ALLOWLIST_ENV_KEYS) {
-    for (const entry of splitEnvList(process.env[key])) {
+  for (const key of allowExtra ? EXTRA_ALLOWLIST_ENV_KEYS : []) {
+    for (const entry of splitEnvList(source[key])) {
       allowedNames.add(entry);
     }
   }
 
   const next = {};
   for (const name of allowedNames) {
-    const sourceKey = resolveEnvKey(name);
-    if (!sourceKey || process.env[sourceKey] == null) continue;
-    next[sourceKey] = String(process.env[sourceKey]);
+    const sourceKey = resolveEnvKey(name, source);
+    if (!sourceKey || source[sourceKey] == null) continue;
+    next[sourceKey] = String(source[sourceKey]);
   }
 
   next.NEXUS_SANITIZED_CHILD_ENV = "1";

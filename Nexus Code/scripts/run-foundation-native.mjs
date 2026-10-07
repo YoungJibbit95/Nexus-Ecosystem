@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 
 const project = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(path.join(project,'package.json'));
-const root = path.resolve(project,'../.test-artifacts/nexus-code/foundation-native');
+const root = process.env.NEXUS_SECURITY_ARTIFACTS ? path.resolve(process.env.NEXUS_SECURITY_ARTIFACTS, 'foundation-native') : path.resolve(project,'../.test-artifacts/nexus-code/foundation-native');
 fs.mkdirSync(root,{recursive:true});
 const run = fs.mkdtempSync(path.join(root,'run-'));
 await build({configFile:false,root:project,logLevel:'warn',build:{

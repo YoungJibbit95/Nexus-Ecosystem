@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 import path from "path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import contentSecurity from "./electron/services/contentSecurityPolicy.cjs";
 
 const configDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -257,8 +258,22 @@ const manualChunks = (id) => {
   return undefined;
 };
 
-export default defineConfig({
-  plugins: [react(), createNexusCodeChunkReportPlugin()],
+export default defineConfig(({ command }) => ({
+  plugins: [react(), createNexusCodeChunkReportPlugin(), {
+    name: "nexus-code-document-security",
+    transformIndexHtml: {
+      order: "pre",
+      handler(_html, context) {
+        const address = context.server?.httpServer?.address();
+        const port = address && typeof address === "object" ? address.port : 5175;
+        const scheme = context.server?.config.server.https ? "https" : "http";
+        return [{ tag: "meta", attrs: {
+          "http-equiv": "Content-Security-Policy",
+          content: contentSecurity.buildContentSecurityPolicy({ isDev: command === "serve", devUrl: `${scheme}://127.0.0.1:${port}`, meta: true }),
+        }, injectTo: "head-prepend" }];
+      },
+    },
+  }],
   base: "./",
   resolve: {
     dedupe: ["react", "react-dom"],
@@ -293,4 +308,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

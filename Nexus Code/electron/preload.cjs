@@ -184,6 +184,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onFullscreen: (callback) => onIpc("window:fullscreen", callback),
 
   openFolder: () => ipcRenderer.invoke("dialog:open-folder"),
+  getWorkspaceTrust: (root) => ipcRenderer.invoke("workspace:trust-status", sanitizePath(root)),
+  requestWorkspaceTrust: (root) => ipcRenderer.invoke("workspace:request-trust", sanitizePath(root)),
+  revokeWorkspaceTrust: (root) => ipcRenderer.invoke("workspace:revoke-trust", sanitizePath(root)),
+  onWorkspaceTrustChanged: (callback) => onIpc("workspace:trust-changed", callback),
   readDir: (targetPath) => ipcRenderer.invoke("fs:read-directory", sanitizePath(targetPath)),
   readFile: (targetPath) => ipcRenderer.invoke("fs:read-file", sanitizePath(targetPath)),
   writeFile: (targetPath, content) => ipcRenderer.invoke(
