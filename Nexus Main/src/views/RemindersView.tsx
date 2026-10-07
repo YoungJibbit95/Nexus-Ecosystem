@@ -6,6 +6,7 @@ import React, {
   useRef,
 } from "react";
 import { canHandleViewKeyboardEvent, hasPlainShortcutModifiers, isEditableShortcutTarget, useActiveViewCommandScope } from "../app/ViewCommandScope";
+import { useProductNavigationTarget } from '../app/useProductNavigation';
 import {
   Plus,
   Bell,
@@ -79,6 +80,13 @@ export function RemindersView({
     string | null
   >(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const navigationMessage = useProductNavigationTarget('reminder', target => {
+    if (!useApp.getState().reminders.some(reminder => reminder.id === target.id)) return false;
+    searchInputRef.current?.focus();
+    setNewOpen(false);
+    setEditId(target.id);
+    return true;
+  });
 
   // Tick every 30s
   useEffect(() => {
@@ -373,6 +381,7 @@ export function RemindersView({
       }}
     >
       {/* ── Header ── */}
+      {navigationMessage && <p role="alert">{navigationMessage}</p>}
       <div
         className="nx-reminders-toolbar nx-release-toolbar"
         style={{

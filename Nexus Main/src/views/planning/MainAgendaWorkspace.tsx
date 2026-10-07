@@ -66,6 +66,7 @@ type Feedback = {
 }
 export type MainAgendaWorkspaceProps = {
   selectedDay?: string
+  readRequest?: number
   initialTaskId?: string
   initialStart?: string
   onDayChange?: (day: string) => void
@@ -151,6 +152,8 @@ export function MainAgendaWorkspace(props: MainAgendaWorkspaceProps) {
     openerRef = useRef<HTMLElement | null>(null)
   const localNavigationCursor = useRef(''),
     navigationCursor = props.navigationCursor || localNavigationCursor
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const readCursor = useRef(0)
   const localImportCursor = useRef(0),
     importCursor = props.importCursor || localImportCursor
   const catalog = { notes, canvases } as unknown as EntityCatalog
@@ -184,6 +187,7 @@ export function MainAgendaWorkspace(props: MainAgendaWorkspaceProps) {
     setEditorOpen(true)
   }
   useEffect(() => {
+    if (!isViewCommandScopeActive(activeScope)) return
     if (navigation && navigationCursor.current !== navigation.requestId) {
       navigationCursor.current = navigation.requestId
       openerRef.current = document.querySelector<HTMLElement>(
@@ -199,7 +203,14 @@ export function MainAgendaWorkspace(props: MainAgendaWorkspaceProps) {
         taskId: props.initialTaskId,
         localStart: props.initialStart,
       })
-  }, [navigation?.requestId, props.initialTaskId, props.initialStart])
+  }, [navigation?.requestId, props.initialTaskId, props.initialStart, activeScope])
+  useEffect(() => {
+    if (!isViewCommandScopeActive(activeScope) || !props.readRequest || props.readRequest === readCursor.current) return
+    readCursor.current = props.readRequest
+    setEditorOpen(false); setTool('day'); setSearch(''); setTaskFilter('today'); setHistory(false)
+    const frame = requestAnimationFrame(() => headingRef.current?.focus())
+    return () => cancelAnimationFrame(frame)
+  }, [props.readRequest, activeScope])
   useEffect(() => {
     if (props.importRequest && importCursor.current !== props.importRequest) {
       importCursor.current = props.importRequest
@@ -439,7 +450,7 @@ export function MainAgendaWorkspace(props: MainAgendaWorkspaceProps) {
           <span className="nx-agenda-eyebrow">
             <Calendar size={15} /> DEIN TAG
           </span>
-          <h1>Agenda</h1>
+          <h1 ref={headingRef} tabIndex={-1}>Agenda</h1>
           <p>Termine im Blick. Aufgaben in Zeit verwandeln.</p>
         </div>
         <div className="nx-agenda-header-controls">
