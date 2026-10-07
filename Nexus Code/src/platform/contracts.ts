@@ -52,6 +52,16 @@ export interface TerminalPort {
   onExit: Subscription<number, [id: number]>;
   onReady: Subscription<void, [id: number]>;
 }
+export interface WorkspaceTrustState {
+  path: string; trusted: boolean; mode: 'restricted' | 'trusted'; revision: number; storageError: boolean;
+}
+export interface WorkspaceTrustPort {
+  capability: Capability;
+  status: AsyncPort<[root: string], WorkspaceTrustState>;
+  request: AsyncPort<[root: string], WorkspaceTrustState>;
+  revoke: AsyncPort<[root: string], WorkspaceTrustState>;
+  onChanged: Subscription<WorkspaceTrustState>;
+}
 export interface GitPort {
   capability: Capability;
   status: AsyncPort<[repo: string], unknown>; remotes: AsyncPort<[repo: string], unknown>;
@@ -89,5 +99,6 @@ export interface Platform {
   kind: 'electron' | 'browser' | 'test';
   os: string;
   window: WindowPort; workspace: WorkspacePort; terminal: TerminalPort;
+  trust: WorkspaceTrustPort;
   git: GitPort; github: GithubPort; lsp: LspPort;
 }

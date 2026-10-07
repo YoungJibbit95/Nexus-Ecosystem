@@ -1,7 +1,7 @@
 const { app, BrowserWindow } = require('electron')
 const path = require('node:path')
 const os = require('node:os')
-app.setPath('userData', path.join(os.tmpdir(), `nexus-persistence-test-${process.pid}`))
+app.setPath('userData', path.join(process.env.NEXUS_SECURITY_ARTIFACTS || os.tmpdir(), `nexus-persistence-test-${process.pid}`))
 app.commandLine.appendSwitch('disable-background-timer-throttling')
 app.commandLine.appendSwitch('disable-renderer-backgrounding')
 app.disableHardwareAcceleration()

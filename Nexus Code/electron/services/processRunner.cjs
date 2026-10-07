@@ -99,8 +99,9 @@ const appendChunk = (chunks, nextChunk, state, maxBufferBytes, streamName, child
 };
 
 const normalizeEnv = (env) => {
-  if (!env || typeof env !== "object" || Array.isArray(env)) return process.env;
-  const merged = { ...process.env };
+  // Explicit replacement, never merge omitted secrets/helper variables back in.
+  if (!env || typeof env !== "object" || Array.isArray(env)) throw new ProcessRunnerError("An explicit process environment is required.", { code: "INVALID_ENV" });
+  const merged = {};
   for (const [key, value] of Object.entries(env)) {
     if (typeof key !== "string" || key.includes("\0")) continue;
     if (value === undefined || value === null) {

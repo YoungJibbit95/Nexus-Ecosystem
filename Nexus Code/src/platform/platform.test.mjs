@@ -2,6 +2,16 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createBrowserPlatform, createTestPlatform, getRendererPlatform } from './platform.ts';
 import { normalizePlatformError, requirePlatformData } from './errors.ts';
+test('trust adapter fails closed for missing and inconsistent responses', async () => {
+  assert.equal((await createBrowserPlatform().trust.status('/root')).error.code,'UNAVAILABLE');
+  for (const data of [true,{path:'/root',trusted:true,mode:'restricted',revision:1,storageError:false},{path:'/root',trusted:true,mode:'trusted',revision:1,storageError:true}]) {
+    const platform=createTestPlatform({getWorkspaceTrust:async()=>({ok:true,data})});
+    assert.equal((await platform.trust.status('/root')).error.code,'INVALID_RESPONSE');
+  }
+  const state={path:'/root',trusted:false,mode:'restricted',revision:0,storageError:false};
+  assert.deepEqual((await createTestPlatform({getWorkspaceTrust:async()=>({ok:true,data:state})}).trust.status('/root')).data,state);
+  assert.equal(normalizePlatformError('git.status','WORKSPACE_TRUST_REQUIRED').code,'PERMISSION_DENIED');
+});
 test('browser/missing and partial bridges expose truthful capabilities', async () => {
   const browser = createBrowserPlatform();
   assert.equal(browser.kind,'browser');

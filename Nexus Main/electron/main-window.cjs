@@ -2,17 +2,37 @@
 const { app, BrowserWindow, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { fileURLToPath } = require('url');
 
 const DEV_URL = 'http://localhost:5173';
 const WINDOW_SHOW_FALLBACK_MS = 4_500;
 const RENDERER_BOOT_CHECK_MS = 2_800;
 
-const isAllowedNavigation = (url, isDev) => {
+const isAllowedNavigation = (url, isDev, rendererIndex = path.join(__dirname, '..', 'dist', 'index.html')) => {
   if (!url || typeof url !== 'string') return false;
-  if (isDev) {
-    return url.startsWith(`${DEV_URL}/`) || url === DEV_URL;
+  try {
+    const parsed = new URL(url);
+    if (parsed.username || parsed.password) return false;
+    if (isDev) return parsed.origin === DEV_URL;
+    if (parsed.protocol !== 'file:' || parsed.hostname) return false;
+    const candidate = fileURLToPath(parsed);
+    const root = path.dirname(rendererIndex);
+    const within = (target, base) => {
+      const relative = path.relative(base, target);
+      return relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+    };
+    const realpath = fs.realpathSync.native || fs.realpathSync;
+    return within(candidate, root) && within(realpath(candidate), realpath(root));
+  } catch {
+    return false;
   }
-  return url.startsWith('file://');
+};
+
+const isAllowedExternalUrl = (url) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && Boolean(parsed.hostname) && !parsed.username && !parsed.password;
+  } catch { return false; }
 };
 
 const buildRendererFailureHtml = (reason, details) => {
@@ -29,7 +49,7 @@ function createMainWindow(onClosed) {
   const distIndexPath = path.join(__dirname, '..', 'dist', 'index.html');
   const hasDistIndex = fs.existsSync(distIndexPath);
   const forceDev = process.argv.includes('--dev') || process.env.ELECTRON_DEV === 'true';
-  const isDev = forceDev || (!app.isPackaged && !hasDistIndex);
+  const isDev = !app.isPackaged && (forceDev || !hasDistIndex);
   const win = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -192,16 +212,21 @@ function createMainWindow(onClosed) {
   });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url && /^https?:\/\//i.test(url)) {
+    if (isAllowedExternalUrl(url)) {
       shell.openExternal(url).catch(() => {});
     }
     return { action: 'deny' };
   });
 
-  win.webContents.on('will-navigate', (event, url) => {
-    if (!isAllowedNavigation(url, isDev)) {
+  const guardNavigation = (event, url) => {
+    if (!isAllowedNavigation(url, isDev, distIndexPath)) {
       event.preventDefault();
     }
+  };
+  win.webContents.on('will-navigate', guardNavigation);
+  win.webContents.on('will-redirect', guardNavigation);
+  win.webContents.on('will-frame-navigate', (event) => {
+    if (!event.isMainFrame || !isAllowedNavigation(event.url, isDev, distIndexPath)) event.preventDefault();
   });
 
   win.once('ready-to-show', () => {
@@ -217,4 +242,4 @@ function createMainWindow(onClosed) {
   return win;
 }
 
-module.exports = { createMainWindow };
+module.exports = { createMainWindow, isAllowedNavigation, isAllowedExternalUrl };

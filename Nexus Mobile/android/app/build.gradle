@@ -4,6 +4,14 @@ def nexusReleaseStoreFile = System.getenv('NEXUS_ANDROID_KEYSTORE_FILE')
 def nexusReleaseStorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD')
 def nexusReleaseKeyAlias = System.getenv('ANDROID_KEY_ALIAS')
 def nexusReleaseKeyPassword = System.getenv('ANDROID_KEY_PASSWORD')
+def nexusCandidateFlag = project.findProperty('nexusUnsignedCandidate')
+if (nexusCandidateFlag != null && !(nexusCandidateFlag in ['true', 'false'])) {
+    throw new GradleException('nexusUnsignedCandidate must be the literal true or false.')
+}
+def nexusUnsignedCandidate = nexusCandidateFlag == 'true'
+if (nexusUnsignedCandidate && [nexusReleaseStoreFile, nexusReleaseStorePassword, nexusReleaseKeyAlias, nexusReleaseKeyPassword].any { value -> value != null && !value.trim().isEmpty() }) {
+    throw new GradleException('Unsigned candidate builds must not receive Android signing credentials.')
+}
 def nexusReleaseSigningReady = [
     nexusReleaseStoreFile,
     nexusReleaseStorePassword,
@@ -52,7 +60,7 @@ gradle.taskGraph.whenReady { graph ->
     def requestsReleaseArtifact = graph.allTasks.any { task ->
         task.project == project && task.name.toLowerCase().contains('release')
     }
-    if (requestsReleaseArtifact && !nexusReleaseSigningReady) {
+    if (requestsReleaseArtifact && !nexusReleaseSigningReady && !nexusUnsignedCandidate) {
         throw new GradleException('Release builds require the Nexus Android signing environment.')
     }
 }

@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { resolveApiSource, resolveControlUiRoot } from './lib/api-source.mjs'
+import { assertInstallerWorkflowPolicy } from './lib/installer-workflow-policy.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -420,32 +421,44 @@ const run = async () => {
     {
       id: 'installer-workflow-main-linux-appimage',
       file: path.join(ROOT, '.github/workflows/build-installers.yml'),
-      pattern: /app_name:\s*"Nexus Main"[\s\S]*?target:\s*"linux"[\s\S]*?npm_script:\s*"electron:build:linux"/,
+      pattern: /app_dir:\s*"Nexus Main"\s+app_slug:\s*"nexus-main"\s+target:\s*"linux"\s+arch:\s*"x64"/,
       message: 'Installer-Workflow baut Nexus Main Linux AppImage',
     },
     {
       id: 'installer-workflow-code-linux-appimage',
       file: path.join(ROOT, '.github/workflows/build-installers.yml'),
-      pattern: /app_name:\s*"Nexus Code"[\s\S]*?target:\s*"linux"[\s\S]*?npm_script:\s*"electron:build:linux"/,
+      pattern: /app_dir:\s*"Nexus Code"\s+app_slug:\s*"nexus-code"\s+target:\s*"linux"\s+arch:\s*"x64"/,
       message: 'Installer-Workflow baut Nexus Code Linux AppImage',
     },
     {
       id: 'installer-workflow-uploads-linux-artifacts',
       file: path.join(ROOT, '.github/workflows/build-installers.yml'),
-      pattern: /\*\*\/\*\.AppImage[\s\S]*?\*\*\/\*\.deb/,
+      pattern: /Collect distribution files only[\s\S]*?installer-payload\.mjs collect[\s\S]*?upload-artifact@[a-f0-9]{40}[\s\S]*?path: "\$\{\{ runner\.temp \}\}\/distribution"/,
       message: 'Installer-Workflow laedt Linux AppImage/deb Artefakte hoch',
     },
     {
       id: 'installer-workflow-signing-gate',
       file: path.join(ROOT, '.github/workflows/build-installers.yml'),
-      pattern: /signing_required[\s\S]*?Verify signing configuration[\s\S]*?verify-signing-env\.mjs[\s\S]*?NEXUS_SIGNING_REQUIRED/,
-      message: 'Installer-Workflow prueft Signing-Secrets vor Public Release Builds',
+      validate: assertInstallerWorkflowPolicy,
+      message: 'Installer-Workflow trennt Build, geschuetzte Signierung, Checksums und manuelles Publishing',
     },
     {
       id: 'installer-workflow-checksums',
       file: path.join(ROOT, '.github/workflows/build-installers.yml'),
-      pattern: /Generate checksums[\s\S]*?generate-installer-checksums\.mjs[\s\S]*?upload-artifact[\s\S]*?SHA256SUMS\.txt/,
+      pattern: /Sign installer checksums[\s\S]*?generate-installer-checksums\.mjs[^\n]*--require-signature[\s\S]*?upload-artifact@[a-f0-9]{40}[\s\S]*?name: "checksummed-/,
       message: 'Installer-Workflow erzeugt SHA256SUMS fuer Download-Artefakte',
+    },
+    {
+      id: 'installer-fixed-signing-recipe',
+      file: path.join(ROOT, 'tools/lib/installer-payload.mjs'),
+      pattern: /extends: null[\s\S]*?npmRebuild: false[\s\S]*?forceCodeSigning: signed[\s\S]*?hardenedRuntime: true[\s\S]*?\['AppImage', 'deb'\]/,
+      message: 'Feste Installer-Konfiguration erhaelt strikte Signierung und Linux-Formate ohne Artefakt-Hooks',
+    },
+    {
+      id: 'installer-signing-required-credentials',
+      file: path.join(ROOT, 'tools/installer-payload.mjs'),
+      pattern: /\['CSC_LINK', 'CSC_KEY_PASSWORD'[\s\S]*?APPLE_ID[\s\S]*?APPLE_APP_SPECIFIC_PASSWORD[\s\S]*?APPLE_TEAM_ID[\s\S]*?Required signing configuration missing[\s\S]*?cwd: recipe\.projectRoot/,
+      message: 'Signierprozess scheitert ohne notwendige Credentials und nutzt ein frisches Packaging-Projekt',
     },
     {
       id: 'mac-pack-notarization',
@@ -699,12 +712,18 @@ const run = async () => {
 
   for (const check of fileChecks) {
     const content = await readFileSafe(check.file)
-    const ok = Boolean(content && check.pattern.test(content))
+    let ok = false
+    if (content) {
+      try {
+        if (check.validate) { check.validate(content); ok = true }
+        else ok = check.pattern.test(content)
+      } catch { ok = false }
+    }
     checks.push({
       id: check.id,
       ok,
       message: check.message,
-      details: ok ? path.relative(ROOT, check.file) : `missing-pattern in ${path.relative(ROOT, check.file)}`,
+      details: ok ? path.relative(ROOT, check.file) : `invalid-contract in ${path.relative(ROOT, check.file)}`,
     })
   }
 

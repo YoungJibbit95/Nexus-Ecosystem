@@ -21,7 +21,7 @@ export function normalizePlatformError(operation: string, cause: unknown, explic
   const nativeCode = isRecord(cause) && typeof cause.code === 'string' && safeNativeCodes.has(cause.code) ? cause.code : undefined;
   const code = explicitCode ?? (/timeout|timed out/i.test(raw) ? 'TIMEOUT'
     : /abort|cancel/i.test(raw) ? 'CANCELED'
-    : /outside|protected|not allowed|denied|workspace.*selected|workspace-ordner auswaehlen|workspace root.*cannot be modified/i.test(raw) || nativeCode === 'EACCES' || nativeCode === 'EPERM' ? 'PERMISSION_DENIED'
+    : /outside|protected|not allowed|denied|WORKSPACE_TRUST_REQUIRED|workspace.*selected|workspace-ordner auswaehlen|workspace root.*cannot be modified/i.test(raw) || nativeCode === 'EACCES' || nativeCode === 'EPERM' ? 'PERMISSION_DENIED'
     : /too large|too many/i.test(raw) ? 'RESOURCE_LIMIT'
     : /invalid|must be|requires/i.test(raw) ? 'INVALID_INPUT'
     : /auth|sign.in|token.*required/i.test(raw) ? 'AUTH_REQUIRED'

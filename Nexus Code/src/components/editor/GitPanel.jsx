@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { getRendererPlatform } from '../../platform/platform.ts';
 import {
   AlertCircle,
   Check,
@@ -171,7 +172,7 @@ function getSyncBadgeTone(syncTone) {
       : "muted";
 }
 
-function FileRow({ file, staged, selected, busy, onSelect, onToggle }) {
+function FileRow({ file, staged, selected, busy, restricted, onSelect, onToggle }) {
   const meta = STATUS_META[file.status] || STATUS_META.U;
   const actionLabel = staged ? "Unstage" : "Stage";
   const scopeLabel =
@@ -242,9 +243,9 @@ function FileRow({ file, staged, selected, busy, onSelect, onToggle }) {
         <button
           type="button"
           onClick={() => onToggle(file)}
-          disabled={busy}
+          disabled={busy || restricted}
           aria-label={`${actionLabel} ${file.path || file.name}`}
-          title={`${actionLabel} ${file.path || file.name}`}
+          title={restricted ? 'Git changes require workspace trust.' : `${actionLabel} ${file.path || file.name}`}
           className="my-1 mr-1 grid h-6 w-6 shrink-0 place-items-center rounded-sm border border-transparent text-gray-400 opacity-75 transition-colors hover:border-white/[0.05] hover:bg-white/[0.04] hover:text-gray-100 group-hover:opacity-100 disabled:cursor-wait disabled:opacity-50"
         >
           {busy ? (
@@ -396,7 +397,9 @@ function uniqueFilePaths(files) {
   );
 }
 
-export default function GitPanel({ files }) {
+export default function GitPanel({ files, workspacePath }) {
+  const platform = useMemo(getRendererPlatform, []);
+  const [trust, setTrust] = useState(null);
   const fileList = useMemo(() => (Array.isArray(files) ? files : []), [files]);
   const [commitMsg, setCommitMsg] = useState("");
   const [staged, setStaged] = useState(new Set());
@@ -439,7 +442,17 @@ export default function GitPanel({ files }) {
     settings: false,
   });
 
-  const workspaceRoot = useMemo(() => inferWorkspaceRoot(fileList), [fileList]);
+  const workspaceRoot = useMemo(() => workspacePath || inferWorkspaceRoot(fileList), [fileList, workspacePath]);
+  const canMutate = trust?.path === workspaceRoot && trust?.trusted === true;
+  useEffect(() => {
+    let disposed = false;
+    setTrust(null);
+    if (!workspaceRoot) return;
+    const update = state => { if (!disposed && state.path === workspaceRoot) setTrust(current => current && current.revision > state.revision ? current : state); };
+    const subscription = platform.trust.onChanged(update);
+    void platform.trust.status(workspaceRoot).then(result => { if (result.ok) update(result.data); });
+    return () => { disposed = true; if (subscription.ok) subscription.data(); };
+  }, [platform, workspaceRoot]);
   const hasWorkspace = Boolean(workspaceRoot);
   const branch = hasWorkspace ? status.branch || "main" : "No workspace";
   const changedFiles = useMemo(() => status.files || [], [status.files]);
@@ -453,8 +466,8 @@ export default function GitPanel({ files }) {
   );
   const hasLocalGit = hasWorkspace && gitCapability.available;
   const canDiff = hasLocalGit && gitCapability.methods.includes("diff");
-  const canPull = hasLocalGit && gitCapability.methods.includes("pull");
-  const canPush = hasLocalGit && gitCapability.methods.includes("push");
+  const canPull = hasLocalGit && canMutate && gitCapability.methods.includes("pull");
+  const canPush = hasLocalGit && canMutate && gitCapability.methods.includes("push");
   const clean = changedFiles.length === 0 || status.clean;
   const selectedFile = useMemo(
     () => changedFiles.find((file) => file.id === selectedFileId) || null,
@@ -731,6 +744,7 @@ export default function GitPanel({ files }) {
     setSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const toggleStage = async (file) => {
+    if (!canMutate) return;
     const nextStaged = !staged.has(file.id);
     setSelectedFileId(file.id);
     setStageBusyIds((prev) => new Set(prev).add(file.id));
@@ -776,6 +790,7 @@ export default function GitPanel({ files }) {
   };
 
   const stageAll = async () => {
+    if (!canMutate) return;
     if (unstagedFiles.length === 0 || bulkAction) return;
     const previous = staged;
     setBulkAction("stage");
@@ -803,6 +818,7 @@ export default function GitPanel({ files }) {
   };
 
   const unstageAll = async () => {
+    if (!canMutate) return;
     if (stagedFiles.length === 0 || bulkAction) return;
     const previous = staged;
     setBulkAction("unstage");
@@ -952,6 +968,7 @@ export default function GitPanel({ files }) {
   };
 
   const canCommit =
+    canMutate &&
     hasWorkspace &&
     hasLocalGit &&
     commitMsg.trim().length > 0 &&
@@ -1064,6 +1081,7 @@ export default function GitPanel({ files }) {
         }
       />
 
+      {hasWorkspace && !canMutate && <div role="status" className="px-3 py-2 text-xs text-amber-200">Safe Git inspection is available. Trust this workspace to stage, commit or switch branches.</div>}
       {hasWorkspace && (
         <div className="shrink-0 px-3 pb-1.5">
           <div
@@ -1424,7 +1442,7 @@ export default function GitPanel({ files }) {
           onToggle={() => toggleSection("changes")}
           action={unstagedFiles.length > 0 ? stageAll : null}
           actionLabel={bulkAction === "stage" ? "Staging" : "Stage all"}
-          actionDisabled={Boolean(bulkAction)}
+          actionDisabled={!canMutate || Boolean(bulkAction)}
         />
         <AnimatePresence>
           {sections.changes && (
@@ -1443,6 +1461,7 @@ export default function GitPanel({ files }) {
                     staged={false}
                     selected={selectedFileId === file.id}
                     busy={stageBusyIds.has(file.id)}
+                    restricted={!canMutate}
                     onSelect={(nextFile) => setSelectedFileId(nextFile.id)}
                     onToggle={toggleStage}
                   />
@@ -1470,7 +1489,7 @@ export default function GitPanel({ files }) {
           onToggle={() => toggleSection("staged")}
           action={stagedFiles.length > 0 ? unstageAll : null}
           actionLabel={bulkAction === "unstage" ? "Unstaging" : "Unstage all"}
-          actionDisabled={Boolean(bulkAction)}
+          actionDisabled={!canMutate || Boolean(bulkAction)}
         />
         <AnimatePresence>
           {sections.staged && (
@@ -1489,6 +1508,7 @@ export default function GitPanel({ files }) {
                     staged
                     selected={selectedFileId === file.id}
                     busy={stageBusyIds.has(file.id)}
+                    restricted={!canMutate}
                     onSelect={(nextFile) => setSelectedFileId(nextFile.id)}
                     onToggle={toggleStage}
                   />

@@ -22,7 +22,7 @@ Migrated production consumers: **all 12 raw bridge references in Editor** (works
 
 ## One command authority and one extracted responsibility
 
-`src/workbench/commands/commandRegistry.ts` owns stable identities, aliases, title/category/default shortcut/search terms, dynamic availability/disabled reason, and exactly one handler dispatch. Duplicate identities/aliases fail registration. Unknown/disabled commands and thrown handlers/availability checks yield safe results. The legacy feature catalog continues supplying localized labels/icons/ranking for compatibility; it is not the handler authority for this slice.
+`src/workbench/commands/commandRegistry.ts` owns stable identities, aliases, title/category/default shortcut/search terms, dynamic availability/disabled reason, and exactly one handler dispatch. Duplicate identities/aliases fail registration. Unknown/disabled commands and thrown handlers/availability checks yield safe results. The legacy editor command descriptions continues supplying localized labels/icons/ranking for compatibility; it is not the handler authority for this slice.
 
 `workbenchCommandController.ts` extracts **panel/settings command routing only** from Editor. Its `WorkbenchCommandOwner` reads/writes the existing dock state and accepts the existing open/toggle dock functions and React setters. No mirrored state/store, document controller or new writer was introduced.
 

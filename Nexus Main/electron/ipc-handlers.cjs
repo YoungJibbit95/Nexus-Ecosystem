@@ -2,34 +2,14 @@
 const { dialog, ipcMain, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
-const { spawn } = require('child_process');
 
 const MAX_READ_BYTES = 5 * 1024 * 1024;
 const MAX_WRITE_BYTES = 2 * 1024 * 1024;
-const MAX_EXEC_CODE_BYTES = 800 * 1024;
-const MAX_EXEC_OUTPUT_CHARS = 280_000;
-const EXEC_TIMEOUT_MS = Number(process.env.NEXUS_CODE_EXEC_TIMEOUT_MS || 12_000);
-const SAFE_EXEC_ENV_NAMES = [
-  'PATH',
-  'Path',
-  'SystemRoot',
-  'WINDIR',
-  'ComSpec',
-  'PATHEXT',
-  'TEMP',
-  'TMP',
-  'TMPDIR',
-  'LANG',
-  'LC_ALL',
-  'LC_CTYPE',
-];
-
 const resolveAllowedRoots = () => {
   const envValue = process.env.NEXUS_ALLOWED_FS_ROOTS;
   const roots = envValue
     ? envValue.split(path.delimiter).map((entry) => entry.trim()).filter(Boolean)
-    : [os.homedir()];
+    : [];
 
   return roots.map((root) => path.resolve(root));
 };
@@ -41,10 +21,17 @@ const canonicalizeExistingPath = (targetPath) => {
 
 const ALLOWED_ROOTS = resolveAllowedRoots().map((rootPath) => {
   try {
-    return canonicalizeExistingPath(rootPath);
+    const canonical = canonicalizeExistingPath(rootPath);
+    return fs.statSync(canonical).isDirectory() ? canonical : null;
   } catch {
-    return rootPath;
+    return null;
   }
+}).filter(Boolean);
+
+const accessRequired = () => ({
+  ok: false,
+  code: 'WORKSPACE_ACCESS_REQUIRED',
+  error: 'Bitte den Workspace-Ordner in dieser Sitzung erneut auswaehlen.',
 });
 
 const normalizePathInput = (value) => {
@@ -73,6 +60,12 @@ const resolvePathForAuthorization = (targetPath, allowMissing = false) => {
   const missingSegments = [];
   let existingAncestor = targetPath;
   while (!fs.existsSync(existingAncestor)) {
+    // existsSync follows links: a dangling link is not an ordinary missing path.
+    try {
+      if (fs.lstatSync(existingAncestor).isSymbolicLink()) throw new Error('dangling symbolic link is not allowed');
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
     const parent = path.dirname(existingAncestor);
     if (parent === existingAncestor) {
       throw new Error('path has no existing ancestor');
@@ -91,6 +84,7 @@ const assertAllowedPath = (inputPath, options = {}) => {
   if (!normalized.ok) {
     return { ok: false, error: normalized.error };
   }
+  if (ALLOWED_ROOTS.length === 0) return accessRequired();
 
   let authorizedPath;
   try {
@@ -100,10 +94,7 @@ const assertAllowedPath = (inputPath, options = {}) => {
   }
 
   if (!isPathAllowed(authorizedPath)) {
-    return {
-      ok: false,
-      error: `path not allowed; configure NEXUS_ALLOWED_FS_ROOTS (${ALLOWED_ROOTS.join(', ')})`,
-    };
+    return accessRequired();
   }
 
   return { ok: true, value: authorizedPath };
@@ -111,10 +102,10 @@ const assertAllowedPath = (inputPath, options = {}) => {
 
 const assertTrustedSender = (event, getMainWindow) => {
   const win = typeof getMainWindow === 'function' ? getMainWindow() : null;
-  if (!win || win.isDestroyed?.() || event?.sender !== win.webContents) {
+  if (!win || win.isDestroyed?.() || win.webContents?.isDestroyed?.() || event?.sender !== win.webContents) {
     throw new Error('untrusted IPC sender');
   }
-  if (event.senderFrame && win.webContents.mainFrame && event.senderFrame !== win.webContents.mainFrame) {
+  if (!event.senderFrame || !win.webContents.mainFrame || event.senderFrame !== win.webContents.mainFrame) {
     throw new Error('IPC is restricted to the main renderer frame');
   }
   return win;
@@ -125,289 +116,6 @@ const registerTrustedHandler = (channel, getMainWindow, handler) => {
     assertTrustedSender(event, getMainWindow);
     return handler(event, ...args);
   });
-};
-
-const EXEC_EXT_BY_LANG = {
-  javascript: 'js',
-  typescript: 'ts',
-  python: 'py',
-  bash: 'sh',
-  c: 'c',
-  cpp: 'cpp',
-  java: 'java',
-  rust: 'rs',
-  go: 'go',
-};
-
-const executableName = (baseName) => (process.platform === 'win32' ? baseName + '.exe' : baseName);
-
-const stripExtension = (value) => {
-  const base = path.basename(String(value || 'Main'));
-  const withoutExt = base.replace(/\.[^.]+$/, '');
-  return withoutExt || 'Main';
-};
-
-const javaClassNameFromCode = (code, fallback = 'Main') => {
-  const match = String(code || '').match(/public\s+(?:final\s+|abstract\s+)?class\s+([A-Za-z_$][\w$]*)/);
-  if (match?.[1]) return match[1];
-  const classMatch = String(code || '').match(/class\s+([A-Za-z_$][\w$]*)/);
-  if (classMatch?.[1]) return classMatch[1];
-  return fallback;
-};
-
-const normalizeExecutionFileName = (lang, safeBase, ext, code) => {
-  if (lang === 'java') {
-    return javaClassNameFromCode(code, stripExtension(safeBase)) + '.' + ext;
-  }
-  return safeBase.includes('.') ? safeBase : safeBase + '.' + ext;
-};
-
-const sanitizeFileName = (value, fallback) => {
-  if (typeof value !== 'string' || value.trim().length === 0) return fallback;
-  const safe = path
-    .basename(value)
-    .replace(/[^a-zA-Z0-9._-]/g, '_')
-    .replace(/^_+/, '')
-    .slice(0, 80);
-  if (!safe) return fallback;
-  return safe;
-};
-
-const copyEnvValue = (target, name) => {
-  const key = Object.keys(process.env).find((entry) => entry.toLowerCase() === name.toLowerCase());
-  if (!key || process.env[key] == null) return;
-  target[key] = String(process.env[key]);
-};
-
-const buildExecutionEnv = (workingDir) => {
-  const env = {};
-  for (const name of SAFE_EXEC_ENV_NAMES) {
-    copyEnvValue(env, name);
-  }
-
-  env.FORCE_COLOR = '0';
-  env.NO_COLOR = '1';
-  env.NEXUS_SANITIZED_EXEC_ENV = '1';
-
-  if (workingDir) {
-    env.TEMP = workingDir;
-    env.TMP = workingDir;
-    if (process.platform !== 'win32') {
-      env.TMPDIR = workingDir;
-    }
-  }
-
-  return env;
-};
-
-const resolveExecutionAttempts = (lang, filePath) => {
-  const nodeMajor = Number(String(process.versions?.node || '').split('.')[0] || 0);
-  const supportsStripTypes = Number.isFinite(nodeMajor) && nodeMajor >= 22;
-  const cwd = path.dirname(filePath);
-  const stem = stripExtension(filePath);
-  const nativeOut = path.join(cwd, executableName(stem));
-  const javaClass = stripExtension(filePath);
-
-  switch (lang) {
-    case 'javascript':
-      return [
-        { runtime: 'node', binary: process.execPath, args: [filePath] },
-      ];
-    case 'typescript':
-      return [
-        { runtime: 'tsx', binary: 'tsx', args: [filePath] },
-        ...(supportsStripTypes
-          ? [{ runtime: 'node-strip-types', binary: process.execPath, args: ['--experimental-strip-types', filePath] }]
-          : []),
-        { runtime: 'node', binary: process.execPath, args: [filePath] },
-      ];
-    case 'python':
-      return [
-        { runtime: 'python3', binary: 'python3', args: [filePath] },
-        { runtime: 'python', binary: 'python', args: [filePath] },
-        { runtime: 'py', binary: 'py', args: [filePath] },
-      ];
-    case 'bash':
-      return [
-        { runtime: 'bash', binary: 'bash', args: [filePath] },
-      ];
-    case 'c':
-      return [
-        {
-          runtime: 'gcc',
-          steps: [
-            { binary: 'gcc', args: [filePath, '-O0', '-Wall', '-Wextra', '-o', nativeOut], label: 'compile' },
-            { binary: nativeOut, args: [], label: 'run' },
-          ],
-        },
-        {
-          runtime: 'clang',
-          steps: [
-            { binary: 'clang', args: [filePath, '-O0', '-Wall', '-Wextra', '-o', nativeOut], label: 'compile' },
-            { binary: nativeOut, args: [], label: 'run' },
-          ],
-        },
-      ];
-    case 'cpp':
-      return [
-        {
-          runtime: 'g++',
-          steps: [
-            { binary: 'g++', args: [filePath, '-std=c++17', '-O0', '-Wall', '-Wextra', '-o', nativeOut], label: 'compile' },
-            { binary: nativeOut, args: [], label: 'run' },
-          ],
-        },
-        {
-          runtime: 'clang++',
-          steps: [
-            { binary: 'clang++', args: [filePath, '-std=c++17', '-O0', '-Wall', '-Wextra', '-o', nativeOut], label: 'compile' },
-            { binary: nativeOut, args: [], label: 'run' },
-          ],
-        },
-      ];
-    case 'java':
-      return [
-        {
-          runtime: 'javac/java',
-          steps: [
-            { binary: 'javac', args: ['-d', cwd, filePath], label: 'compile' },
-            { binary: 'java', args: ['-cp', cwd, javaClass], label: 'run' },
-          ],
-        },
-      ];
-    case 'rust':
-      return [
-        {
-          runtime: 'rustc',
-          steps: [
-            { binary: 'rustc', args: [filePath, '-o', nativeOut], label: 'compile' },
-            { binary: nativeOut, args: [], label: 'run' },
-          ],
-        },
-      ];
-    case 'go':
-      return [
-        { runtime: 'go', binary: 'go', args: ['run', filePath] },
-      ];
-    default:
-      return [];
-  }
-};
-
-const runProcessStep = (step, workingDir, appendOutput) =>
-  new Promise((resolve) => {
-    let timedOut = false;
-    let launchErrorCode = null;
-    let settled = false;
-
-    const done = (result) => {
-      if (settled) return;
-      settled = true;
-      resolve(result);
-    };
-
-    let proc;
-    try {
-      proc = spawn(step.binary, step.args || [], {
-        cwd: workingDir,
-        env: buildExecutionEnv(workingDir),
-        stdio: ['ignore', 'pipe', 'pipe'],
-        windowsHide: true,
-      });
-    } catch (error) {
-      done({
-        ok: false,
-        exitCode: 1,
-        error: error?.message || 'Failed to spawn process',
-        launchErrorCode: error?.code || null,
-        timedOut: false,
-      });
-      return;
-    }
-
-    const timeout = setTimeout(() => {
-      timedOut = true;
-      try {
-        proc.kill('SIGTERM');
-      } catch {}
-      setTimeout(() => {
-        try {
-          proc.kill('SIGKILL');
-        } catch {}
-      }, 900);
-    }, EXEC_TIMEOUT_MS);
-
-    proc.stdout?.on('data', appendOutput);
-    proc.stderr?.on('data', appendOutput);
-    proc.on('error', (error) => {
-      launchErrorCode = error?.code || null;
-      clearTimeout(timeout);
-      done({
-        ok: false,
-        exitCode: 1,
-        error: error?.message || 'Process error',
-        launchErrorCode,
-        timedOut: false,
-      });
-    });
-    proc.on('close', (code) => {
-      clearTimeout(timeout);
-      const exitCode = typeof code === 'number' ? code : timedOut ? 124 : 1;
-      done({
-        ok: !timedOut && exitCode === 0,
-        exitCode,
-        error: timedOut ? 'Execution timed out' : undefined,
-        launchErrorCode,
-        timedOut,
-      });
-    });
-  });
-
-const runExecutionAttempt = async (attempt, options = {}) => {
-  let output = '';
-  let truncated = false;
-  const workingDir = options.cwd || os.tmpdir();
-
-  const append = (chunk) => {
-    if (!chunk) return;
-    const text = typeof chunk === 'string' ? chunk : chunk.toString();
-    if (!text) return;
-    const remaining = MAX_EXEC_OUTPUT_CHARS - output.length;
-    if (remaining <= 0) {
-      truncated = true;
-      return;
-    }
-    if (text.length > remaining) {
-      output += text.slice(0, remaining);
-      truncated = true;
-      return;
-    }
-    output += text;
-  };
-
-  const steps = Array.isArray(attempt.steps) && attempt.steps.length
-    ? attempt.steps
-    : [{ binary: attempt.binary, args: attempt.args || [], label: 'run' }];
-
-  let lastResult = null;
-  for (const step of steps) {
-    lastResult = await runProcessStep(step, workingDir, append);
-    if (!lastResult.ok) break;
-  }
-
-  if (truncated) {
-    output += '\n\n... output truncated ...';
-  }
-
-  return {
-    ok: Boolean(lastResult?.ok),
-    runtime: attempt.runtime,
-    exitCode: typeof lastResult?.exitCode === 'number' ? lastResult.exitCode : 1,
-    output,
-    error: lastResult?.error,
-    launchErrorCode: lastResult?.launchErrorCode || null,
-    timedOut: Boolean(lastResult?.timedOut),
-  };
 };
 
 function registerWindowHandlers(getMainWindow) {
@@ -422,7 +130,7 @@ function registerWindowHandlers(getMainWindow) {
 }
 
 function registerFileHandlers(getMainWindow) {
-  registerTrustedHandler('fs:pickDirectory', getMainWindow, async () => {
+  registerTrustedHandler('fs:pickDirectory', getMainWindow, async (event) => {
     try {
       const win = typeof getMainWindow === 'function' ? getMainWindow() : null;
       const result = await dialog.showOpenDialog(win || undefined, {
@@ -433,15 +141,14 @@ function registerFileHandlers(getMainWindow) {
         return { ok: false, canceled: true };
       }
 
-      const selected = assertAllowedPath(result.filePaths[0]);
-      if (!selected.ok) {
-        return {
-          ok: false,
-          error: selected.error,
-        };
-      }
-
-      return { ok: true, path: selected.value };
+      // The native selection, never a renderer-provided path, grants authority.
+      if (assertTrustedSender(event, getMainWindow) !== win) return accessRequired();
+      const selected = normalizePathInput(result.filePaths[0]);
+      if (!selected.ok) return selected;
+      const canonical = canonicalizeExistingPath(selected.value);
+      if (!fs.statSync(canonical).isDirectory()) return { ok: false, error: 'Selected root is not a directory' };
+      if (!ALLOWED_ROOTS.includes(canonical)) ALLOWED_ROOTS.push(canonical);
+      return { ok: true, path: canonical };
     } catch (e) {
       return { ok: false, error: e.message };
     }
@@ -451,7 +158,7 @@ function registerFileHandlers(getMainWindow) {
     try {
       const check = assertAllowedPath(filePath);
       if (!check.ok) {
-        return { ok: false, error: check.error };
+        return check;
       }
 
       const stats = fs.statSync(check.value);
@@ -472,7 +179,7 @@ function registerFileHandlers(getMainWindow) {
     try {
       const check = assertAllowedPath(dirPath);
       if (!check.ok) {
-        return { ok: false, error: check.error };
+        return check;
       }
 
       const stats = fs.statSync(check.value);
@@ -518,7 +225,7 @@ function registerFileHandlers(getMainWindow) {
     try {
       const check = assertAllowedPath(filePath, { allowMissing: true });
       if (!check.ok) {
-        return { ok: false, error: check.error };
+        return check;
       }
 
       if (typeof content !== 'string') {
@@ -547,100 +254,10 @@ function registerNotificationHandler(getMainWindow) {
   });
 }
 
-function registerCodeExecutionHandler(getMainWindow) {
-  registerTrustedHandler('code:execute', getMainWindow, async (_, payload) => {
-    const lang = String(payload?.lang || '').trim().toLowerCase();
-    const code = typeof payload?.code === 'string' ? payload.code : '';
-    const fileName = typeof payload?.fileName === 'string' ? payload.fileName : '';
-
-    if (!lang) {
-      return { ok: false, output: '', error: 'missing language' };
-    }
-    if (!code) {
-      return { ok: false, output: '', error: 'missing code content' };
-    }
-    const codeBytes = Buffer.byteLength(code, 'utf8');
-    if (codeBytes > MAX_EXEC_CODE_BYTES) {
-      return {
-        ok: false,
-        output: '',
-        error: `code payload too large (${codeBytes} bytes)`,
-      };
-    }
-
-    const ext = EXEC_EXT_BY_LANG[lang];
-    if (!ext) {
-      return {
-        ok: false,
-        output: '',
-        unsupported: true,
-        error: `runtime for "${lang}" is not available`,
-      };
-    }
-
-    let tempDir = null;
-    try {
-      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-code-run-'));
-      const defaultFileName = lang === 'java' ? javaClassNameFromCode(code) + '.' + ext : `snippet-${Date.now()}.${ext}`;
-      const safeBase = sanitizeFileName(fileName, defaultFileName);
-      const finalName = normalizeExecutionFileName(lang, safeBase, ext, code);
-      const filePath = path.join(tempDir, finalName);
-      fs.writeFileSync(filePath, code, 'utf8');
-
-      const attempts = resolveExecutionAttempts(lang, filePath);
-      if (!attempts.length) {
-        return {
-          ok: false,
-          output: '',
-          unsupported: true,
-          error: `runtime for "${lang}" is not configured`,
-        };
-      }
-
-      let lastError = null;
-      for (const attempt of attempts) {
-        const result = await runExecutionAttempt(attempt, { cwd: tempDir });
-        if (result.launchErrorCode === 'ENOENT') {
-          lastError = `runtime "${attempt.runtime}" not installed`;
-          continue;
-        }
-        return {
-          ok: result.ok,
-          output: result.output || '',
-          error: result.error || undefined,
-          exitCode: result.exitCode,
-          runtime: result.runtime,
-          timeout: result.timedOut,
-        };
-      }
-
-      return {
-        ok: false,
-        output: '',
-        unsupported: true,
-        error: lastError || `no installed runtime found for "${lang}"`,
-      };
-    } catch (error) {
-      return {
-        ok: false,
-        output: '',
-        error: error?.message || 'code execution failed',
-      };
-    } finally {
-      if (tempDir) {
-        try {
-          fs.rmSync(tempDir, { recursive: true, force: true });
-        } catch {}
-      }
-    }
-  });
-}
-
 function registerIpcHandlers(getMainWindow) {
   registerWindowHandlers(getMainWindow);
   registerFileHandlers(getMainWindow);
   registerNotificationHandler(getMainWindow);
-  registerCodeExecutionHandler(getMainWindow);
 }
 
 module.exports = {

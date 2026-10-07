@@ -4,242 +4,354 @@ on:
   workflow_dispatch:
     inputs:
       signing_required:
-        description: "Fail if platform signing secrets are missing"
-        required: false
+        description: "Sign and notarize on protected runners (main only)"
         type: boolean
         default: false
       notarize_macos:
-        description: "Submit macOS DMGs to Apple notarytool"
-        required: false
+        description: "Require signed and notarized packages (main only)"
         type: boolean
         default: false
       publish_release_assets:
-        description: "Attach signed installers to an existing GitHub Release"
-        required: false
+        description: "Attach signed installers to an existing release at this commit"
         type: boolean
         default: false
       release_tag:
-        description: "Existing GitHub Release tag used when publishing assets"
-        required: false
+        description: "Existing release tag at the workflow commit"
         type: string
         default: ""
   push:
-    tags:
-      - "v*"
+    tags: ["v*"]
   release:
-    types:
-      - published
+    types: [published]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: build-installers-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  build-installers:
-    name: "${{ matrix.app_name }} (${{ matrix.target }}-${{ matrix.arch }})"
-    runs-on: ${{ matrix.os }}
+  build:
+    name: "Build payload: ${{ matrix.app_dir }}"
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            app_name: "Nexus Main"
+          - app_dir: "Nexus Main"
             app_slug: "nexus-main"
-            app_dir: "Nexus Main"
-            target: "mac"
-            arch: "arm64"
-            npm_script: "electron:build:mac"
-          - os: macos-latest
-            app_name: "Nexus Main"
-            app_slug: "nexus-main"
-            app_dir: "Nexus Main"
-            target: "mac"
-            arch: "x64"
-            npm_script: "electron:build:mac"
-          - os: windows-latest
-            app_name: "Nexus Main"
-            app_slug: "nexus-main"
-            app_dir: "Nexus Main"
-            target: "win"
-            arch: "x64"
-            npm_script: "electron:build:win"
-          - os: ubuntu-latest
-            app_name: "Nexus Main"
-            app_slug: "nexus-main"
-            app_dir: "Nexus Main"
-            target: "linux"
-            arch: "x64"
-            npm_script: "electron:build:linux"
-          - os: macos-latest
-            app_name: "Nexus Code"
+          - app_dir: "Nexus Code"
             app_slug: "nexus-code"
-            app_dir: "Nexus Code"
-            target: "mac"
-            arch: "arm64"
-            npm_script: "electron:build:mac"
-          - os: macos-latest
-            app_name: "Nexus Code"
-            app_slug: "nexus-code"
-            app_dir: "Nexus Code"
-            target: "mac"
-            arch: "x64"
-            npm_script: "electron:build:mac"
-          - os: windows-latest
-            app_name: "Nexus Code"
-            app_slug: "nexus-code"
-            app_dir: "Nexus Code"
-            target: "win"
-            arch: "x64"
-            npm_script: "electron:build:win"
-          - os: ubuntu-latest
-            app_name: "Nexus Code"
-            app_slug: "nexus-code"
-            app_dir: "Nexus Code"
-            target: "linux"
-            arch: "x64"
-            npm_script: "electron:build:linux"
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup Node
-        uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: "${{ matrix.app_dir }}/package-lock.json"
-
-      - name: Install dependencies
+      - name: Validate requested authority
+        shell: bash
+        env:
+          REQUESTED: "${{ inputs.signing_required || inputs.notarize_macos || inputs.publish_release_assets }}"
+          PUBLISH: "${{ inputs.publish_release_assets }}"
+          RELEASE_TAG: "${{ inputs.release_tag }}"
+        run: |
+          set -euo pipefail
+          if [[ "$REQUESTED" == true && ("$GITHUB_EVENT_NAME" != workflow_dispatch || "$GITHUB_REF" != refs/heads/main) ]]; then
+            echo "::error::Signing and publishing require a manual main run."
+            exit 1
+          fi
+          if [[ "$PUBLISH" == true && ! "$RELEASE_TAG" =~ ^v[0-9][A-Za-z0-9._+-]*$ ]]; then
+            echo "::error::An explicit existing version tag is required."
+            exit 1
+          fi
+      - name: Verify packaging policy and trusted toolchain
+        run: |
+          node --test tools/installer-payload.test.mjs tools/installer-workflow.test.mjs tools/release-hardening.test.mjs
+          npm --prefix tools/release-packager audit --audit-level=moderate
+      - name: Install application dependencies
         working-directory: "${{ matrix.app_dir }}"
         run: npm ci
+      - name: Audit application dependencies
+        working-directory: "${{ matrix.app_dir }}"
+        run: npm audit --audit-level=moderate
+      - name: Build application without signing authority
+        working-directory: "${{ matrix.app_dir }}"
+        run: npm run build
+      - name: Prepare static application payload
+        run: node tools/installer-payload.mjs prepare --app "${{ matrix.app_dir }}" --output "${{ runner.temp }}/payload"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: "payload-${{ matrix.app_slug }}-${{ github.sha }}-${{ github.run_attempt }}"
+          path: "${{ runner.temp }}/payload"
+          if-no-files-found: error
+          retention-days: 7
 
-      - name: Validate manual release target
-        if: github.event_name == 'workflow_dispatch' && inputs.publish_release_assets
+  package:
+    name: "Package: ${{ matrix.app_slug }} ${{ matrix.target }}-${{ matrix.arch }}"
+    needs: build
+    runs-on: ${{ matrix.os }}
+    environment: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.signing_required || inputs.notarize_macos || inputs.publish_release_assets)) && 'release-platform-signing' || 'release-candidate' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: "macos-latest"
+            app_dir: "Nexus Main"
+            app_slug: "nexus-main"
+            target: "mac"
+            arch: "arm64"
+          - os: "macos-latest"
+            app_dir: "Nexus Main"
+            app_slug: "nexus-main"
+            target: "mac"
+            arch: "x64"
+          - os: "windows-latest"
+            app_dir: "Nexus Main"
+            app_slug: "nexus-main"
+            target: "win"
+            arch: "x64"
+          - os: "ubuntu-latest"
+            app_dir: "Nexus Main"
+            app_slug: "nexus-main"
+            target: "linux"
+            arch: "x64"
+          - os: "macos-latest"
+            app_dir: "Nexus Code"
+            app_slug: "nexus-code"
+            target: "mac"
+            arch: "arm64"
+          - os: "macos-latest"
+            app_dir: "Nexus Code"
+            app_slug: "nexus-code"
+            target: "mac"
+            arch: "x64"
+          - os: "windows-latest"
+            app_dir: "Nexus Code"
+            app_slug: "nexus-code"
+            target: "win"
+            arch: "x64"
+          - os: "ubuntu-latest"
+            app_dir: "Nexus Code"
+            app_slug: "nexus-code"
+            target: "linux"
+            arch: "x64"
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            tools
+            Nexus Main/package.json
+            Nexus Main/package-lock.json
+            Nexus Main/icons
+            Nexus Main/build/entitlements.mac.plist
+            Nexus Code/package.json
+            Nexus Code/package-lock.json
+            Nexus Code/assets/icons
+            Nexus Code/build/entitlements.mac.plist
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+      - name: Install locked packaging tools before credentials
+        working-directory: tools/release-packager
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: "payload-${{ matrix.app_slug }}-${{ github.sha }}-${{ github.run_attempt }}"
+          path: "${{ runner.temp }}/payload"
+      - name: Validate payload before credentials
+        run: node tools/installer-payload.mjs validate --app "${{ matrix.app_dir }}" --payload "${{ runner.temp }}/payload"
+      - name: Package unsigned candidate or Linux distribution
+        if: ${{ !(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.signing_required || inputs.notarize_macos || inputs.publish_release_assets)) || matrix.target == 'linux' }}
+        run: node tools/installer-payload.mjs package --app "${{ matrix.app_dir }}" --payload "${{ runner.temp }}/payload" --project "${{ runner.temp }}/packaging" --target "${{ matrix.target }}" --arch "${{ matrix.arch }}"
+      - name: Package and sign Windows
+        if: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.signing_required || inputs.notarize_macos || inputs.publish_release_assets)) && matrix.target == 'win' }}
+        env:
+          CSC_LINK: "${{ secrets.WIN_CSC_LINK }}"
+          CSC_KEY_PASSWORD: "${{ secrets.WIN_CSC_KEY_PASSWORD }}"
+        run: node tools/installer-payload.mjs package --app "${{ matrix.app_dir }}" --payload "${{ runner.temp }}/payload" --project "${{ runner.temp }}/packaging" --target "${{ matrix.target }}" --arch "${{ matrix.arch }}" --signed
+      - name: Package, sign and notarize macOS
+        if: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.signing_required || inputs.notarize_macos || inputs.publish_release_assets)) && matrix.target == 'mac' }}
+        env:
+          CSC_LINK: "${{ secrets.MAC_CSC_LINK }}"
+          CSC_KEY_PASSWORD: "${{ secrets.MAC_CSC_KEY_PASSWORD }}"
+          APPLE_ID: "${{ secrets.APPLE_ID }}"
+          APPLE_APP_SPECIFIC_PASSWORD: "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
+          APPLE_TEAM_ID: "${{ secrets.APPLE_TEAM_ID }}"
+        run: node tools/installer-payload.mjs package --app "${{ matrix.app_dir }}" --payload "${{ runner.temp }}/payload" --project "${{ runner.temp }}/packaging" --target "${{ matrix.target }}" --arch "${{ matrix.arch }}" --signed
+      - name: Notarize macOS distribution
+        if: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.signing_required || inputs.notarize_macos || inputs.publish_release_assets)) && matrix.target == 'mac' }}
         shell: bash
+        env:
+          APPLE_ID: "${{ secrets.APPLE_ID }}"
+          APPLE_APP_SPECIFIC_PASSWORD: "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
+          APPLE_TEAM_ID: "${{ secrets.APPLE_TEAM_ID }}"
+          RELEASE_DIRECTORY: "${{ runner.temp }}/packaging/release"
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r -d '' dmg; do
+            xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+            xcrun stapler staple "$dmg"
+            xcrun stapler validate "$dmg"
+            count=$((count + 1))
+          done < <(find "$RELEASE_DIRECTORY" -maxdepth 1 -type f -name '*.dmg' -print0)
+          [[ "$count" -gt 0 ]] || { echo "::error::No DMG produced."; exit 1; }
+      - name: Verify macOS code signatures and notarization
+        if: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.signing_required || inputs.notarize_macos || inputs.publish_release_assets)) && matrix.target == 'mac' }}
+        shell: bash
+        env:
+          RELEASE_DIRECTORY: "${{ runner.temp }}/packaging/release"
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r -d '' app; do
+            codesign --verify --deep --strict --verbose=2 "$app"
+            xcrun stapler validate "$app"
+            count=$((count + 1))
+          done < <(find "$RELEASE_DIRECTORY" -type d -name '*.app' -prune -print0)
+          [[ "$count" -gt 0 ]] || { echo "::error::No signed macOS app produced."; exit 1; }
+      - name: Verify Windows Authenticode signatures
+        if: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.signing_required || inputs.notarize_macos || inputs.publish_release_assets)) && matrix.target == 'win' }}
+        shell: pwsh
+        env:
+          RELEASE_DIRECTORY: "${{ runner.temp }}/packaging/release"
+        run: |
+          $files = @(Get-ChildItem -LiteralPath $env:RELEASE_DIRECTORY -Recurse -File -Filter *.exe)
+          if ($files.Count -eq 0) { throw 'No Windows executable was produced.' }
+          foreach ($file in $files) {
+            $signature = Get-AuthenticodeSignature -LiteralPath $file.FullName
+            if ($signature.Status -ne 'Valid') { throw 'Invalid Authenticode signature.' }
+          }
+      - name: Collect distribution files only
+        run: node tools/installer-payload.mjs collect --app "${{ matrix.app_dir }}" --target "${{ matrix.target }}" --arch "${{ matrix.arch }}" --directory "${{ runner.temp }}/packaging/release" --output "${{ runner.temp }}/distribution"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: "installers-${{ matrix.app_slug }}-${{ matrix.target }}-${{ matrix.arch }}-${{ github.sha }}-${{ github.run_attempt }}"
+          path: "${{ runner.temp }}/distribution"
+          if-no-files-found: error
+          retention-days: 14
+
+  checksums:
+    name: "Checksums: ${{ matrix.app_slug }} ${{ matrix.target }}-${{ matrix.arch }}"
+    needs: package
+    runs-on: ubuntu-latest
+    environment: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.signing_required || inputs.notarize_macos || inputs.publish_release_assets)) && 'release-checksum-signing' || 'release-candidate' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: "macos-latest"
+            app_dir: "Nexus Main"
+            app_slug: "nexus-main"
+            target: "mac"
+            arch: "arm64"
+          - os: "macos-latest"
+            app_dir: "Nexus Main"
+            app_slug: "nexus-main"
+            target: "mac"
+            arch: "x64"
+          - os: "windows-latest"
+            app_dir: "Nexus Main"
+            app_slug: "nexus-main"
+            target: "win"
+            arch: "x64"
+          - os: "ubuntu-latest"
+            app_dir: "Nexus Main"
+            app_slug: "nexus-main"
+            target: "linux"
+            arch: "x64"
+          - os: "macos-latest"
+            app_dir: "Nexus Code"
+            app_slug: "nexus-code"
+            target: "mac"
+            arch: "arm64"
+          - os: "macos-latest"
+            app_dir: "Nexus Code"
+            app_slug: "nexus-code"
+            target: "mac"
+            arch: "x64"
+          - os: "windows-latest"
+            app_dir: "Nexus Code"
+            app_slug: "nexus-code"
+            target: "win"
+            arch: "x64"
+          - os: "ubuntu-latest"
+            app_dir: "Nexus Code"
+            app_slug: "nexus-code"
+            target: "linux"
+            arch: "x64"
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            tools
+            Nexus Main/package.json
+            Nexus Main/package-lock.json
+            Nexus Code/package.json
+            Nexus Code/package-lock.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: "installers-${{ matrix.app_slug }}-${{ matrix.target }}-${{ matrix.arch }}-${{ github.sha }}-${{ github.run_attempt }}"
+          path: "${{ runner.temp }}/distribution"
+      - name: Validate distribution before checksum credentials
+        run: node tools/installer-payload.mjs validate-distribution --app "${{ matrix.app_dir }}" --target "${{ matrix.target }}" --arch "${{ matrix.arch }}" --directory "${{ runner.temp }}/distribution"
+      - name: Generate unsigned candidate checksums
+        if: ${{ !(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.signing_required || inputs.notarize_macos || inputs.publish_release_assets)) }}
+        run: node tools/generate-installer-checksums.mjs --dir "${{ runner.temp }}/distribution" --output-prefix "${{ matrix.app_slug }}-${{ matrix.target }}-${{ matrix.arch }}"
+      - name: Sign installer checksums
+        if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.signing_required || inputs.notarize_macos || inputs.publish_release_assets) }}
+        env:
+          NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM: "${{ secrets.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM }}"
+          NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64: "${{ secrets.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64 }}"
+          NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_ID: "${{ vars.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_ID }}"
+        run: node tools/generate-installer-checksums.mjs --dir "${{ runner.temp }}/distribution" --require-signature --output-prefix "${{ matrix.app_slug }}-${{ matrix.target }}-${{ matrix.arch }}"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: "checksummed-${{ matrix.app_slug }}-${{ matrix.target }}-${{ matrix.arch }}-${{ github.sha }}-${{ github.run_attempt }}"
+          path: "${{ runner.temp }}/distribution"
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish approved existing release
+    needs: checksums
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish_release_assets
+    runs-on: ubuntu-latest
+    environment: release-publish
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            tools
+            Nexus Main/package.json
+            Nexus Main/package-lock.json
+            Nexus Code/package.json
+            Nexus Code/package-lock.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: "checksummed-*-${{ github.sha }}-${{ github.run_attempt }}"
+          path: "${{ runner.temp }}/approved-release"
+          merge-multiple: true
+      - name: Publish to the verified existing release
         env:
           GH_TOKEN: "${{ github.token }}"
           NEXUS_RELEASE_TAG: "${{ inputs.release_tag }}"
-        run: |
-          if [[ -z "${NEXUS_RELEASE_TAG}" ]]; then
-            echo "::error title=Missing release tag::release_tag is required when publish_release_assets is enabled."
-            exit 1
-          fi
-          gh release view "${NEXUS_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null
-
-      - name: Verify signing configuration
-        env:
-          NEXUS_SIGNING_TARGET: "${{ matrix.target }}"
-          NEXUS_SIGNING_REQUIRED: "${{ github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || inputs.signing_required || inputs.publish_release_assets }}"
-          NEXUS_MAC_NOTARIZE: "${{ matrix.target == 'mac' && (github.event_name == 'release' || inputs.notarize_macos || inputs.publish_release_assets) }}"
-          NEXUS_MAC_ARCH: "${{ matrix.target == 'mac' && matrix.arch || '' }}"
-          CSC_FORCE_CODE_SIGNING: "${{ matrix.target == 'win' && (github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || inputs.signing_required || inputs.publish_release_assets) }}"
-          MAC_CSC_LINK: "${{ secrets.MAC_CSC_LINK }}"
-          MAC_CSC_KEY_PASSWORD: "${{ secrets.MAC_CSC_KEY_PASSWORD }}"
-          WIN_CSC_LINK: "${{ secrets.WIN_CSC_LINK }}"
-          WIN_CSC_KEY_PASSWORD: "${{ secrets.WIN_CSC_KEY_PASSWORD }}"
-          APPLE_ID: "${{ secrets.APPLE_ID }}"
-          APPLE_APP_SPECIFIC_PASSWORD: "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
-          APPLE_TEAM_ID: "${{ secrets.APPLE_TEAM_ID }}"
-          NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM: "${{ secrets.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM }}"
-          NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64: "${{ secrets.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64 }}"
-          NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_ID: "${{ vars.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_ID }}"
-          NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM: "${{ secrets.NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM }}"
-          NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64: "${{ secrets.NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64 }}"
-          NEXUS_LAUNCHER_FEED_SIGNING_KEY_ID: "${{ vars.NEXUS_LAUNCHER_FEED_SIGNING_KEY_ID }}"
-        run: node ./tools/verify-signing-env.mjs --target=${{ matrix.target }}
-
-      - name: Build installer
-        working-directory: "${{ matrix.app_dir }}"
-        env:
-          NEXUS_SIGNING_REQUIRED: "${{ github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || inputs.signing_required || inputs.publish_release_assets }}"
-          NEXUS_MAC_NOTARIZE: "${{ matrix.target == 'mac' && (github.event_name == 'release' || inputs.notarize_macos || inputs.publish_release_assets) }}"
-          NEXUS_MAC_ARCH: "${{ matrix.target == 'mac' && matrix.arch || '' }}"
-          CSC_FORCE_CODE_SIGNING: "${{ matrix.target == 'win' && (github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || inputs.signing_required || inputs.publish_release_assets) }}"
-          CSC_LINK: "${{ matrix.target == 'mac' && secrets.MAC_CSC_LINK || matrix.target == 'win' && secrets.WIN_CSC_LINK || '' }}"
-          CSC_KEY_PASSWORD: "${{ matrix.target == 'mac' && secrets.MAC_CSC_KEY_PASSWORD || matrix.target == 'win' && secrets.WIN_CSC_KEY_PASSWORD || '' }}"
-          APPLE_ID: "${{ secrets.APPLE_ID }}"
-          APPLE_APP_SPECIFIC_PASSWORD: "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
-          APPLE_TEAM_ID: "${{ secrets.APPLE_TEAM_ID }}"
-        run: npm run ${{ matrix.npm_script }}
-
-      - name: Verify macOS code signatures
-        if: matrix.target == 'mac' && (github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || inputs.signing_required || inputs.publish_release_assets)
-        working-directory: "${{ matrix.app_dir }}"
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -d '' apps < <(find release -type d -name '*.app' -print0)
-          if [[ "${#apps[@]}" -eq 0 ]]; then
-            echo "::error title=Missing signed app::No macOS .app bundle was produced."
-            exit 1
-          fi
-          for app in "${apps[@]}"; do
-            codesign --verify --deep --strict --verbose=2 "${app}"
-          done
-
-      - name: Verify Windows Authenticode signatures
-        if: matrix.target == 'win' && (github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || inputs.signing_required || inputs.publish_release_assets)
-        working-directory: "${{ matrix.app_dir }}"
-        shell: pwsh
-        run: |
-          $files = @(Get-ChildItem -LiteralPath release -Recurse -File -Filter *.exe)
-          if ($files.Count -eq 0) {
-            throw 'No Windows executable was produced.'
-          }
-          foreach ($file in $files) {
-            $signature = Get-AuthenticodeSignature -LiteralPath $file.FullName
-            if ($signature.Status -ne 'Valid') {
-              throw "Invalid Authenticode signature on $($file.FullName): $($signature.Status)"
-            }
-          }
-
-      - name: Generate checksums
-        env:
-          NEXUS_INSTALLER_CHECKSUM_SIGNATURE_REQUIRED: "${{ github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || inputs.signing_required || inputs.publish_release_assets }}"
-          NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM: "${{ secrets.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM }}"
-          NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64: "${{ secrets.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64 }}"
-          NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_ID: "${{ vars.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_ID }}"
-          NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM: "${{ secrets.NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM }}"
-          NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64: "${{ secrets.NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64 }}"
-          NEXUS_LAUNCHER_FEED_SIGNING_KEY_ID: "${{ vars.NEXUS_LAUNCHER_FEED_SIGNING_KEY_ID }}"
-        run: node ./tools/generate-installer-checksums.mjs --dir "${{ matrix.app_dir }}/release" --output-prefix "${{ matrix.app_slug }}-${{ matrix.target }}-${{ matrix.arch }}"
-
-      - name: Upload installers
-        uses: actions/upload-artifact@v4
-        with:
-          name: "${{ matrix.app_slug }}-${{ matrix.target }}-${{ matrix.arch }}-installers"
-          retention-days: 14
-          if-no-files-found: error
-          path: |
-            ${{ matrix.app_dir }}/release/**/*.dmg
-            ${{ matrix.app_dir }}/release/**/*.pkg
-            ${{ matrix.app_dir }}/release/**/*.zip
-            ${{ matrix.app_dir }}/release/**/*.exe
-            ${{ matrix.app_dir }}/release/**/*.msi
-            ${{ matrix.app_dir }}/release/**/*.AppImage
-            ${{ matrix.app_dir }}/release/**/*.deb
-            ${{ matrix.app_dir }}/release/**/*SHA256SUMS.txt
-            ${{ matrix.app_dir }}/release/**/*SHA256SUMS.txt.sig
-            ${{ matrix.app_dir }}/release/**/*SHA256SUMS.metadata.json
-
-      - name: Attach installers to GitHub Release
-        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.publish_release_assets)
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: "${{ github.event.release.tag_name || inputs.release_tag || github.ref_name }}"
-          fail_on_unmatched_files: true
-          files: |
-            ${{ matrix.app_dir }}/release/**/*.dmg
-            ${{ matrix.app_dir }}/release/**/*.pkg
-            ${{ matrix.app_dir }}/release/**/*.zip
-            ${{ matrix.app_dir }}/release/**/*.exe
-            ${{ matrix.app_dir }}/release/**/*.msi
-            ${{ matrix.app_dir }}/release/**/*.AppImage
-            ${{ matrix.app_dir }}/release/**/*.deb
-            ${{ matrix.app_dir }}/release/**/*SHA256SUMS.txt
-            ${{ matrix.app_dir }}/release/**/*SHA256SUMS.txt.sig
-            ${{ matrix.app_dir }}/release/**/*SHA256SUMS.metadata.json
+        run: node tools/publish-installers.mjs --directory "${{ runner.temp }}/approved-release"

@@ -1,7 +1,7 @@
 "use strict";
 
 const path = require("path");
-const { runProcess } = require("./processRunner.cjs");
+const { createGitExecutionPolicy } = require("./gitExecutionPolicy.cjs");
 const { parseGitStatus } = require("./gitStatusParser.cjs");
 
 const MAX_REPO_PATH_LENGTH = 4096;
@@ -53,13 +53,6 @@ const redactRemoteUrl = (url) => String(url || "")
   .replace(/(https?:\/\/)([^/\s:@]+):([^@\s/]+)@/gi, "$1***:***@")
   .replace(/(https?:\/\/)([^@\s/]+)@/gi, "$1***@");
 
-const git = (repoPath, args, options = {}) => runProcess("git", ["-C", assertRepoPath(repoPath), ...args], {
-  timeoutMs: options.timeoutMs ?? 30_000,
-  maxBufferBytes: options.maxBufferBytes ?? 8 * 1024 * 1024,
-  input: options.input,
-  maxInputBytes: options.maxInputBytes,
-});
-
 const parseBranches = (stdout) => String(stdout || "")
   .split(/\r?\n/)
   .filter(Boolean)
@@ -104,9 +97,15 @@ const parseRemotes = (stdout) => {
   return Array.from(remotes.values());
 };
 
-const createGitService = () => ({
+const createGitService = (policyOptions) => {
+  const runGit = createGitExecutionPolicy(policyOptions);
+  const authorizedGit = (repoPath, args, options) => runGit(assertRepoPath(repoPath), args, options);
+  return createOperations(authorizedGit);
+};
+
+const createOperations = (git) => ({
   async status(repoPath) {
-    const result = await git(repoPath, ["status", "--porcelain=v1", "-z", "--branch"], {
+    const result = await git(repoPath, ["status", "--porcelain=v1", "-z", "--branch", "--ignore-submodules=all"], {
       maxBufferBytes: 16 * 1024 * 1024,
     });
     return parseGitStatus(result.stdout);
@@ -114,7 +113,7 @@ const createGitService = () => ({
 
   async diff(repoPath, options = {}) {
     const pathspecs = normalizePathspecs(options.paths || options.pathspecs);
-    const args = ["diff", "--no-ext-diff"];
+    const args = ["diff", "--no-ext-diff", "--no-textconv", "--ignore-submodules=all"];
     if (options.staged || options.cached) args.push("--cached");
     if (options.stat) args.push("--stat");
     if (options.context !== undefined) {
@@ -167,11 +166,18 @@ const createGitService = () => ({
       maxInputBytes: MAX_COMMIT_MESSAGE_BYTES + 1,
       maxBufferBytes: 12 * 1024 * 1024,
     });
-    const head = await git(repoPath, ["rev-parse", "HEAD"]);
+    // The mutation already succeeded. A revoked permit or unavailable metadata
+    // must not turn that success into an error that invites a duplicate commit.
+    let hash = null;
+    try {
+      const head = await git(repoPath, ["rev-parse", "HEAD"], { requireTrust: true });
+      if (/^[0-9a-f]{40,64}$/i.test(head.stdout.trim())) hash = head.stdout.trim();
+    } catch {}
     return {
       stdout: result.stdout,
       stderr: result.stderr,
-      hash: head.stdout.trim(),
+      hash,
+      metadataUnavailable: hash === null,
     };
   },
 
@@ -214,6 +220,7 @@ const createGitService = () => ({
     const limit = normalizeLimit(options.limit, 50);
     const args = [
       "log",
+      "--no-show-signature", "--no-ext-diff", "--no-textconv",
       `--max-count=${limit}`,
       "--date=iso-strict",
       "--pretty=format:%H%x1f%h%x1f%an%x1f%ae%x1f%ad%x1f%s%x1e",

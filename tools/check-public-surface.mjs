@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { formatPublicFinding } from './lib/public-scan-output.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -100,7 +101,10 @@ const exists = async (target) => {
 }
 
 const collectFiles = async (targetPath, out = []) => {
-  const stat = await fs.stat(targetPath)
+  const stat = await fs.lstat(targetPath)
+  if (stat.isSymbolicLink()) throw new Error(`Linked public input rejected: ${toPosix(targetPath)}`)
+  const canonical = await fs.realpath(targetPath)
+  if (path.normalize(canonical) !== path.normalize(targetPath)) throw new Error(`Aliased public input rejected: ${toPosix(targetPath)}`)
   if (stat.isFile()) {
     if (TEXT_EXTENSIONS.has(path.extname(targetPath))) out.push(targetPath)
     return out
@@ -135,7 +139,6 @@ for (const file of uniqueFiles) {
           file: toPosix(file),
           line: index + 1,
           label: rule.label,
-          text: line.trim().slice(0, 180),
         })
       }
     }
@@ -145,7 +148,7 @@ for (const file of uniqueFiles) {
 if (findings.length > 0) {
   console.error(`[check:${mode}] Found ${findings.length} public-surface issue(s):`)
   for (const finding of findings.slice(0, 80)) {
-    console.error(`${finding.file}:${finding.line} [${finding.label}] ${finding.text}`)
+    console.error(formatPublicFinding(finding))
   }
   if (findings.length > 80) {
     console.error(`... ${findings.length - 80} more`)

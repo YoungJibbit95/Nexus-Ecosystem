@@ -20,7 +20,7 @@ Historical records below remain for provenance. [Current-main reconciliation](11
 
 ## 3. Release compatibility/access — PRESERVE + CLEANUP
 
-- **Current purpose:** block incompatible/unauthorized views. **Actual implementation:** boot release/tier validation, shared policy, `viewValidationFailOpen:false`, live sync disabled.
+- **Current purpose:** block incompatible/unauthorized views. **Actual implementation:** boot release/tier validation, shared policy, `viewValidationFailOpen:false`, background synchronization disabled.
 - **Working:** fail-closed contract. **Partial:** live version/backend matrix unverified. **Simulated:** none found. **Broken/unreliable:** no reproduced failure; historical PR CI failures do not prove runtime gate defects.
 - **Technical debt:** intertwined boot decisions/error presentation. **Security risk:** never enable fail-open to ease UI testing. **Performance risk:** sequential remote checks. **UX problems:** implementation codes obscure retry/action.
 - **Target state:** explicit compatible/incompatible/unavailable results. **Migration strategy:** adapter/error model; preserve server policy and release semantics.
@@ -57,7 +57,7 @@ Historical records below remain for provenance. [Current-main reconciliation](11
 
 - **Current purpose:** side/bottom positions, size/visibility/focus persistence. **Actual implementation:** normalized `pages/editor` docking/focus models, left/right/bottom/hidden zones and presets.
 - **Working:** pure model smoke cases, persisted normalization. **Partial:** actual drag/resize/keyboard/platform behavior. **Simulated:** none found. **Broken/unreliable:** generic fixture geometry does not prove usable layout.
-- **Technical debt:** control UI/composition tangled with Editor. **Security risk:** low; validate persisted values. **Performance risk:** resize updates and paint. **UX problems:** preset codes and multiple dock controls.
+- **Technical debt:** panel controls/composition tangled with Editor. **Security risk:** low; validate persisted values. **Performance risk:** resize updates and paint. **UX problems:** preset codes and multiple dock controls.
 - **Target state:** predictable resizable layout with editor priority. **Migration strategy:** keep normalized model/readers; add interaction assertions before Wave 3 composition changes.
 
 ## 9. Bottom panel/status — PARTIAL REWRITE
