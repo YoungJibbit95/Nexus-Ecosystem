@@ -1,4 +1,12 @@
-# Continuation checkpoint — STOP after Wave 1
+# Continuation checkpoint — STOP after packet 2A
+
+Date: 2026-10-07. **Phase 0, Wave 0 and Wave 1 remain complete. Wave 2A semantic visual foundation is the current Beta PR packet.** See [implementation and qualification](14-wave-2a-visual-foundation.md) and [local state](LOCAL_WORKSPACE_STATE.md).
+
+Use **F:/Coding/Nexus Workspace/Nexus-Code-v2-wave-1**, branch `recode/nexus-code-v2-beta-wave-2a-visual-foundation`. This permanent folder supersedes the historical main-folder instruction below. Base is `5532bebcb9827e1a3d1629004fd17a261c8fb815`; only the bounded UI packet may be pushed. The prior local security/foundation branch remains preserved; do not push its old ancestry.
+
+Stop after this PR. After the user says `WEITER`, inspect whether it merged, fetch/prune, inspect current security/product changes and CI, and create the next fresh branch in this same folder. An unmerged PR does not authorize stacking. Next planned packet: **Wave 3 workbench composition**. A 2B follow-up is optional only if concrete remaining common-primitive work warrants it; none is pre-authorized. No merge, release, deployment or automatic continuation.
+
+## Historical Wave 1 checkpoint (superseded workflow, retained provenance)
 
 Date: 2026-10-01. **Phase 0, Wave 0 and Wave 1 foundation complete. Wave 2 has not started.** Continue only after a new `weiter`.
 
