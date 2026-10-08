@@ -18,7 +18,7 @@ export type PlanningPanelProps = {
   onFeedback?: (feedback: { message: string; result: PlanningCommandResult | null; error: boolean }) => void
   messageText?: (message: string) => string
   initialTitle?: string
-  /** Main's day-first presentation; other clients retain their existing layout. */
+  /** Day-first composition around the existing command-owned editor. */
   dayFirst?: boolean
   entityCatalog?: EntityCatalog; onOpenEntity?: (ref: EntityRef) => void
 }
@@ -59,7 +59,7 @@ export function PlanningPanel(props: PlanningPanelProps) {
     if (props.initialStart !== undefined) setStart(props.initialStart)
     if (props.initialMode) setMode(props.initialMode)
     if (props.initialTitle !== undefined) setTitle(props.initialTitle)
-    if (props.editorOnly) {
+    if (props.editorOnly || props.dayFirst) {
       const initialBlock = props.planning.blocks.find(item => item.id === props.initialBlockId)
       setBlockId(props.initialBlockId || '')
       setTaskId(props.initialTaskId || ''); setTitle(props.initialTitle || ''); setStart(props.initialStart || ''); setDeadline(''); setEnd(''); setCompleteCoverage(false); setMessageError(false)

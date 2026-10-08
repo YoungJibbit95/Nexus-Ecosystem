@@ -1,0 +1,32 @@
+.nx-mobile-product { color: var(--mobile-product-text); font-size: 15px; line-height: 1.5; min-width: 0; }
+.nx-mobile-product *, .nx-mobile-product *::before { box-sizing: border-box; }
+.nx-mobile-product h2, .nx-mobile-product h3, .nx-mobile-product p { margin: 0 0 8px; overflow-wrap: anywhere; }
+.nx-mobile-product h2 { font-size: 1.2em; line-height: 1.3; }
+.nx-mobile-product h3 { font-size: 1.05em; line-height: 1.4; }
+.nx-mobile-product header { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.nx-mobile-product fieldset { min-width: 0; border: 0; margin: 0; padding: 0; }
+.nx-mobile-product ul { list-style: none; margin: 0; padding: 0; }
+.nx-mobile-product-row { min-width: 0; padding: 14px 0; border-bottom: 1px solid rgba(128,128,128,.25); }
+.nx-mobile-product-reason, .nx-mobile-product-eyebrow { font-size: .85em; font-weight: 650; }
+.nx-mobile-product-now { background: var(--mobile-product-surface); border: 1px solid var(--mobile-product-accent); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+.nx-mobile-product-secondary { padding: 4px 0 16px; }
+.nx-mobile-product-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.nx-mobile-product button, .nx-mobile-product summary, .nx-mobile-product input, .nx-mobile-product select { min-height: 44px; font: inherit; color: inherit; max-width: 100%; }
+.nx-mobile-product button, .nx-mobile-product input, .nx-mobile-product select { padding: 9px 12px; border: 1px solid rgba(128,128,128,.4); border-radius: 9px; background: var(--mobile-product-surface); }
+.nx-mobile-product button { cursor: pointer; white-space: normal; overflow-wrap: anywhere; }
+.nx-mobile-product button:disabled { opacity: .5; cursor: default; }
+.nx-mobile-product summary { padding: 10px 0; cursor: pointer; overflow-wrap: anywhere; }
+.nx-mobile-product label { display: grid; gap: 6px; margin-bottom: 10px; }
+.nx-mobile-product :is(button,input,select,summary):focus-visible { outline: 3px solid var(--mobile-product-accent); outline-offset: 2px; }
+.nx-mobile-product-flux { height: 100%; overflow-y: auto; padding: 12px; padding-bottom: calc(16px + var(--sat-bottom, 0px)); }
+.nx-mobile-product-flux > input { width: 100%; margin-bottom: 8px; }
+.nx-mobile-navigation-notice { position: absolute; top: 8px; left: 8px; right: 8px; z-index: 600; padding: 12px; background: var(--nx-app-root-bg, #172033); color: inherit; border: 1px solid currentColor; border-radius: 8px; }
+.nx-mobile-context { padding: 8px 12px; flex-shrink: 0; max-height: min(220px, 30vh); overflow-y: auto; }
+.nx-mobile-context .nx-mobile-product-row { padding: 10px 0; }
+.nx-mobile-agenda-view .nx-planning-panel { margin: 0; }
+.nx-mobile-agenda-view .nx-planning-panel :is(button,input,select,summary) { min-height: 44px; font-size: inherit; }
+.nx-mobile-agenda-view .nx-planning-panel input[type=checkbox] { min-height: 22px; min-width: 22px; }
+.nx-mobile-agenda-view .nx-planning-panel fieldset { min-width: 0; }
+.nx-mobile-agenda-view .nx-agenda-unscheduled-list { max-height: none; overflow: visible; }
+@media(max-width: 420px) { .nx-mobile-product-now { padding: 12px; } .nx-mobile-product-actions > button { flex: 1 1 110px; } }
+@media(max-height: 500px) { .nx-mobile-context { max-height: 100px; } }

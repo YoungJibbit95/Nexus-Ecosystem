@@ -1,3 +1,7 @@
+import { openProductTarget } from '../app/useProductNavigation'
+import { useActiveViewCommandScope, isViewCommandScopeActive } from '../app/ViewCommandScope'
+import { openMobileContext } from './product/MobileContext'
+import { NavigationNotice } from './product/MobileProductParts'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
@@ -112,6 +116,7 @@ type FilesViewProps = {
 }
 
 export function FilesView({ setView }: FilesViewProps = {}) {
+  const activeScope = useActiveViewCommandScope(), [navigationError, setNavigationError] = useState('')
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const mob = useMobile()
@@ -257,6 +262,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!isViewCommandScopeActive(activeScope) || event.defaultPrevented || event.isComposing) return
       const key = event.key.toLowerCase()
       const cmd = event.metaKey || event.ctrlKey
       const target = event.target as HTMLElement | null
@@ -328,7 +334,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [activeWs])
+  }, [activeWs, activeScope])
 
   const importRuntimeSnapshot = (file: File) => {
     const reader = new FileReader()
@@ -461,30 +467,14 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   )
 
   const openItem = (item: FileItem) => {
-    if (item.type === 'note') {
-      openNote(item.id)
-      setNote(item.id)
-      setView?.('notes')
-      return
-    }
-    if (item.type === 'code') {
-      openCode(item.id)
-      setCode(item.id)
-      setView?.('code')
-      return
-    }
-    if (item.type === 'task') {
-      setView?.('tasks')
-      return
-    }
-    if (item.type === 'reminder') {
-      setView?.('reminders')
-      return
-    }
-    setActiveCanvas(item.id)
-    setView?.('canvas')
+    if (!setView || !isViewCommandScopeActive(activeScope)) return
+    const state = useApp.getState(), sources = item.type === 'canvas' ? useCanvas.getState().canvases : item.type === 'note' ? state.notes : item.type === 'code' ? state.codes : item.type === 'task' ? state.tasks : state.reminders
+    if (sources.filter(source => source.id === item.id).length !== 1) { setNavigationError('Dieses Ziel fehlt oder ist nicht eindeutig verfügbar.'); return }
+    setNavigationError('')
+    if (item.type === 'task' || item.type === 'reminder') openProductTarget({ kind: item.type, id: item.id }, setView)
+    else if (item.type === 'note' || item.type === 'canvas') openMobileContext({ kind: item.type, id: item.id }, setView)
+    else { openCode(item.id); setCode(item.id); setView('code') }
   }
-
   const confidenceMeta = confidence === 'fresh'
     ? { label: 'Fresh', color: '#30d158', bg: 'rgba(48,209,88,0.1)', border: '1px solid rgba(48,209,88,0.25)' }
     : confidence === 'stale'
@@ -927,13 +917,13 @@ export function FilesView({ setView }: FilesViewProps = {}) {
             ) : viewMode === 'grid' ? (
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px,1fr))', gap:10 }}>
                 {displayItems.map(item => (
-                  <FileCard key={item.id} item={item} viewMode="grid" onAssign={()=>setAssignItem(item)} onOpen={openItem} wsColor={getItemWsColor(item)} />
+                  <FileCard key={JSON.stringify([item.type, item.id])} item={item} viewMode="grid" onAssign={()=>setAssignItem(item)} onOpen={openItem} wsColor={getItemWsColor(item)} />
                 ))}
               </div>
             ) : (
               <div>
                 {displayItems.map(item => (
-                  <FileCard key={item.id} item={item} viewMode="list" onAssign={()=>setAssignItem(item)} onOpen={openItem} wsColor={getItemWsColor(item)} />
+                  <FileCard key={JSON.stringify([item.type, item.id])} item={item} viewMode="list" onAssign={()=>setAssignItem(item)} onOpen={openItem} wsColor={getItemWsColor(item)} />
                 ))}
               </div>
             )}
@@ -1030,6 +1020,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
       </AnimatePresence>
 
       {/* Modals */}
+      <NavigationNotice message={navigationError} />
       <AnimatePresence>
         {newWsOpen && <WorkspaceModal key="new" onClose={()=>setNewWsOpen(false)} />}
         {editWs    && <WorkspaceModal key={editWs.id} ws={editWs} onClose={()=>setEditWs(null)} />}

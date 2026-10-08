@@ -32,15 +32,15 @@ import {
 } from './dashboard/MobileDashboardSupportSections'
 import { MobileDashboardWidgetErrorBoundary } from './dashboard/MobileDashboardWidgetErrorBoundary'
 import { MobileDashboardWidgetEditChrome } from './dashboard/MobileDashboardWidgetEditChrome'
-import { MobileRuntimeSummaryCard } from './dashboard/MobileRuntimeSummaryCard'
+import { MobileDashboardOrientation } from './product/MobileDashboardOrientation'
 import { useMobileDashboardLayoutEditing } from './dashboard/useMobileDashboardLayoutEditing'
 import { useMobileDashboardDerivedData } from './dashboard/useMobileDashboardDerivedData'
-import { MobilePlanningTodayCard } from './planning/MobilePlanningTodayCard'
-import { usePlanningToday } from './planning/usePlanningToday'
+import { useProductOverview } from './product/useProductOverview'
+import { openProductTarget } from '../app/useProductNavigation'
 import { buildMobileDashboardWidgetContent } from './dashboard/mobileDashboardWidgetContent'
 
 export function DashboardView({ setView }: { setView?: (v: string) => void }) {
-  const planningToday = usePlanningToday()
+  const productState = useProductOverview()
   const t = useTheme()
   const mob = useMobile()
   const rgb = hexToRgb(t.accent)
@@ -201,14 +201,12 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     recentNotes,
     recentActivity,
     pinnedNotes,
-    todaySummary,
     taskProgress,
     greeting,
-    resumeLane,
     runCaptureIntent,
-    snoozeOverdue,
     activeWorkspace,
   } = useMobileDashboardDerivedData({
+    overview: productState.error ? null : productState.overview,
     notes,
     tasks,
     reminders,
@@ -320,54 +318,11 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
         }
       />
 
-      <Glass style={{ padding: '14px', marginBottom: 4 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 750 }}>Heute</h2>
-          <DashboardActionButton
-            onClick={() => setMobileUtilitySheet('today')}
-            aria-label="Tagesübersicht öffnen"
-            aria-haspopup="dialog"
-            liquidColor={t.accent}
-            style={{ minHeight: 44, minWidth: 44, border: 'none', borderRadius: 10, background: 'transparent', color: 'inherit', cursor: 'pointer' }}
-          >
-            <MoreHorizontal size={20} aria-hidden="true" />
-          </DashboardActionButton>
-        </div>
-        <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.5, opacity: 0.8 }}>
-          {planningToday.dueTaskCount} Aufgabenfristen heute · {planningToday.dueReminderCount} Erinnerungspunkte heute
-          {planningToday.overdueTaskCount > 0 ? (
-            <span style={{ color: t.mode === 'dark' ? '#ff9d94' : '#ab241c', fontWeight: 650 }}> · {planningToday.overdueTaskCount} überfällige Aufgabenfristen</span>
-          ) : null}
-        </p>
-        <MobilePlanningTodayCard setView={setView} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
-          <DashboardActionButton
-            onClick={() => setMobileUtilitySheet('capture')}
-            aria-haspopup="dialog"
-            liquidColor={t.accent}
-            style={{ minHeight: 48, borderRadius: 10, border: `1px solid rgba(${rgb},0.5)`, background: `rgba(${rgb},0.25)`, color: 'inherit', fontSize: 13, fontWeight: 750, cursor: 'pointer' }}
-          >
-            <Plus size={17} aria-hidden="true" /> Neu erstellen
-          </DashboardActionButton>
-          <DashboardActionButton
-            onClick={() => setView?.('tasks')}
-            liquidColor={t.accent}
-            style={{ minHeight: 48, borderRadius: 10, border: '1px solid rgba(128,128,128,0.25)', background: 'transparent', color: 'inherit', fontSize: 13, fontWeight: 650, cursor: 'pointer' }}
-          >
-            Aufgaben öffnen
-          </DashboardActionButton>
-        </div>
-      </Glass>
-
-      <motion.div
-        initial={contentMotion.allowEntry ? { opacity: 0, y: 8 } : false}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: Math.max(0.14, contentMotion.timings.materialMs / 1000), ease: contentFramerEase }}
-        style={{ marginBottom: 12 }}
-      >
-        <MobileRuntimeSummaryCard t={t} rgb={rgb} resumeLane={resumeLane} />
-      </motion.div>
-
+      <MobileDashboardOrientation state={productState} navigate={setView} />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <DashboardActionButton aria-haspopup="dialog" onClick={() => setMobileUtilitySheet('today')} style={{ minHeight: 44, padding: '9px 12px', borderRadius: 9, border: '1px solid rgba(128,128,128,.4)', background: 'transparent', color: 'inherit', font: 'inherit', cursor: 'pointer' }}>Workspace & Tagesübersicht</DashboardActionButton>
+        <DashboardActionButton aria-haspopup="dialog" onClick={() => setMobileUtilitySheet('capture')} style={{ minHeight: 44, padding: '9px 12px', borderRadius: 9, border: '1px solid rgba(128,128,128,.4)', background: 'transparent', color: 'inherit', font: 'inherit', cursor: 'pointer' }}>Neu erstellen</DashboardActionButton>
+      </div>
       <MobileDashboardHiddenTray
         editLayout={editLayout}
         heroMotion={heroMotion}
@@ -521,45 +476,8 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
         mode="bottom"
       >
         <div style={{ padding: '10px 10px 14px', display: 'grid', gap: 8 }}>
-          <dl style={{ margin: '0 0 4px', display: 'grid', gap: 8, fontSize: 13 }}>
-            {[
-              ['Offene Aufgaben heute', planningToday.openTaskCount],
-              ['Aufgabenfristen heute', planningToday.dueTaskCount],
-              ['Erinnerungspunkte heute', planningToday.dueReminderCount],
-              ['Überfällige Aufgabenfristen', planningToday.overdueTaskCount],
-              ['Erledigte Aufgaben', doneTasks],
-            ].map(([label, value]) => (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                <dt>{label}</dt><dd style={{ margin: 0, fontWeight: 700 }}>{value}</dd>
-              </div>
-            ))}
-          </dl>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {[
-              ['notes', 'Notizen öffnen'],
-              ['reminders', 'Erinnerungen öffnen'],
-            ].map(([view, label]) => (
-              <DashboardActionButton key={view} onClick={() => { setView?.(view); setMobileUtilitySheet('none') }} style={{ minHeight: 44, borderRadius: 9, border: '1px solid rgba(128,128,128,0.25)', background: 'transparent', color: 'inherit', fontSize: 12, cursor: 'pointer' }}>
-                {label}
-              </DashboardActionButton>
-            ))}
-          </div>
-          <DashboardActionButton
-            disabled={overdueReminders === 0}
-            onClick={() => { snoozeOverdue(15); setMobileUtilitySheet('none') }}
-            liquidColor="#ff9f0a"
-            style={{ width: '100%', border: '1px solid rgba(255,159,10,0.34)', borderRadius: 9, background: 'rgba(255,159,10,0.14)', color: '#ff9f0a', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 10px', fontSize: 12, fontWeight: 700 }}
-          >
-            Erinnerungen um 15 Min. verschieben
-          </DashboardActionButton>
-          <DashboardActionButton
-            disabled={overdueReminders === 0}
-            onClick={() => { snoozeOverdue(60); setMobileUtilitySheet('none') }}
-            liquidColor="#ff9f0a"
-            style={{ width: '100%', border: '1px solid rgba(255,159,10,0.34)', borderRadius: 9, background: 'rgba(255,159,10,0.14)', color: '#ff9f0a', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 10px', fontSize: 12, fontWeight: 700 }}
-          >
-            Erinnerungen um 1 Std. verschieben
-          </DashboardActionButton>
+          {productState.error ? <p role="alert">Die Übersicht ist nicht verfügbar.</p> : !productState.ready ? <p role="status">Übersicht wird geladen …</p> : <p>{productState.overview?.todayTaskCount ?? 0} offene Aufgaben heute · {doneTasks} Aufgaben abgeschlossen</p>}
+          <DashboardActionButton disabled={!productState.overview || Boolean(productState.error)} onClick={() => { if (productState.overview) openProductTarget({ kind: 'agenda', day: productState.overview.day }, setView); setMobileUtilitySheet('none') }} style={{ minHeight: 44, padding: '9px 12px', borderRadius: 9, border: '1px solid rgba(128,128,128,.4)', background: 'transparent', color: 'inherit', font: 'inherit', cursor: 'pointer' }}>Tagesplanung öffnen</DashboardActionButton>
           <details style={{ marginTop: 2, padding: '8px 9px', borderRadius: 9, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)' }}>
             <summary style={{ minHeight: 44, padding: '12px 0', cursor: 'pointer', fontSize: 12 }}>Workspace-Übergabe · {handoffConfidence === 'fresh' ? 'Aktuell' : handoffConfidence === 'stale' ? 'Veraltet' : 'Zuletzt'}</summary>
             <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.92 }}>

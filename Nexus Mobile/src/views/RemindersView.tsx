@@ -1,3 +1,7 @@
+import { useActiveViewCommandScope, isViewCommandScopeActive } from '../app/ViewCommandScope'
+import { useDialogFocus } from '../app/useDialogFocus'
+import { useProductNavigationTarget } from '../app/useProductNavigation'
+import { NavigationNotice } from './product/MobileProductParts'
 import { executeReminderCommand, type ReminderCommandResult } from '@nexus/core/reminders/reminderDomain'
 declare const window: Window & typeof globalThis & { api?: any; Capacitor?: any }
 
@@ -113,6 +117,7 @@ function ReminderModal({
   onClose: () => void
   setView?: (viewId: string) => void
 }) {
+  const dialogRef = useDialogFocus(onClose)
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const mob = useMobile()
@@ -218,6 +223,7 @@ function ReminderModal({
       style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems: mob.isMobile ? 'flex-end' : 'center', justifyContent:'center', zIndex:100, backdropFilter:'blur(6px)' }}
       onClick={onClose}>
       <motion.div
+        ref={dialogRef} role="dialog" aria-modal="true" aria-label={reminder ? 'Erinnerung bearbeiten' : 'Neue Erinnerung'} tabIndex={-1}
         initial={panelInitial}
         animate={{scale:1,y:0,opacity:1}}
         exit={panelInitial}
@@ -613,6 +619,7 @@ function ReminderCard({
 // ─────────────────────────────────────────────
 
 export function RemindersView({ setView }: { setView?: (viewId: string) => void } = {}) {
+  const activeScope = useActiveViewCommandScope()
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const { reminders, tasks, addRem } = useApp()
@@ -650,6 +657,12 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
   })
   const [newOpen, setNewOpen]     = useState(false)
   const [editId, setEditId]       = useState<string|null>(null)
+  const navigationMessage = useProductNavigationTarget('reminder', target => {
+    if (useApp.getState().reminders.filter(reminder => reminder.id === target.id).length !== 1) return false
+    setNewOpen(false); setEditId(target.id)
+    requestAnimationFrame(() => document.querySelector<HTMLInputElement>('.nx-mobile-v6-view-shell[data-view="reminders"][data-active="true"] input[placeholder="Reminder title…"]')?.focus())
+    return true
+  })
   const [controlBusy, setControlBusy] = useState<'permissions' | 'reschedule' | 'settings' | null>(null)
   const [controlCenterOpen, setControlCenterOpen] = useState(false)
   const [mobileFilterSheetOpen, setMobileFilterSheetOpen] = useState(false)
@@ -657,7 +670,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Tick every 30s
-  useEffect(() => { const id = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(id) }, [])
+  useEffect(() => { if (!activeScope) return; setNow(new Date()); const id = setInterval(() => { if (document.visibilityState !== 'hidden') setNow(new Date()) }, 30000); return () => clearInterval(id) }, [activeScope])
   useEffect(() => {
     try {
       localStorage.setItem(QUIET_HOURS_KEY, JSON.stringify(quietHours))
@@ -713,7 +726,9 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
   }, [addRem])
 
   useEffect(() => {
+    if (!activeScope) return
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!isViewCommandScopeActive(activeScope) || event.defaultPrevented || event.isComposing) return
       const key = event.key.toLowerCase()
       const cmd = event.metaKey || event.ctrlKey
 
@@ -759,7 +774,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [activeScope])
 
   const nextOpenReminderAt = useMemo(() => {
     const pending = reminders
@@ -1304,6 +1319,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
         </div>
       </MobileSheet>
 
+      <NavigationNotice message={navigationMessage} />
       {/* Modals */}
       <AnimatePresence>
         {newOpen  && <ReminderModal key="new" onClose={()=>setNewOpen(false)} setView={setView} />}

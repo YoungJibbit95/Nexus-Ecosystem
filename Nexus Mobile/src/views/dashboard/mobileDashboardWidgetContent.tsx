@@ -51,7 +51,7 @@ export function buildMobileDashboardWidgetContent({
   pinnedNotes: number
   doneTasks: number
   openTasks: number
-  overdueReminders: number
+  overdueReminders: number | null
   taskProgress: number
   runCaptureIntent: (intentType: CaptureIntentType) => void
   setView?: (view: string) => void
@@ -62,7 +62,7 @@ export function buildMobileDashboardWidgetContent({
         <div style={{ display: 'grid', gridTemplateColumns: mob.isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
           <StatCard icon={FileText} label="Notizen" value={notes.length} sub={`${pinnedNotes} angeheftet`} color={t.accent} onClick={() => setView?.('notes')} />
           <StatCard icon={CheckSquare} label="Tasks" value={openTasks} sub={`${doneTasks} erledigt`} color="#30D158" onClick={() => setView?.('tasks')} />
-          <StatCard icon={Bell} label="Reminders" value={reminders.filter((r) => !r.done).length} sub={overdueReminders ? `${overdueReminders} überfällig` : 'Alles im Plan'} color={overdueReminders ? '#FF453A' : '#FF9F0A'} onClick={() => setView?.('reminders')} />
+          <StatCard icon={Bell} label="Reminders" value={reminders.filter((r) => !r.done).length} sub={overdueReminders === null ? 'Zeitstatus nicht verfügbar' : overdueReminders ? `${overdueReminders} überfällig` : 'Keine überfälligen Hinweise'} color={overdueReminders ? '#FF453A' : '#FF9F0A'} onClick={() => setView?.('reminders')} />
           <StatCard icon={Code} label="Code Files" value={codes.length} sub="Projektdateien" color="#BF5AF2" onClick={() => setView?.('code')} />
         </div>
       </Glass>
