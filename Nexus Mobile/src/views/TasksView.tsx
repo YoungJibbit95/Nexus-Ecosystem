@@ -1,3 +1,11 @@
+import { createContext, useContext } from 'react'
+import { useProductOverview } from './product/useProductOverview'
+import type { AttentionItem, AttentionReason } from './product/productAttention'
+import { useActiveViewCommandScope, isViewCommandScopeActive } from '../app/ViewCommandScope'
+import { useDialogFocus } from '../app/useDialogFocus'
+import { useProductNavigationTarget } from '../app/useProductNavigation'
+import { NavigationNotice } from './product/MobileProductParts'
+import { MobileTaskContext, openMobileContext } from './product/MobileContext'
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import {
   Plus,
@@ -54,40 +62,19 @@ const TASK_WORK_MODE_META: Record<TaskWorkMode, { label: string; icon: React.Rea
 }
 
 const TASK_MODE_STORAGE_KEY = 'nx-mobile-tasks-work-mode-v1'
-const DUE_SOON_WINDOW_MS = 48 * 60 * 60 * 1000
+const TaskFacts = createContext(new Map<string, AttentionReason[]>())
 
 const normalizeText = (value: string) => value.trim().toLowerCase()
-
-const parseDeadlineTs = (task: Task) => {
-  if (!task.deadline) return null
-  const ts = new Date(task.deadline).getTime()
-  return Number.isFinite(ts) ? ts : null
-}
-
-const isTaskDueSoon = (task: Task, nowMs = Date.now()) => {
-  if (task.status === 'done') return false
-  const ts = parseDeadlineTs(task)
-  return ts !== null && ts > nowMs && ts - nowMs <= DUE_SOON_WINDOW_MS
-}
-
-const isTaskOverdue = (task: Task, nowMs = Date.now()) => {
-  if (task.status === 'done') return false
-  const ts = parseDeadlineTs(task)
-  return ts !== null && ts < nowMs
-}
 
 const getOpenDependencyCount = (task: Task, taskMap: Map<string, Task>) => {
   const dependencies = task.dependsOnTaskIds || []
   if (!dependencies.length) return 0
   return dependencies.reduce((count, depId) => {
     const dependency = taskMap.get(depId)
-    if (!dependency || dependency.status === 'done') return count
+    if (dependency?.status === 'done') return count
     return count + 1
   }, 0)
 }
-
-const isTaskBlocked = (task: Task, taskMap: Map<string, Task>) =>
-  Boolean(task.blocked) || getOpenDependencyCount(task, taskMap) > 0
 
 const isEditableTarget = (target: EventTarget | null) => {
   const el = target as HTMLElement | null
@@ -96,38 +83,13 @@ const isEditableTarget = (target: EventTarget | null) => {
   return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable
 }
 
-const scoreTaskForFocus = (task: Task, taskMap: Map<string, Task>, nowMs: number) => {
-  if (task.status === 'done') return -1
-  let score = 0
-  if (task.status === 'doing') score += 4
-  if (task.priority === 'high') score += 3
-  if (isTaskDueSoon(task, nowMs)) score += 3
-  if (isTaskOverdue(task, nowMs)) score += 4
-  if (isTaskBlocked(task, taskMap)) score += 2
-  if ((task.tags || []).includes('focus')) score += 2
-  if ((task.tags || []).includes('today')) score += 1
-  return score
-}
-
-const applyTaskWorkMode = (tasks: Task[], mode: TaskWorkMode, taskMap: Map<string, Task>) => {
-  const nowMs = Date.now()
-
+const applyTaskWorkMode = (tasks: Task[], mode: TaskWorkMode, attention: AttentionItem[]) => {
   if (mode === 'board') return tasks
-  if (mode === 'due-soon') return tasks.filter((task) => isTaskDueSoon(task, nowMs))
-  if (mode === 'high-priority') return tasks.filter((task) => task.status !== 'done' && task.priority === 'high')
-  if (mode === 'blocked') return tasks.filter((task) => task.status !== 'done' && isTaskBlocked(task, taskMap))
-
-  if (mode === 'focus') {
-    return [...tasks]
-      .filter((task) => task.status !== 'done')
-      .sort((a, b) => scoreTaskForFocus(b, taskMap, nowMs) - scoreTaskForFocus(a, taskMap, nowMs))
-      .filter((task) => scoreTaskForFocus(task, taskMap, nowMs) > 0)
-  }
-
-  return tasks
+  const ids = new Map(tasks.map(task => [task.id, task]))
+  return attention.filter(item => item.kind === 'task' && (mode === 'focus' ? !item.reasons.some(reason => reason === 'blocked' || reason === 'unresolved') : item.reasons.includes(mode === 'due-soon' ? 'due-soon' : mode === 'blocked' ? 'blocked' : 'high-priority'))).map(item => ids.get(item.target.kind === 'task' ? item.target.id : '')).filter((task): task is Task => Boolean(task))
 }
-
 function StatsBar({ tasks }: { tasks: Task[] }) {
+  const facts = useContext(TaskFacts)
   const t = useTheme()
   const mob = useMobile()
   const compactEdge = Math.min(mob.screenW, mob.screenH)
@@ -141,9 +103,9 @@ function StatsBar({ tasks }: { tasks: Task[] }) {
   const pctFont = isCompactMobile ? 10 : 11
   const total    = tasks.length
   const done     = tasks.filter((task) => task.status === 'done').length
-  const overdue  = tasks.filter((task) => isTaskOverdue(task)).length
+  const overdue  = tasks.filter((task) => facts.get(task.id)?.includes('overdue')).length
   const high     = tasks.filter((task) => task.priority === 'high' && task.status !== 'done').length
-  const blocked  = tasks.filter((task) => task.blocked).length
+  const blocked  = tasks.filter((task) => facts.get(task.id)?.includes('blocked')).length
   const pct      = total ? Math.round((done / total) * 100) : 0
 
   return (
@@ -222,7 +184,8 @@ function TaskCard({
     family: 'content',
   })
 
-  const overdue = isTaskOverdue(tk)
+  const facts = useContext(TaskFacts)
+  const overdue = facts.get(tk.id)?.includes('overdue')
   const subDone = (tk.subtasks || []).filter((sub) => sub.done).length
   const subTotal = (tk.subtasks || []).length
 
@@ -466,6 +429,7 @@ function TaskModal({
   const [dependsOnTaskIds, setDependsOnTaskIds] = useState<string[]>(task?.dependsOnTaskIds ?? [])
   const [linkedCanvasNodeId, setLinkedCanvasNodeId] = useState(task?.linkedCanvasNodeId ?? '')
 
+  const dialogRef = useDialogFocus(onClose)
   const subRef = useRef<HTMLInputElement>(null)
 
   const modalDecision = useRenderSurfaceBudget({
@@ -511,9 +475,7 @@ function TaskModal({
 
   const openLinkedNote = useCallback((noteId: string) => {
     if (!noteId) return
-    openNote(noteId)
-    setNote(noteId)
-    setView?.('notes')
+    openMobileContext({ kind: 'note', id: noteId }, setView)
   }, [openNote, setNote, setView])
 
   const createOrOpenLinkedNote = useCallback(() => {
@@ -583,11 +545,11 @@ function TaskModal({
       deadline: deadline || undefined,
       tags,
       notes: notesMd,
-      linkedNoteId: linkedNoteId || undefined,
+      ...(!task ? { linkedNoteId: linkedNoteId || undefined, linkedCanvasNodeId: linkedCanvasNodeId || undefined } : {}),
       blocked,
       blockedReason: blocked ? blockedReason.trim() || undefined : undefined,
       dependsOnTaskIds,
-      linkedCanvasNodeId: linkedCanvasNodeId || undefined,
+
     }
 
     if (task) {
@@ -617,6 +579,7 @@ function TaskModal({
       onClick={onClose}
     >
       <motion.div
+        ref={dialogRef} role="dialog" aria-modal="true" aria-label={task ? 'Aufgabe bearbeiten' : 'Neue Aufgabe'} tabIndex={-1}
         initial={panelInitial}
         animate={{ scale:1, y:0, opacity:1 }}
         exit={panelInitial}
@@ -706,6 +669,7 @@ function TaskModal({
                 </div>
 
                 <div style={{ borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:12, marginTop:2, display:'grid', gap:12 }}>
+                  {task ? <MobileTaskContext taskId={task.id} navigate={setView} /> : (
                   <div>
                     <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:0.5 }}>Linked Note</label>
                     <div style={{ display:'flex', gap:6 }}>
@@ -720,6 +684,7 @@ function TaskModal({
                       </button>
                     </div>
                   </div>
+                  )}
 
                   <div>
                     <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:0.5 }}>Task Dependencies</label>
@@ -768,21 +733,17 @@ function TaskModal({
                     </div>
                   </div>
 
+                  {!task && (
                   <div>
                     <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:0.5 }}>Canvas Link (optional)</label>
                     <input value={linkedCanvasNodeId} onChange={(event) => setLinkedCanvasNodeId(event.target.value)} placeholder="Canvas node id / anchor" style={{ width:'100%', padding:'7px 10px', borderRadius:8, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:12, color:'inherit' }} />
                   </div>
+                  )}
 
                   {task && (
                     <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                       <button onClick={createLinkedReminder} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid rgba(100,210,255,0.34)', background:'rgba(100,210,255,0.14)', color:'#64d2ff', fontSize:11, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}>
                         <Bell size={12} /> Reminder from Task
-                      </button>
-                      <button onClick={createOrOpenLinkedNote} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid rgba(255,255,255,0.16)', background:'rgba(255,255,255,0.08)', color:'inherit', fontSize:11, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}>
-                        <Link size={12} /> Note Link
-                      </button>
-                      <button onClick={() => setView?.('canvas')} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid rgba(191,90,242,0.34)', background:'rgba(191,90,242,0.14)', color:'#bf5af2', fontSize:11, fontWeight:700, cursor:'pointer' }}>
-                        Open Canvas
                       </button>
                     </div>
                   )}
@@ -849,6 +810,10 @@ function TaskModal({
 }
 
 export function TasksView({ setView }: { setView?: (viewId: string) => void } = {}) {
+  const activeScope = useActiveViewCommandScope()
+  const productState = useProductOverview()
+  const attention = useMemo(() => productState.overview?.attention || [], [productState.overview])
+  const facts = useMemo(() => new Map(attention.filter(item => item.kind === 'task').map(item => [item.target.kind === 'task' ? item.target.id : '', item.reasons])), [attention])
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const mob = useMobile()
@@ -884,6 +849,12 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
   const [search, setSearch] = useState('')
   const [editId, setEditId] = useState<string | null>(null)
   const [newStatus, setNewStatus] = useState<'todo'|'doing'|'done'|null>(null)
+  const navigationMessage = useProductNavigationTarget('task', target => {
+    if (useApp.getState().tasks.filter(task => task.id === target.id).length !== 1) return false
+    setNewStatus(null); setEditId(target.id)
+    requestAnimationFrame(() => document.querySelector<HTMLInputElement>('.nx-mobile-v6-view-shell[data-view="tasks"][data-active="true"] input[placeholder="Task title…"]')?.focus())
+    return true
+  })
   const [filterPri, setFilterPri] = useState<string[]>([])
   const [filterTag, setFilterTag] = useState('')
   const [filterPanel, setFilterPanel] = useState(false)
@@ -934,11 +905,11 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
 
   const modeCounts = useMemo(() => ({
     board: tasks.length,
-    focus: applyTaskWorkMode(tasks, 'focus', taskMap).length,
-    'due-soon': applyTaskWorkMode(tasks, 'due-soon', taskMap).length,
-    'high-priority': applyTaskWorkMode(tasks, 'high-priority', taskMap).length,
-    blocked: applyTaskWorkMode(tasks, 'blocked', taskMap).length,
-  }), [tasks, taskMap])
+    focus: applyTaskWorkMode(tasks, 'focus', attention).length,
+    'due-soon': applyTaskWorkMode(tasks, 'due-soon', attention).length,
+    'high-priority': applyTaskWorkMode(tasks, 'high-priority', attention).length,
+    blocked: applyTaskWorkMode(tasks, 'blocked', attention).length,
+  }), [tasks, attention])
 
   const allTags = useMemo(() => {
     const tagSet = new Set<string>()
@@ -960,7 +931,7 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
   const noteById = useMemo(() => new Map(notes.map((note) => [note.id, note])), [notes])
 
   const filtered = useMemo(() => {
-    let next = applyTaskWorkMode(tasks, workMode, taskMap)
+    let next = applyTaskWorkMode(tasks, workMode, attention)
 
     const searchQuery = normalizeText(search)
     if (searchQuery) {
@@ -983,10 +954,10 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
     }
 
     return next
-  }, [tasks, workMode, taskMap, search, filterPri, filterTag, showDone])
+  }, [tasks, workMode, attention, search, filterPri, filterTag, showDone])
 
   const editTask = tasks.find((task) => task.id === editId)
-  const dueSoonCount = useMemo(() => tasks.filter((task) => isTaskDueSoon(task)).length, [tasks])
+  const dueSoonCount = useMemo(() => tasks.filter((task) => facts.get(task.id)?.includes('due-soon')).length, [tasks, facts])
   const doingCount = useMemo(() => tasks.filter((task) => task.status === 'doing').length, [tasks])
 
   const selectedCount = selectedTaskIds.length
@@ -1032,9 +1003,7 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
 
   const openLinkedNote = useCallback((task: Task) => {
     if (!task.linkedNoteId) return
-    openNote(task.linkedNoteId)
-    setNote(task.linkedNoteId)
-    setView?.('notes')
+    openMobileContext({ kind: 'note', id: task.linkedNoteId }, setView)
   }, [openNote, setNote, setView])
 
   const quickAdd = useCallback((kind: 'today' | 'bug' | 'focus') => {
@@ -1044,7 +1013,9 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
   }, [addTask])
 
   useEffect(() => {
+    if (!activeScope) return
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!isViewCommandScopeActive(activeScope) || event.defaultPrevented || event.isComposing) return
       const key = event.key.toLowerCase()
       const cmd = event.metaKey || event.ctrlKey
 
@@ -1119,10 +1090,10 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [quickAdd])
+  }, [quickAdd, activeScope])
 
   return (
-    <DndProvider backend={HTML5Backend}>
+    <TaskFacts.Provider value={facts}><DndProvider backend={HTML5Backend}>
       <div
         className="nx-mobile-view-screen"
         style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}
@@ -1334,7 +1305,7 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
                           onToggleSelect={toggleSelectedTask}
                           reminderCount={reminderCount}
                           linkedNoteTitle={linkedNote?.title}
-                          isBlocked={isTaskBlocked(task, taskMap)}
+                          isBlocked={Boolean(facts.get(task.id)?.includes('blocked'))}
                           blockedByDepsCount={blockedByDepsCount}
                           onOpenLinkedNote={openLinkedNote}
                         />
@@ -1425,10 +1396,11 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
         </div>
       </MobileSheet>
 
+      <NavigationNotice message={navigationMessage || productState.error || ''} />
       <AnimatePresence>
         {newStatus && <TaskModal key="new" onClose={() => setNewStatus(null)} status={newStatus} setView={setView} />}
         {editId && <TaskModal key={editId} task={editTask} onClose={() => setEditId(null)} setView={setView} />}
       </AnimatePresence>
-    </DndProvider>
+    </DndProvider></TaskFacts.Provider>
   )
 }

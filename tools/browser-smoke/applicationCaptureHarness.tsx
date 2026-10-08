@@ -175,7 +175,7 @@ function failWrites(key: string, tag: string) {
       change(document.querySelector<HTMLInputElement>('input[aria-label="Planungstitel"]')!, `${client}-${origin}-task`)
       const form = document.querySelector<HTMLFormElement>('form[aria-label="Manuelle Planungsaktion"]')!
       flushSync(() => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
-      await wait(() => form.textContent?.includes('Dauerhaft gespeichert'), `${origin} Task acknowledgement`)
+      await wait(() => (client === 'mobile' ? form.closest('.nx-planning-panel') : form)?.textContent?.includes('Dauerhaft gespeichert'), `${origin} Task acknowledgement`)
       const task = app.getState().tasks.find(item => item.title === `${client}-${origin}-task`)!
       assert(task?.id && Object.values(planning.capturePlanning().receipts).some(receipt => receipt.ids.includes(task.id)), `${origin} Task submit returns canonical owner ID/receipt`); taskIds.push(task.id)
     }
@@ -185,7 +185,7 @@ function failWrites(key: string, tag: string) {
     await wait(() => !repeatedTaskForm.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled, 'new identical Task intent is ready')
     assert(!repeatedTaskForm.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled, 'New Task intent with unchanged draft gets a fresh command identity')
     flushSync(() => repeatedTaskForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
-    await wait(() => repeatedTaskForm.textContent?.includes('Dauerhaft gespeichert'), 'new identical Task acknowledgement')
+    await wait(() => (client === 'mobile' ? repeatedTaskForm.closest('.nx-planning-panel') : repeatedTaskForm)?.textContent?.includes('Dauerhaft gespeichert'), 'new identical Task acknowledgement')
     const repeatedTask = app.getState().tasks.find(item => !taskIds.includes(item.id))!
     assert(repeatedTask?.title === `${client}-dashboard-task`, 'Explicit new identical Task intent creates a separately acknowledged ID'); taskIds.push(repeatedTask.id)
     for (const origin of ['shell','palette']) {
@@ -198,7 +198,7 @@ function failWrites(key: string, tag: string) {
       const form = document.querySelector<HTMLFormElement>('form[aria-label="Manuelle Planungsaktion"]')!
       const conflict = [...form.querySelectorAll<HTMLLabelElement>('label')].find(label => label.textContent?.includes('Konflikte'))!.querySelector<HTMLInputElement>('input')!
       flushSync(() => conflict.click()); flushSync(() => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
-      await wait(() => form.textContent?.includes('Dauerhaft gespeichert'), `${origin} Event acknowledgement`)
+      await wait(() => (client === 'mobile' ? form.closest('.nx-planning-panel') : form)?.textContent?.includes('Dauerhaft gespeichert'), `${origin} Event acknowledgement`)
       const event = planning.capturePlanning().events.find(item => item.title === `${client}-${origin}-event`)!
       assert(event?.id && Object.values(planning.capturePlanning().receipts).some(receipt => receipt.ids.includes(event.id)), `${origin} Event submit returns canonical owner ID/receipt`); eventIds.push(event.id)
     }
@@ -211,7 +211,7 @@ function failWrites(key: string, tag: string) {
     change(repeatedEventForm.querySelector<HTMLInputElement>('[aria-label="Planungsende"]')!, '2026-10-02T13:00')
     const repeatConflict = [...repeatedEventForm.querySelectorAll<HTMLLabelElement>('label')].find(label => label.textContent?.includes('Konflikte'))!.querySelector<HTMLInputElement>('input')!
     flushSync(() => repeatConflict.click()); flushSync(() => repeatedEventForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
-    await wait(() => repeatedEventForm.textContent?.includes('Dauerhaft gespeichert'), 'new identical Event acknowledgement')
+    await wait(() => (client === 'mobile' ? repeatedEventForm.closest('.nx-planning-panel') : repeatedEventForm)?.textContent?.includes('Dauerhaft gespeichert'), 'new identical Event acknowledgement')
     const repeatedEvent = planning.capturePlanning().events.find(item => !eventIds.includes(item.id))!
     assert(repeatedEvent?.title === `${client}-palette-event`, 'Explicit new identical Event intent creates a separately acknowledged ID'); eventIds.push(repeatedEvent.id)
     assert((app.getState().notes.find(item => item.id === 'sentinel') as any).future.deep === 'retained', 'All captures retain unrelated entity metadata')

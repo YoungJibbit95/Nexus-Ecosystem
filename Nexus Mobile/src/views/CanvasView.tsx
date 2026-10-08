@@ -1,3 +1,6 @@
+import { useActiveViewCommandScope, isViewCommandScopeActive } from '../app/ViewCommandScope'
+import { MobileContextUsage } from './product/MobileContext'
+import { NavigationNotice } from './product/MobileProductParts'
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import {
     Plus, ZoomIn, ZoomOut, Maximize2, Trash2, Edit3, Link,
@@ -62,7 +65,16 @@ const CANVAS_UI_PREFS_KEY = 'nexus-mobile-canvas-ui-v2'
 
 // ─── MAIN CANVAS VIEW ───
 
-export function CanvasView() {
+export function CanvasView({ setView }: { setView?: (view: string) => void } = {}) {
+    const activeScope = useActiveViewCommandScope(), commandScope = useRef(activeScope); commandScope.current = activeScope
+    const contextRef = useRef<HTMLDivElement>(null), [contextFocus, setContextFocus] = useState(0)
+    const handledContextFocus = useRef(0)
+    useEffect(() => {
+        if (activeScope && contextFocus > handledContextFocus.current) {
+            handledContextFocus.current = contextFocus
+            contextRef.current?.focus()
+        }
+    }, [activeScope, contextFocus])
     type MobileCanvasSheet = 'none' | 'canvas-list' | 'add' | 'tools' | 'magic' | 'project'
     const t = useTheme()
     const rgb = hexToRgb(t.accent)
@@ -382,7 +394,7 @@ export function CanvasView() {
         })
         obs.observe(canvasRef.current)
         return () => obs.disconnect()
-    }, [])
+    }, [canvas?.id])
 
     useEffect(() => {
         saveCanvasUiPreferences(CANVAS_UI_PREFS_KEY, {
@@ -411,6 +423,7 @@ export function CanvasView() {
     // Keyboard
     useEffect(() => {
         const onDown = (e: KeyboardEvent) => {
+            if (!isViewCommandScopeActive(commandScope.current) || e.defaultPrevented) return
             const targetTag = (e.target as HTMLElement).tagName
             const isEditing = targetTag === 'INPUT' || targetTag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable
             if (e.code === 'Space' && !isEditing) { e.preventDefault(); setSpaceHeld(true) }
@@ -544,8 +557,19 @@ export function CanvasView() {
         const state = useCanvas.getState(), target = state.canvases.find(item => item.id === ref.canvasId)
         if (state.canvases.filter(item => item.id === ref.canvasId).length !== 1 || target?.nodes.filter(node => node.id === ref.id).length !== 1) { setPromotionMessage('Verknüpfter Canvas-Knoten fehlt oder ist mehrdeutig. Referenz bleibt zur Reparatur erhalten.'); return true }
         if (state.activeCanvasId !== ref.canvasId || canvas?.id !== ref.canvasId) { state.setActiveCanvas(ref.canvasId); return false }
-        setPromotionMessage(''); jumpToNode(ref.id); return true
-    }, [canvas?.id, jumpToNode]))
+        const bounds = canvasRef.current?.getBoundingClientRect()
+        if (!bounds?.width || !bounds.height || Math.abs(bounds.width - canvasSize.w) > 1 || Math.abs(bounds.height - canvasSize.h) > 1) return false
+        if (selectedNodeId !== ref.id) { setSelectedNodeId(ref.id); return false }
+        setPromotionMessage(''); jumpToNode(ref.id); setContextFocus(value => value + 1); return true
+    }, [canvas?.id, jumpToNode, selectedNodeId, canvasSize.w, canvasSize.h]), activeScope)
+    const canvasNavigationMessage = useEntityNavigationTarget('mobile', 'canvas', useCallback(ref => {
+        const state = useCanvas.getState()
+        if (state.canvases.filter(item => item.id === ref.id).length !== 1) { setPromotionMessage('Dieses Canvas fehlt oder ist nicht eindeutig verfügbar.'); return true }
+        if (state.activeCanvasId !== ref.id || canvas?.id !== ref.id) { state.setActiveCanvas(ref.id); return false }
+        const bounds = canvasRef.current?.getBoundingClientRect()
+        if (!bounds?.width || !bounds.height || Math.abs(bounds.width - canvasSize.w) > 1 || Math.abs(bounds.height - canvasSize.h) > 1) return false
+        setSelectedNodeId(null); fitView(); setPromotionMessage(''); setContextFocus(value => value + 1); return true
+    }, [canvas?.id, canvasSize.w, canvasSize.h, fitView]), activeScope)
 
     const navigateFocusTrail = useCallback((direction: -1 | 1) => {
         setFocusTrailIndex((currentIndex) => {
@@ -712,7 +736,7 @@ export function CanvasView() {
         []
     )
 
-    const contextNotice = (contextNavigationMessage || promotionMessage) && <p role="status" style={{ position:'absolute', bottom:16, left:12, right:12, zIndex:250, padding:12, background:t.bg, border:`1px solid ${t.accent}`, borderRadius:8 }}>{contextNavigationMessage || promotionMessage}</p>
+    const contextNotice = <NavigationNotice message={contextNavigationMessage || canvasNavigationMessage || promotionMessage} />
     // Empty state
     if (canvases.length === 0) {
         return (
@@ -837,6 +861,7 @@ export function CanvasView() {
 
             {/* ── Main Canvas ── */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', isolation: 'isolate' }}>
+                {canvas && <div ref={contextRef} tabIndex={-1} aria-label={`Kontext: ${selectedNode?.title || canvas.name}`}><MobileContextUsage target={selectedNode ? { kind: 'canvas-node', canvasId: canvas.id, id: selectedNode.id } : { kind: 'canvas', id: canvas.id }} navigate={setView} /></div>}
                 {/* ── Top Bar ── */}
                 <div style={{
                     flexShrink: 0, display: 'flex', alignItems: 'center', gap: mob.isMobile ? (isCompactMobile ? 6 : 8) : 4,

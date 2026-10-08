@@ -94,7 +94,11 @@ export function NexusMobileViewShell({
   children,
 }: Props) {
   const themeMode = useTheme((state) => state.mode);
-  const contract = React.useMemo(() => resolveViewContract(viewId), [viewId]);
+  const orientationView = viewId === 'dashboard' || viewId === 'flux';
+  const contract = React.useMemo(() => {
+    const current = resolveViewContract(viewId);
+    return viewId === 'flux' ? { ...current, subtitle: 'Aufmerksamkeit und nächste Schritte' } : current;
+  }, [viewId]);
   const relatedViews = React.useMemo(
     () => resolveRelatedViews(viewId, availableViews, contract),
     [availableViews, contract, viewId],
@@ -308,25 +312,25 @@ export function NexusMobileViewShell({
       <header className="nx-mobile-v6-header">
         <div className="nx-mobile-v6-title-cluster">
           <div className="nx-mobile-v6-eyebrow">
-            {contract.category} / {layout?.surfaceMode ?? contract.mobileMode}
+            {orientationView ? 'Nexus' : <>{contract.category} / {layout?.surfaceMode ?? contract.mobileMode}</>}
           </div>
           <div className="nx-mobile-v6-title-row">
             <div>
               <h1>{contract.title}</h1>
               <p>{contract.subtitle}</p>
             </div>
-            <button
+            {!orientationView && <button
               type="button"
               className="nx-mobile-v6-details-button"
               aria-pressed={sheetOpen}
               onClick={() => setSheetOpen((next) => !next)}
             >
               Details
-            </button>
+            </button>}
           </div>
         </div>
 
-        <div className="nx-mobile-v6-actions" aria-label="Mobile View Actions">
+        {!orientationView && <div className="nx-mobile-v6-actions" aria-label="Mobile View Actions">
           {primaryAction ? (
             <button
               type="button"
@@ -350,9 +354,9 @@ export function NexusMobileViewShell({
               {action.title}
             </button>
           ))}
-        </div>
+        </div>}
 
-        {relatedViews.length > 0 ? (
+        {!orientationView && relatedViews.length > 0 ? (
           <nav className="nx-mobile-v6-related" aria-label="Related Views">
             {relatedViews.map((manifest) => (
               <button
@@ -370,13 +374,13 @@ export function NexusMobileViewShell({
 
       <div className="nx-mobile-v6-content">{children}</div>
 
-      <footer className="nx-mobile-v6-status" aria-label="View Status">
+      {!orientationView && <footer className="nx-mobile-v6-status" aria-label="View Status">
         {statusChips.map((chip) => (
           <span key={chip.id} data-tone={chip.tone} title={chip.description}>
             {chip.label}
           </span>
         ))}
-      </footer>
+      </footer>}
 
       {sheetOpen ? (
         <aside className="nx-mobile-v6-sheet" aria-label={`${contract.title} Details`}>

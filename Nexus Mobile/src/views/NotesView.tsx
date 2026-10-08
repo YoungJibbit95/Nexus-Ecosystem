@@ -1,3 +1,6 @@
+import { useActiveViewCommandScope, isViewCommandScopeActive } from '../app/ViewCommandScope'
+import { MobileContextUsage } from './product/MobileContext'
+import { NavigationNotice } from './product/MobileProductParts'
 import { useMobile } from '../lib/useMobile'
 import React, { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue } from 'react'
 import {
@@ -62,7 +65,8 @@ const runIdle = (task: () => void, timeoutMs = 320) => {
   }
   setTimeout(task, 0)
 }
-export function NotesView() {
+export function NotesView({ setView }: { setView?: (view: string) => void } = {}) {
+  const activeScope = useActiveViewCommandScope(), commandScope = useRef(activeScope); commandScope.current = activeScope
   const { notes, activeNoteId, addNote, updateNote, delNote, setNote, saveNote, addTask, updateTask, addRem } = useApp((s) => ({
     notes: s.notes,
     activeNoteId: s.activeNoteId,
@@ -487,6 +491,7 @@ export function NotesView() {
 
   useEffect(() => {
     const onGlobalKeyDown = (event: KeyboardEvent) => {
+      if (!isViewCommandScopeActive(commandScope.current) || event.defaultPrevented) return
       if (showQuickSwitch) return
       const editable = isEditableTarget(event.target)
       if (!(event.ctrlKey || event.metaKey)) return
@@ -555,12 +560,20 @@ export function NotesView() {
   }, [insertFormat])
 
   const [promotionMessage, setPromotionMessage] = useState('')
+  const titleRef = useRef<HTMLInputElement>(null), [contextFocus, setContextFocus] = useState(0)
+  const handledContextFocus = useRef(0)
+  useEffect(() => {
+    if (activeScope && contextFocus > handledContextFocus.current) {
+      handledContextFocus.current = contextFocus
+      titleRef.current?.focus()
+    }
+  }, [activeScope, contextFocus])
   const contextNavigationMessage = useEntityNavigationTarget('mobile', 'note', useCallback(ref => {
     if (ref.kind !== 'note') return false
     if (useApp.getState().notes.filter(note => note.id === ref.id).length !== 1) { setPromotionMessage('Verknüpfte Notiz fehlt oder ist mehrdeutig. Referenz bleibt zur Reparatur erhalten.'); return true }
     setPromotionMessage('')
-    useApp.getState().setNote(ref.id); return true
-  }, []))
+    useApp.getState().setNote(ref.id); setContextFocus(value => value + 1); return true
+  }, []), activeScope)
   const convertNoteToTask = useCallback(async () => {
     if (!active) return
     try { const result = await planningStore.promoteEntity({ kind: 'note', id: active.id }); setPromotionMessage(result.ok === true ? `Aufgabe dauerhaft bestätigt: ${result.ids.join(', ')}. Wiederholen verwendet dieselbe Zuordnung.` : result.message) }
@@ -613,6 +626,7 @@ export function NotesView() {
   useEffect(() => {
     if (!showQuickSwitch) return
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!isViewCommandScopeActive(commandScope.current) || event.defaultPrevented) return
       if (event.key === 'Escape') {
         event.preventDefault()
         closeQuickSwitch()
@@ -701,7 +715,7 @@ export function NotesView() {
       className="flex h-full gap-3 p-3 relative nx-mobile-view-screen"
       style={{ minHeight: 0, flexDirection: mob.isMobile ? 'column' : 'row', gap: mob.isMobile ? 0 : 12, padding: mob.isMobile ? 0 : 12 }}
     >
-      {(contextNavigationMessage || promotionMessage) && <p role="status" style={{ position: 'absolute', bottom: 24, right: 12, zIndex: 200, maxWidth: 360, background: '#172033', padding: 10 }}>{contextNavigationMessage || promotionMessage}</p>}
+      <NavigationNotice message={contextNavigationMessage || promotionMessage} />
 
       {/* Mobile top bar */}
       {mob.isMobile && !focusMode && (
@@ -809,6 +823,7 @@ export function NotesView() {
     {/* ── MAIN PANEL ── */}
       {active ? (
         <div className="flex-1 flex flex-col" style={{ minHeight: 0, overflow: 'visible', gap: isTightViewport ? 1 : 2 }}>
+          <MobileContextUsage target={{ kind: 'note', id: active.id }} navigate={setView} />
 
           {/* Header bar */}
           {mob.isMobile ? (
@@ -816,6 +831,7 @@ export function NotesView() {
               <input
                 className="flex-1 bg-transparent outline-none font-semibold"
                 style={{ fontSize: isTightViewport ? 10.5 : 11.5, minWidth: 0, color: 'inherit' }}
+                ref={titleRef} aria-label="Notiztitel"
                 value={active.title}
                 onChange={e => updateNote(active.id, { title: e.target.value })}
                 placeholder="Titel..."
@@ -831,6 +847,7 @@ export function NotesView() {
               <input
                 className="flex-1 bg-transparent outline-none font-semibold"
                 style={{ fontSize: isTightViewport ? (isTinyMobile ? 10.5 : 11.5) : (isTinyMobile ? 11.5 : 12.5), minWidth: 0, color: 'inherit' }}
+                ref={titleRef} aria-label="Notiztitel"
                 value={active.title}
                 onChange={e => updateNote(active.id, { title: e.target.value })}
                 placeholder="Titel..."

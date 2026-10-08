@@ -1,10 +1,10 @@
 # Nexus V7 experience model
 
-2026-10-07. Rules for the bounded Dashboard/Flux/Agenda composition wave, using current Nexus typography, theme tokens, glass surfaces and command owners. This is not a separate design-system rewrite.
+Updated 2026-10-08 through C1. Rules for Main/Mobile orientation and context, using current Nexus typography, theme tokens, glass surfaces and command owners. This is not a separate design-system rewrite.
 
 ## Hierarchy and density
 
-Dashboard answers the immediate question first: Now, then Next, then Needs attention. Now has the strongest type and one obvious action; actual commitments outrank a labelled local suggestion. Quick capture is visible without expanding a menu for common Task/Note/Reminder/Event actions. Recent context and existing custom widgets follow orientation; widget layout preferences remain intact.
+Dashboard answers the immediate question first: Now, then Next, then Needs attention. Now has the strongest type and one obvious action; actual commitments outrank a labelled local suggestion. Main exposes common capture actions directly; Mobile uses a short “Erfassen” disclosure for Task/Note/Reminder/Event. Recent context and existing custom widgets follow orientation; widget layout preferences remain intact.
 
 Dashboard's compact attention list omits work whose only reason is lack of planned time; Flux keeps that backlog available. A suggestion already visible in Now is not repeated below. A current commitment never suppresses a separate urgent task.
 
@@ -67,3 +67,15 @@ Files details explain the selected source, Nexus folder/workspace membership, la
 Native disclosure/actions wrap long names, use theme tokens and the saved accent, provide 44px targets and visible keyboard focus. Usage lists scroll within the optional context region; writing and the Canvas stage retain their primary space. Exact handoff focuses the Note title or selected Canvas context. Missing/stale intent focuses its visible explanation and does not guess a replacement. OS/product reduced motion applies to Canvas handoff.
 
 B1 acceptance adds actual Tasks/Notes/Canvas/Files renders at desktop, 1280, 1024, narrow and true 200% zoom, saved custom theme, reduced motion, long/many/zero usage and missing/no-context states. Verify hidden/repeated intent, same-ID generation replacement, original-owner draft preservation, immutable backlinks, failed-read recovery and index reuse with hundreds of records. Detailed evidence and limitations belong in the PR and workspace maintenance.
+
+## C1: Mobile sequence and optional advice
+
+Mobile expresses the shared truth sequentially: one Now commitment (with a conflict/additional-count explanation if needed) or explicitly local suggestion; one Next commitment; a small attention preview linking to Flux. It does not reproduce Main's parallel upper regions or a second Today card. Existing widgets and their saved layout remain below. Orientation owns one active minute clock; cached hidden views do not keep refreshing the projection.
+
+Flux rows lead with reasons, title and exact Open/Plan actions. Search is immediate; reason/type filters and activity history are disclosures. Initial results are bounded to 50 with an explicit continuation. Ranking has no Task/Reminder mutation authority. The old “Neuer Flow”/“Focus Mode” shell actions are absent on orientation views; actual capture and triage own the work.
+
+Mobile Task context uses an inline summary and optional existing link manager. Notes and Canvas use a small collapsed backlink disclosure, leaving writing and spatial interaction primary. Exact context handoff validates identity/generation and focuses the destination. Task/Reminder modals contain keyboard focus and restore a visible opener or local shell action on close. Files opens the exact existing owner; it gains no new material schema.
+
+Agenda keeps one primary scroll owner and the existing PlanningPanel command path. Day/chronology precede tasks needing time; the manual form opens deliberately or for an exact incoming Task. Import, timezone and repair tools remain secondary. Unknown duration asks for input. “Zeitvorschläge sind auf Mobile nicht verfügbar” is capability information beside a complete manual path, not a disabled desktop feature button. Advice cannot become mandatory for capture, planning or acknowledged persistence.
+
+C1 acceptance uses the actual Mobile shell, cached views and bottom navigation at 320×568, 390×844, 430×932, 844×390 and 1024×768; saved custom light theme, reduced motion, long titles, true 200% browser zoom and a reduced 390×430 keyboard-height viewport. The existing planning interaction harness additionally enlarges form text to 200%. The navigation loop also runs through the single-active-layer host with an iPhone user agent in Electron; this does not qualify native WebKit. Check 44px new controls, focus containment/return, safe-area and keyboard-height behavior, one primary scroll owner, errors versus empty/no-match states and the full Dashboard → Flux → Task → context → Plan → Agenda loop. Synthetic Electron measurements are not device benchmarks; physical keyboard/native runtime behavior needs device qualification.

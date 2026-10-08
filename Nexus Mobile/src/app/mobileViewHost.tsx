@@ -5,6 +5,7 @@ import { ViewErrorBoundary } from "../components/ViewErrorBoundary";
 import { routeShellCapture } from '@nexus/core/application/captureNavigation';
 import { ApplicationCaptureSurface } from '@nexus/core/application/ApplicationCaptureSurface';
 import { applicationCommands } from './applicationCommands';
+import { ViewCommandScope } from './ViewCommandScope';
 import { NexusMobileViewShell } from "./NexusMobileViewShell";
 import {
   CanvasView,
@@ -89,7 +90,7 @@ const renderActiveView = (
         { withDashboardReset: true },
       );
     case "notes":
-      return withViewBoundary("notes", <NotesView />);
+      return withViewBoundary("notes", <NotesView setView={onRequestViewChange} />);
     case "code":
       return withViewBoundary("code", <CodeView />);
     case "tasks":
@@ -111,7 +112,7 @@ const renderActiveView = (
         />,
       );
     case "canvas":
-      return withViewBoundary("canvas", <CanvasView />);
+      return withViewBoundary("canvas", <CanvasView setView={onRequestViewChange} />);
     case "files":
       return withViewBoundary(
         "files",
@@ -272,7 +273,7 @@ export function MobileViewHost({
                     position: "relative",
                   }}
                 >
-                  {renderActiveView(viewId, onRequestViewChange)}
+                  <ViewCommandScope value={viewId === view}>{renderActiveView(viewId, onRequestViewChange)}</ViewCommandScope>
                 </div>
               </div>
             </NexusMobileViewShell>

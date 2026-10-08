@@ -122,7 +122,7 @@ Ratings: H/M/L indicate relative impact/risk, not measurements. Risk is implemen
 | C: Explicit planning advice + Mobile orientation parity | H | M | M | M | M | M | H |
 | D: Settings and shell interaction consolidation | M | M | M | M | M | M | M |
 
-This table records the Wave A audit. A landed in #445; the 2026-10-08 packet authorizes only bounded B1 Context & Material Handoff. C does not authorize activating Cerebri production runtime. No broad design-system, dependency, auth or Code migration work.
+This table records the Wave A audit. A landed in #445 and B1 in #446; C1 continues from their qualified main and authorizes only Mobile orientation parity plus the planning-advice boundary. It does not authorize activating Cerebri production runtime. No broad design-system, dependency, auth or Code migration work.
 
 ## B1 reconciliation against qualified main `55b2883`
 
@@ -131,6 +131,25 @@ Before B1, typed Task context and an acknowledged link manager existed, while su
 Notes and Canvas retain their editor/store/draft authority and receive active-scope exact navigation, destination focus and derived open-task usage. Files selection is type-scoped and its details distinguish Nexus membership from disk exchange; it remains a library, not an external attachment repository. Task/Reminder exact handoff reuses Wave A product navigation unchanged. Main entity targets use command scope; Mobile retains its existing shell adapter with shared generation checks and visible rejection.
 
 Remaining debt: external material types, broad existing Files subscriptions, legacy direct editor writes and broader Notes/Canvas density remain separate work. B1 does not redesign editors, attention/ranking, planning advice, runtime handoff or security. Qualification is recorded separately; this reconciliation is the architectural map, not a claim of unsupported capabilities.
+
+## C1 reconciliation against qualified main `2a5f7d9`
+
+| Surface | C1 change | Authority / remaining boundary |
+| --- | --- | --- |
+| Shared orientation | Promote Main's pure algorithm unchanged to core; both adapters use it | Canonical Tasks/Reminders/Planning, explicit now/zone, deterministic reasons; no semantic persistence |
+| Main | Compatibility adapters only | Existing Dashboard/Flux/Agenda and B1 presentation remain intact |
+| Mobile Dashboard | One Now, one Next, compact attention, disclosed capture; retain widgets | Remove duplicate Today/resume ranking from active path; preserve widget preferences |
+| Mobile Flux | Shared reasons, search/filters, exact Open/Plan, optional history | Remove severity clock and heuristic bulk Task/Reminder writes; 50 initial rows with explicit continuation |
+| Mobile Tasks / Reminders | Exact incoming identity, active scope and modal focus; Task modes use shared reasons | Existing edit/occurrence owners; no new general mutation layer |
+| Mobile context / Files | Typed Note, scoped Canvas/node, whole-Canvas and exact Task/Reminder destinations; derived open-task backlinks | Same B1 relation semantics, no persisted backlink or new attachment kind; source editors unchanged |
+| Mobile Agenda | Existing day-first panel around chronology, manual form and secondary tools | Exact once-only generation-safe scheduling; PlanningCommand acknowledgement; read navigation cannot replay old form intent |
+| Planning advice | Explicit unavailable Mobile information and documented input/acceptance boundary | Manual planning independent; no provider framework, simulated proposal or production activation |
+
+Main and Mobile now agree on overdue, the 48-hour due-soon boundary, blockers/missing dependencies, unresolved deadlines, unplanned work, completed exclusions, snoozed reminder effective instant, current/next commitments and conflicts. Presentation is deliberately different; no desktop React component moves into core. The shared context index is memoized against canonical source arrays; draft typing does not add backlink writes. Active view scope owns minute refresh and incoming commands.
+
+Source-verified Cerebri status remains: **production collector NO; product IPC NO; default enabled NO; Mobile runtime NO**. Existing N1/N2 consumer, preview and host qualification code do not establish trusted product activation. Future C2 needs separate authorization, a trusted collector and explicit timezone/window/coverage policy, pinned artifact qualification, secure transport and security approval, freshness validation and zero-skip real integration evidence. Known duration may be used; missing duration must be asked. Preview uncertainty and BestFound must stay explicit. Advice suggests; only the user-selected, revalidated PlanningCommand writes.
+
+Remaining debt: native-device keyboard/safe-area qualification, existing tiny shell/legacy editor controls, broad legacy Files/Dashboard subscriptions, legacy direct editor writes, external material types and larger Notes/Canvas composition. C1 adds no native authority, auth/session/IPC/CSP/signing change, runtime packaging or persistence schema. Public gates and Main orchestration/context regressions remain mandatory; optional unconfigured Cerebri host tests are reported as skipped, not passed.
 
 ## Wave A acceptance design
 

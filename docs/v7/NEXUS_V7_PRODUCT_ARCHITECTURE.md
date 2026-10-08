@@ -1,6 +1,6 @@
 # Nexus V7 product architecture
 
-2026-10-07. Continuation of the current Runtime V2, acknowledged planning, reminder lifecycle, workspace handoff and Main View Registry. Bounded reconciliation against qualified main `5532beb` (#440/#441), reusing the previously qualified local orchestration work; final PR base updated to qualified `bcb7f52` (#444, Code-only changes). The product map is the before-change audit; the boundaries here describe the delivered orchestration model.
+Updated 2026-10-08 through C1. Continuation of Runtime V2, acknowledged planning, reminder lifecycle, workspace handoff and the View Registry. Wave A delivered Main orientation in #445; B1 delivered context/material handoff in #446. C1 continues from their qualified merge `2a5f7d9`. The product map retains the original audit with explicit wave reconciliations; the boundaries here describe the current orchestration model.
 
 ## Product loop and ownership
 
@@ -22,7 +22,7 @@ The complete current-state map and debt evidence belong in `NEXUS_V7_PRODUCT_MAP
 
 ## Read models
 
-Dashboard and Flux share a pure Main projection over canonical Tasks, Reminders and PlanningDocument. It receives an explicit instant and IANA zone and returns IDs, labels, reasons and schedule facts; it never creates records, persists scores or updates sources.
+Main and Mobile Dashboard/Flux share the pure `packages/nexus-core/src/planning/productAttention.ts` projection over canonical Tasks, Reminders and PlanningDocument. C1 promotes the existing Main algorithm without changing its ordering or temporal rules; client adapters re-export the same authority. It receives an explicit instant and IANA zone and returns IDs, labels, reasons and schedule facts; it never creates records, persists scores or updates sources. React, clocks, subscriptions and presentation stay in each client.
 
 - Dashboard Now shows current planned commitments. With no current commitment, it may offer an explicitly labelled local next step. Blocked or unresolved work is not presented as immediately actionable. Concurrent commitments remain visible for review.
 - Next is chronological existing planning, with no invented claim that unrecorded time is free.
@@ -44,7 +44,7 @@ Legacy Task/Reminder editors still contain direct store edits. That is recorded 
 
 ## Navigation and composition
 
-Cross-view navigation carries explicit intent: Task ID, Reminder ID, or Agenda civil day. Main targets consume only while active and outside workspace replacement. They validate current membership and workspace generation, consume once and show a missing/stale-target message rather than opening another record. Ordinary string view changes continue through the guarded App callback.
+Cross-view navigation carries explicit intent: Task ID, Reminder ID, or Agenda civil day. Main and Mobile use isolated instances of the same product-navigation contract. Targets consume only while active and outside workspace replacement. They validate current membership and workspace generation, consume once and show a missing/stale-target message rather than opening another record. Ordinary string view changes continue through the guarded App callback. Mobile's cached view host supplies command scope, including context and planning consumers.
 
 Scheduling uses the existing planning navigation contract with the selected Task. Read-only Agenda handoff selects the requested day without replaying an old editor request. Note/Canvas context uses the existing typed entity reference contract, retaining ambiguity/missing-link repair. No DOM selectors or browser events encode new routing.
 
@@ -52,9 +52,9 @@ Dashboard prioritizes orientation above retained user widgets. Flux prioritizes 
 
 ## Main, Mobile and boundaries
 
-This is a Main composition wave. No shared public schema or persisted record format changed; Mobile keeps the same underlying task/deadline/block/reminder semantics. Desktop layout is not copied to touch screens. Mobile orientation parity is a later bounded wave.
+Wave A/B1 established Main composition; C1 brings the same meaning to Mobile. Mobile shows one Now commitment or labelled local suggestion, one Next commitment and one attention preview. Widgets retain their preferences. Flux uses reasons, search and secondary filters; the old severity model, 15-second attention clock and heuristic multi-record writes are removed. Mobile Task filters consume the same reasons. Task/Reminder edits remain with their existing owners; Flux and the orientation/context surfaces only navigate. No shared public schema or persisted record format changes.
 
-Cerebri remains advisory: preview freshness, explicit acceptance and the no-direct-store-write rule remain authoritative. Any accepted suggestion still enters an explicit Nexus command. No new production runtime or fake intelligence is introduced.
+Cerebri remains advisory: preview freshness, explicit acceptance and the no-direct-store-write rule remain authoritative. Any accepted suggestion still enters an explicit Nexus command. C1 adds no provider framework or production runtime. The actual unavailable Mobile capability is explained beside manual planning, with no desktop-only advice button.
 
 Current and incoming Security architecture wins. Product work must not add credentials/env secrets, modify auth/session/account/Device/grant/signing contracts, expand IPC/execution authority, loosen CSP/origins/HTML handling or weaken public/secret gates. Unexpected security work is stopped and handed to the Security task; safe product work may continue.
 
@@ -69,7 +69,7 @@ H/M/L are relative judgments based on the source audit, not numerical measuremen
 | C | Honest planning advice and Mobile orientation parity | H | M / M / M | M / M | H |
 | D | Settings and shell interaction consolidation | M | M / M / M | M / M | M |
 
-Wave A landed in #445. The 2026-10-08 B1 packet continues from qualified main `55b2883` and authorizes only Context & Material Handoff, one PR and its qualification. Do not merge, enable auto-merge, deploy, release or start another wave.
+Wave A landed in #445 and B1 in #446. C1 starts from qualified main `2a5f7d9` (the B1 merge), with one PR and its qualification authorized. Do not merge, enable auto-merge, deploy, release or start C2.
 
 ## B1: context and material handoff
 
@@ -83,8 +83,20 @@ Files remains the existing Note/Code/Task/Reminder/Canvas library with Nexus fol
 
 ## Bounded reconciliation and acceptance
 
-Current main independently ranks Dashboard resume/urgency and Flux severity/backlog, with Planning Today repeated in both. The target shares attention decisions while retaining genuinely view-specific presentation: widget counters/recent lists stay with Dashboard; detailed filtering/history stay with Flux. Inert legacy top-section components are outside the active orchestration path.
+The pre-Wave-A Main and pre-C1 Mobile independently ranked Dashboard resume/urgency and Flux severity/backlog, with Planning Today repeated in both. Both clients now share attention decisions while retaining genuinely view-specific presentation: widget counters/recent lists stay with Dashboard; detailed filtering/history stay with Flux. Inert legacy top-section components are outside the active orchestration path.
 
-Projection failure is distinct from an empty day: the orchestration region shows an error, preserves source records and recovers when inputs become readable again. Dashboard widgets and layout controls remain usable. Planning-unavailable state disables orchestration commands rather than implying a writable schedule. This selector is Main-specific composition; temporal and command contracts remain shared core.
+## C1: manual planning and advice boundary
 
-Acceptance covers the pure reasons, exact and stale-target navigation, acknowledged capture/failure/reload, preserved widget customization and themes, hidden-view ownership, actual rendered Dashboard/Flux/Agenda at desktop/1280/1024/narrow/200%, reduced motion and production render retention. Attention initially mounts 50 rows with explicit expansion; recent history displays the latest 50 matches without deleting persisted history. Detailed run evidence belongs in workspace maintenance and the PR, not this product contract.
+Mobile composes the existing PlanningPanel day-first: selected day, chronological commitments, work needing time, an explicitly opened manual form and secondary import/repair tools. The existing scheduling intent carries a Task ID and workspace draft generation; hidden/stale requests cannot open a new form. Read-only Agenda navigation clears the old form intent. Writes still use PlanningCommand and exact acknowledgement. No attention, Now, Next, advice or backlinks are persisted.
+
+Manual planning is universal: Task → Plan → explicit duration/start/conflict choice → PlanningCommand → acknowledged save. It has no dependency on preview availability, no-fit, insufficient context or stale advice. The advice contract remains **provider suggests → user chooses → Nexus validates current sources → PlanningCommand writes**. Advice never writes directly.
+
+Source-verified C1 activation status: **production collector NO; registered product IPC NO; default enabled NO; Mobile runtime NO**. Main's `cerebriPreviewStore` remains disabled; App does not register the internal PreviewPanel, and product Electron/preload has no N2 activation. Existing consumer/decoder/freshness/PreviewFlow and qualification host code are evidence seams, not product activation. Mobile/browser remain unavailable because no qualified runtime or trusted service exists. Historical N2 evidence is unchanged; missing pinned real-host environment is an explicit optional skip, never a pass.
+
+For future product advice, use a Task's explicit `durationMinutes` or acknowledged planning duration; otherwise ask the user. Do not infer duration from title or priority. The manual form's resolved runtime IANA zone is visible and editable, but is not a new authoritative app/user timezone policy. A future collector must explicitly resolve that policy and bind an exact selected-day/window horizon, source revisions and declared coverage. Unknown or incomplete coverage cannot silently become Complete or a wider search window.
+
+C2 activation requires a separately authorized trusted collector, qualified pinned artifact and transport, explicit security/architecture approval, freshness/coverage/input policy and current zero-skip real integration evidence. Future UI must distinguish unavailable, needs input, no fit, incomplete coverage, stale, host failure, saving and acknowledged. BestFound is not a proof of optimality; one Task slot is not a whole-day plan. This packet does not implement that activation.
+
+Projection failure is distinct from an empty day: the orchestration region shows an error, preserves source records and recovers when inputs become readable again. Dashboard widgets and layout controls remain usable. Planning-unavailable state disables orchestration commands rather than implying a writable schedule. Product semantics, temporal and command contracts live in shared core; client presentation remains separate.
+
+Acceptance covers the pure cross-client reasons, exact and stale-target navigation, acknowledged capture/failure/reload, preserved widget customization and themes, hidden-view ownership, actual desktop and Mobile renders, enlarged text/zoom, reduced motion and production render retention. Flux attention initially mounts 50 rows with explicit expansion; recent history is bounded (Main 50 matches, Mobile 30 entries) without deleting persisted history. Detailed run evidence belongs in workspace maintenance and the PR, not this product contract.
