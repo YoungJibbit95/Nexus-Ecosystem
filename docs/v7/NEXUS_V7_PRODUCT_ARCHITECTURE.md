@@ -69,7 +69,17 @@ H/M/L are relative judgments based on the source audit, not numerical measuremen
 | C | Honest planning advice and Mobile orientation parity | H | M / M / M | M / M | H |
 | D | Settings and shell interaction consolidation | M | M / M / M | M / M | M |
 
-Only A belongs to this implementation branch. Do not begin B–D after its qualification. The follow-up packet authorizes one PR and its CI qualification. Do not merge, enable auto-merge, deploy or release.
+Wave A landed in #445. The 2026-10-08 B1 packet continues from qualified main `55b2883` and authorizes only Context & Material Handoff, one PR and its qualification. Do not merge, enable auto-merge, deploy, release or start another wave.
+
+## B1: context and material handoff
+
+Tasks alone own `entityLinks` and compatible `linkedNoteId` / `linkedCanvasNodeId`. The pure shared `contextRelations` projection indexes Note IDs and `(canvasId, nodeId)` pairs, preserves missing/ambiguous references, deduplicates usage and derives backlinks without persistence. Bare legacy node IDs resolve only when unique; duplicate source identities cannot manufacture usable targets. Completed Tasks retain links but are excluded from the explicitly labelled open-task usage count. Read failure is unavailable context, never zero usage.
+
+Main shares one memoized index for canonical Task/Note/Canvas array references. Local Note draft keystrokes, selection and unrelated store changes reuse it; content summaries are read once per referenced identity. Notes keep their draft/save owner, Canvas keeps its content/camera/selection owners, and the existing `TaskContextLinks` PlanningCommand surface remains the link mutation owner. The new summary/backlink UI performs navigation only.
+
+Existing entity navigation now stamps the draft registry workspace generation, waits for active command scope, pauses during replacement, rejects stale intent and consumes once. Targets revalidate exact membership and focus the destination or a visible failure. Whole-Canvas library navigation is a transient destination, not a new persisted EntityRef kind. Files reuses existing exact Task/Reminder navigation; Code retains its owner after membership validation. Library selection includes both type and ID.
+
+Files remains the existing Note/Code/Task/Reminder/Canvas library with Nexus folder/workspace membership and disk exchange. Selected details expose derived usage and an explicit destination. No external attachment, binary/cloud store, graph persistence or new relationship schema is introduced. Main/Mobile shared navigation compatibility is qualified; Mobile only gains stale/failure feedback, not desktop context layout. Wave A attention/ranking/Now/Next/capture architecture remains unchanged.
 
 ## Bounded reconciliation and acceptance
 

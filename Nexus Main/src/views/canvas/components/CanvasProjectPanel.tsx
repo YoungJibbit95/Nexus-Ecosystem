@@ -27,6 +27,7 @@ import { scoreNodeMatch } from "./projectPanel/helpers";
 import { type BoardLane } from "./projectPanel/types";
 
 type CanvasProjectPanelProps = {
+  relatedWork?: React.ReactNode;
   open: boolean;
   canvas: Canvas | null | undefined;
   accent: string;
@@ -66,6 +67,7 @@ export function CanvasProjectPanel({
   setSelectedNodeId,
   focusNode,
   searchFocusToken = 0,
+  relatedWork,
 }: CanvasProjectPanelProps) {
   const canvasNodes = canvas?.nodes ?? [];
   const canvasConnections = canvas?.connections ?? [];
@@ -348,6 +350,8 @@ export function CanvasProjectPanel({
           </button>
         </div>
       </header>
+
+      {relatedWork}
 
       <nav className="nx-canvas-project-nav" aria-label="Canvas project sections">
         {panelSections.map(({ id, label, count, Icon }) => (

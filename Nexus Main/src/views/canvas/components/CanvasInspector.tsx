@@ -14,6 +14,7 @@ import type {
 import { NODE_COLORS, getWidgetPreset } from "../constants";
 
 type CanvasInspectorProps = {
+  relatedWork?: React.ReactNode;
   node: CanvasNode | null;
   mode: "dark" | "light";
   accent: string;
@@ -130,6 +131,7 @@ export const CanvasInspector = React.memo(function CanvasInspector({
   onFocusNode,
   onClose,
   onPromoteNode,
+  relatedWork,
 }: CanvasInspectorProps) {
   const preset = useMemo(
     () => (node ? getWidgetPreset(node.type) : null),
@@ -191,6 +193,7 @@ export const CanvasInspector = React.memo(function CanvasInspector({
       </div>
 
       <div className="nx-canvas-inspector-body">
+        {relatedWork}
         {onPromoteNode && <button type="button" style={baseButtonStyle} onClick={() => void onPromoteNode()}>Als Aufgabe dauerhaft übernehmen</button>}
         <section className="nx-canvas-inspector-section nx-canvas-inspector-section--title">
           <FieldLabel>Titel</FieldLabel>

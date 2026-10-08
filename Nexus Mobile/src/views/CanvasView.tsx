@@ -539,12 +539,12 @@ export function CanvasView() {
         if (options?.recordTrail !== false) commitFocusTrail(nodeId)
     }, [canvasSize.h, canvasSize.w, commitFocusTrail, setPan, viewport.zoom])
     const [promotionMessage, setPromotionMessage] = useState('')
-    useEntityNavigationTarget('mobile', 'canvas-node', useCallback(ref => {
+    const contextNavigationMessage = useEntityNavigationTarget('mobile', 'canvas-node', useCallback(ref => {
         if (ref.kind !== 'canvas-node') return false
         const state = useCanvas.getState(), target = state.canvases.find(item => item.id === ref.canvasId)
-        if (!target?.nodes.some(node => node.id === ref.id)) { setPromotionMessage('Verknüpfter Canvas-Knoten fehlt. Referenz bleibt zur Reparatur erhalten.'); return true }
+        if (state.canvases.filter(item => item.id === ref.canvasId).length !== 1 || target?.nodes.filter(node => node.id === ref.id).length !== 1) { setPromotionMessage('Verknüpfter Canvas-Knoten fehlt oder ist mehrdeutig. Referenz bleibt zur Reparatur erhalten.'); return true }
         if (state.activeCanvasId !== ref.canvasId || canvas?.id !== ref.canvasId) { state.setActiveCanvas(ref.canvasId); return false }
-        jumpToNode(ref.id); return true
+        setPromotionMessage(''); jumpToNode(ref.id); return true
     }, [canvas?.id, jumpToNode]))
 
     const navigateFocusTrail = useCallback((direction: -1 | 1) => {
@@ -712,22 +712,24 @@ export function CanvasView() {
         []
     )
 
+    const contextNotice = (contextNavigationMessage || promotionMessage) && <p role="status" style={{ position:'absolute', bottom:16, left:12, right:12, zIndex:250, padding:12, background:t.bg, border:`1px solid ${t.accent}`, borderRadius:8 }}>{contextNavigationMessage || promotionMessage}</p>
     // Empty state
     if (canvases.length === 0) {
         return (
-            <CanvasEmptyState
+            <>{contextNotice}<CanvasEmptyState
                 accent={t.accent}
                 accent2={t.accent2}
                 rgb={rgb}
                 onCreateText={createEmptyTextCanvas}
                 onUseTemplate={createEmptyStarterTemplate}
                 onOpenTools={openEmptyCanvasTools}
-            />
+            /></>
         )
     }
 
     return (
         <div className="nx-mobile-view-screen nx-mobile-canvas-root" style={{ width: '100%', height: '100%', display: 'flex', overflow: 'hidden' }}>
+            {contextNotice}
             {/* ── Sidebar — desktop panel, mobile bottom sheet ── */}
             {showCanvasSidebar && !mob.isMobile && (
                 <Glass type="panel" className="shrink-0" style={{
@@ -1663,7 +1665,6 @@ export function CanvasView() {
                                     <button type="button" onClick={() => {
                                         void planningStore.promoteEntity({ kind: 'canvas-node', canvasId: canvas.id, id: selectedNode.id }).then(result => setPromotionMessage(result.ok === true ? `Aufgabe dauerhaft bestätigt: ${result.ids.join(', ')}.` : result.message)).catch(error => setPromotionMessage(String(error)))
                                     }}>Als Aufgabe dauerhaft übernehmen</button>
-                                    {promotionMessage && <p role="status">{promotionMessage}</p>}
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                                         <select value={selectedNode.pm?.status || 'idea'} onChange={e => useCanvas.getState().updateNode(selectedNode.id, { pm: { ...(selectedNode.pm || {}), status: e.target.value as ProjectStatus } })} style={{ fontSize: 11, padding: '6px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', color: 'inherit' }}>
                                             {PM_STATUS_ORDER.map(st => <option key={st} value={st}>{st}</option>)}

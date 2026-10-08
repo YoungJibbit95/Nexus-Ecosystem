@@ -105,7 +105,7 @@ const renderActiveView = (
         />,
       );
     case "notes":
-      return withViewBoundary("notes", <NotesView />);
+      return withViewBoundary("notes", <NotesView setView={onRequestViewChange} />);
     case "code":
       return withViewBoundary("code", <CodeView />);
     case "tasks":
@@ -127,7 +127,7 @@ const renderActiveView = (
         />,
       );
     case "canvas":
-      return withViewBoundary("canvas", <CanvasView />);
+      return withViewBoundary("canvas", <CanvasView setView={onRequestViewChange} />);
     case "files":
       return withViewBoundary(
         "files",

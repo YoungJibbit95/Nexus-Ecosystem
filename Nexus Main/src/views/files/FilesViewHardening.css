@@ -68,6 +68,8 @@
   outline-offset: -2px;
 }
 
+.nx-files-v6 .nx-files-detail-actions > button { min-height: 44px; }
+
 .nx-files-content-grid {
   display: block !important;
 }
@@ -85,7 +87,9 @@
   }
 
   .nx-files-v6 .nx-files-detail-pane {
-    position: absolute !important;
+    display: flex !important;
+    position: fixed !important;
+    background-color: var(--nx-app-root-bg, #101526) !important;
     inset: 0 0 0 auto !important;
     z-index: 80;
     width: min(390px, 92vw) !important;
