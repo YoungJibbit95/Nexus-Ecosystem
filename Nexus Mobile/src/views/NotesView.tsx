@@ -555,9 +555,10 @@ export function NotesView() {
   }, [insertFormat])
 
   const [promotionMessage, setPromotionMessage] = useState('')
-  useEntityNavigationTarget('mobile', 'note', useCallback(ref => {
+  const contextNavigationMessage = useEntityNavigationTarget('mobile', 'note', useCallback(ref => {
     if (ref.kind !== 'note') return false
-    if (!useApp.getState().notes.some(note => note.id === ref.id)) { setPromotionMessage('Verknüpfte Notiz fehlt. Referenz bleibt zur Reparatur erhalten.'); return true }
+    if (useApp.getState().notes.filter(note => note.id === ref.id).length !== 1) { setPromotionMessage('Verknüpfte Notiz fehlt oder ist mehrdeutig. Referenz bleibt zur Reparatur erhalten.'); return true }
+    setPromotionMessage('')
     useApp.getState().setNote(ref.id); return true
   }, []))
   const convertNoteToTask = useCallback(async () => {
@@ -700,7 +701,7 @@ export function NotesView() {
       className="flex h-full gap-3 p-3 relative nx-mobile-view-screen"
       style={{ minHeight: 0, flexDirection: mob.isMobile ? 'column' : 'row', gap: mob.isMobile ? 0 : 12, padding: mob.isMobile ? 0 : 12 }}
     >
-      {promotionMessage && <p role="status" style={{ position: 'absolute', bottom: 24, right: 12, zIndex: 200, maxWidth: 360, background: '#172033', padding: 10 }}>{promotionMessage}</p>}
+      {(contextNavigationMessage || promotionMessage) && <p role="status" style={{ position: 'absolute', bottom: 24, right: 12, zIndex: 200, maxWidth: 360, background: '#172033', padding: 10 }}>{contextNavigationMessage || promotionMessage}</p>}
 
       {/* Mobile top bar */}
       {mob.isMobile && !focusMode && (

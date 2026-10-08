@@ -33,11 +33,8 @@ import { canHandleViewKeyboardEvent, hasPlainShortcutModifiers, isEditableShortc
 import { taskDeadlineDate, taskDeadlineForSave } from './tasks/taskDeadline'
 import { requestPlanningNavigation } from '@nexus/core/planning/planningNavigation'
 import { useCanvas } from '../store/canvasStore'
-import { planningCommands, usePlanning } from '../store/planningStore'
-import { TaskContextLinks } from '@nexus/core/planning/TaskContextLinks'
-import type { EntityCatalog, EntityRef } from '@nexus/core/planning/entityLinks'
-import { requestEntityNavigation } from '@nexus/core/planning/entityNavigation'
-import type { TaskRecord } from '@nexus/core/planning/domain'
+import { TaskContextSection, openContext } from './context/ContextRelations'
+import type { EntityRef } from '@nexus/core/planning/entityLinks'
 
 const PRIORITY_COLOR = { low: '#30d158', mid: '#ffd60a', high: '#ff453a' }
 const PRIORITY_LABEL = { low: 'Low', mid: 'Medium', high: 'High' }
@@ -386,8 +383,6 @@ function TaskModal({
     notes,
     tasks,
     reminders,
-    openNote,
-    setNote,
     addNote,
     updateNote,
   } = useApp((state) => ({
@@ -399,8 +394,6 @@ function TaskModal({
     notes: state.notes,
     tasks: state.tasks,
     reminders: state.reminders,
-    openNote: state.openNote,
-    setNote: state.setNote,
     addNote: state.addNote,
     updateNote: state.updateNote,
   }), shallow)
@@ -420,7 +413,6 @@ function TaskModal({
   const [linkedCanvasNodeId, setLinkedCanvasNodeId] = useState(task?.linkedCanvasNodeId ?? '')
   const [linkedCanvasRef, setLinkedCanvasRef] = useState<EntityRef | null>(null)
   const canvases = useCanvas(state => state.canvases)
-  const planning = usePlanning()
 
   const subRef = useRef<HTMLInputElement>(null)
 
@@ -466,11 +458,8 @@ function TaskModal({
   )
 
   const openLinkedNote = useCallback((noteId: string) => {
-    if (!noteId || !useApp.getState().notes.some(note => note.id === noteId)) return
-    openNote(noteId)
-    setNote(noteId)
-    setView?.('notes')
-  }, [openNote, setNote, setView])
+    if (noteId) openContext({ kind: 'note', id: noteId }, setView)
+  }, [setView])
 
   const createOrOpenLinkedNote = useCallback(() => {
     if (linkedNoteId) {
@@ -492,12 +481,9 @@ function TaskModal({
     })
 
     setLinkedNoteId(createdNote.id)
-    if (task) {
-      updateTask(task.id, { linkedNoteId: createdNote.id })
-    }
 
     openLinkedNote(createdNote.id)
-  }, [addNote, linkedNoteId, openLinkedNote, priority, status, task, title, updateNote, updateTask])
+  }, [addNote, linkedNoteId, openLinkedNote, priority, status, task, title, updateNote])
 
   const createLinkedReminder = useCallback(() => {
     if (!task) return
@@ -662,7 +648,7 @@ function TaskModal({
                 </div>
 
                 <div style={{ borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:12, marginTop:2, display:'grid', gap:12 }}>
-                  <div>
+                  {task ? <TaskContextSection taskId={task.id} navigate={setView} /> : <div>
                     <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:0.5 }}>Linked Note</label>
                     <div style={{ display:'flex', gap:6 }}>
                       <select disabled={Boolean(task)} value={linkedNoteId} onChange={(event) => setLinkedNoteId(event.target.value)} style={{ flex:1, padding:'7px 10px', borderRadius:8, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:12, color:'inherit' }}>
@@ -675,7 +661,7 @@ function TaskModal({
                         {linkedNoteId ? 'Open' : 'Create'}
                       </button>
                     </div>
-                  </div>
+                  </div>}
 
                   <div>
                     <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:0.5 }}>Task Dependencies</label>
@@ -724,21 +710,15 @@ function TaskModal({
                     </div>
                   </div>
 
-                  <div>
+                  {!task && <div>
                     <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:0.5 }}>Canvas Link (optional)</label>
-                    {task ? <TaskContextLinks task={(tasks.find(item => item.id === task.id) || task) as unknown as TaskRecord} catalog={{ notes, canvases } as unknown as EntityCatalog} planning={planning} execute={planningCommands.execute} onOpen={ref => { requestEntityNavigation('main', ref); setView?.(ref.kind === 'note' ? 'notes' : 'canvas') }} /> : <select aria-label="Canvas-Projekt und Knoten" value={linkedCanvasRef ? JSON.stringify(linkedCanvasRef) : ''} onChange={event => { const ref = event.target.value ? JSON.parse(event.target.value) as EntityRef : null; setLinkedCanvasRef(ref); setLinkedCanvasNodeId(ref?.id || '') }}><option value="">Kein Canvas-Knoten</option>{canvases.flatMap(canvas => canvas.nodes.map(node => <option key={`${canvas.id}-${node.id}`} value={JSON.stringify({ kind: 'canvas-node', canvasId: canvas.id, id: node.id })}>{canvas.name} / {node.title}</option>))}</select>}
-                  </div>
+                    <select aria-label="Canvas-Projekt und Knoten" value={linkedCanvasRef ? JSON.stringify(linkedCanvasRef) : ''} onChange={event => { const ref = event.target.value ? JSON.parse(event.target.value) as EntityRef : null; setLinkedCanvasRef(ref); setLinkedCanvasNodeId(ref?.id || '') }}><option value="">Kein Canvas-Knoten</option>{canvases.flatMap(canvas => canvas.nodes.map(node => <option key={`${canvas.id}-${node.id}`} value={JSON.stringify({ kind: 'canvas-node', canvasId: canvas.id, id: node.id })}>{canvas.name} / {node.title}</option>))}</select>
+                  </div>}
 
                   {task && (
                     <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                       <button onClick={createLinkedReminder} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid rgba(100,210,255,0.34)', background:'rgba(100,210,255,0.14)', color:'#64d2ff', fontSize:11, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}>
                         <Bell size={12} /> Reminder from Task
-                      </button>
-                      <button onClick={createOrOpenLinkedNote} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid rgba(255,255,255,0.16)', background:'rgba(255,255,255,0.08)', color:'inherit', fontSize:11, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}>
-                        <Link size={12} /> Note Link
-                      </button>
-                      <button onClick={() => setView?.('canvas')} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid rgba(191,90,242,0.34)', background:'rgba(191,90,242,0.14)', color:'#bf5af2', fontSize:11, fontWeight:700, cursor:'pointer' }}>
-                        Open Canvas
                       </button>
                     </div>
                   )}
@@ -832,8 +812,6 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
     addTask,
     updateTask,
     delTask,
-    openNote,
-    setNote,
   } = useApp((state) => ({
     tasks: state.tasks,
     reminders: state.reminders,
@@ -841,8 +819,6 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
     addTask: state.addTask,
     updateTask: state.updateTask,
     delTask: state.delTask,
-    openNote: state.openNote,
-    setNote: state.setNote,
   }), shallow)
 
   const [search, setSearch] = useState('')
@@ -1003,11 +979,8 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
   }, [delTask, selectedTaskIds])
 
   const openLinkedNote = useCallback((task: Task) => {
-    if (!task.linkedNoteId || !useApp.getState().notes.some(note => note.id === task.linkedNoteId)) return
-    openNote(task.linkedNoteId)
-    setNote(task.linkedNoteId)
-    setView?.('notes')
-  }, [openNote, setNote, setView])
+    if (task.linkedNoteId) openContext({ kind: 'note', id: task.linkedNoteId }, setView)
+  }, [setView])
 
   const quickAdd = useCallback((kind: 'today' | 'bug' | 'focus') => {
     if (kind === 'today') addTask('Heute: Wichtigste Aufgabe', 'todo', 'Tagesfokus', 'mid')

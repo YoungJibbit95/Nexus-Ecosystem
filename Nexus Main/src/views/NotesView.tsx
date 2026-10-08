@@ -65,6 +65,7 @@ import { NexusMarkdown } from "../components/NexusMarkdown";
 import { useApp } from "../store/appStore";
 import { planningStore } from '../store/planningStore';
 import { useEntityNavigationTarget } from '@nexus/core/planning/entityNavigation';
+import { ContextUsagePanel, ContextNavigationNotice } from './context/ContextRelations';
 import { useCanvas } from "../store/canvasStore";
 import { useTheme } from "../store/themeStore";
 import { hexToRgb, fmtDt } from "../lib/utils";
@@ -132,7 +133,7 @@ const resolveReminderDatetime = (value: string) => {
   if (parsed && !Number.isNaN(parsed.getTime())) return parsed.toISOString();
   return new Date(Date.now() + 60 * 60 * 1000).toISOString();
 };
-export function NotesView() {
+export function NotesView({ setView }: { setView?: (view: string) => void } = {}) {
   const activeCommandScope = useActiveViewCommandScope();
   const {
     notes,
@@ -905,11 +906,17 @@ export function NotesView() {
   );
 
   const [promotionMessage, setPromotionMessage] = useState('');
-  useEntityNavigationTarget('main', 'note', useCallback(ref => {
+  const [contextFailure, setContextFailure] = useState('');
+  const [contextFocus, setContextFocus] = useState(0), handledContextFocus = useRef(0);
+  const contextTitleRef = useRef<HTMLInputElement>(null);
+  const contextNavigationMessage = useEntityNavigationTarget('main', 'note', useCallback(ref => {
     if (ref.kind !== 'note') return false;
-    if (!useApp.getState().notes.some(note => note.id === ref.id)) { setPromotionMessage('Verknüpfte Notiz fehlt. Referenz bleibt zur Reparatur erhalten.'); return true; }
-    useApp.getState().openNote(ref.id); useApp.getState().setNote(ref.id); return true;
-  }, []));
+    if (useApp.getState().notes.filter(note => note.id === ref.id).length !== 1) { setContextFailure('Die verknüpfte Notiz fehlt oder ist nicht eindeutig. Der bisherige Inhalt bleibt geöffnet.'); return true; }
+    setContextFailure(''); useApp.getState().openNote(ref.id); useApp.getState().setNote(ref.id); setContextFocus(value => value + 1); return true;
+  }, []), activeCommandScope);
+  useEffect(() => {
+    if (activeCommandScope && contextFocus !== handledContextFocus.current && contextTitleRef.current) { handledContextFocus.current = contextFocus; contextTitleRef.current.focus(); }
+  }, [contextFocus, active?.id, activeCommandScope]);
   const convertNoteToTask = useCallback(async () => {
     if (!active) return;
     try { const result = await planningStore.promoteEntity({ kind: 'note', id: active.id }); setPromotionMessage(result.ok === true ? `Aufgabe dauerhaft bestätigt: ${result.ids.join(', ')}. Wiederholen öffnet dieselbe Zuordnung.` : result.message); }
@@ -1292,6 +1299,7 @@ export function NotesView() {
       style={{ minHeight: 0 }}
     >
       {promotionMessage && <p role="status" style={{ position: 'absolute', bottom: 24, right: 12, zIndex: 200, maxWidth: 360, background: '#172033', padding: 10 }}>{promotionMessage}</p>}
+      <ContextNavigationNotice message={contextNavigationMessage || contextFailure} />
       {/* ── SIDEBAR ── */}
       {!focusMode && mobileSidebarOpen ? (
         <button
@@ -1875,6 +1883,7 @@ export function NotesView() {
           style={{ minHeight: 0, overflow: "visible" }}
         >
           {/* Compact workbar */}
+          <ContextUsagePanel target={{ kind: 'note', id: active.id }} navigate={setView} />
           <Glass className="nx-notes-workbar nx-notes-editor-header nx-notes-unified-status-action shrink-0">
             <div className="nx-notes-workbar-main">
               <button
@@ -1894,6 +1903,7 @@ export function NotesView() {
                 </span>
                 <input
                   className="nx-notes-title-input flex-1 bg-transparent outline-none font-semibold"
+                  ref={contextTitleRef}
                   style={{ fontSize: 14, minWidth: 0 }}
                   value={active.title}
                   onChange={(e) => updateNote(active.id, { title: e.target.value })}

@@ -350,9 +350,11 @@ async function run() {
   assert(mainPlanning.capturePlanning().availability?.coverage === 'complete', 'Actual availability form stores only explicitly confirmed source coverage')
   await switchView('dashboard')
   assert(active().querySelector('[data-product-overview]')?.getAttribute('data-today-tasks') === '1', 'Actual Main Dashboard counts due-plus-scheduled work once')
-  assert(active().textContent?.includes('Frist '), 'Actual Main Dashboard exposes the source Task deadline')
   await switchView('flux')
   assert(active().querySelector('[data-product-overview]')?.getAttribute('data-today-tasks') === '1', 'Actual Main Flux consumes same Today derivation')
+  // Dashboard may surface this Task in Now and deduplicate its attention row.
+  // Flux always renders the detailed source row, independently of the wall clock.
+  assert(active().querySelector('[data-product-item="task:synthetic-task"]')?.textContent?.includes('Frist '), 'Actual Main Flux exposes the source Task deadline')
   await switchView('calendar'); click('Arbeitsblock'); await pause(); change(field('Planungszeitzone'), 'Europe/Berlin'); change(field('Aufgabe für Arbeitsblock'), task.id); change(field('Planungsbeginn'), `${tomorrow}T10:00`); change(field('Arbeitsdauer in Minuten'), '30'); keepConflict(); submit(); await ack()
   const futureId = mainPlanning.capturePlanning().blocks.at(-1)!.id
   flushSync(() => field('Beim Abschluss Erinnerung stoppen: Selected linked point').click())
@@ -408,12 +410,13 @@ async function run() {
   click('Verknüpfungen'); change(field('Aufgabe für Verknüpfungen'), noteTask.id)
   const relationArea = active().querySelector(`[aria-label="Kontextverknüpfungen: ${noteTask.title}"]`)!;
   await wait(() => relationArea.querySelector('select'), 'actual Note context controls opened')
-  click('Ziel fokussieren', relationArea); await wait(() => view === 'notes' && mainApp.getState().activeNoteId === note.id, 'Calendar typed Note context opens exact entity')
+  await wait(() => !workspaceOperation.isActive(), 'context navigation waits for preceding acknowledged promotion')
+  click('Ziel fokussieren', relationArea); await wait(() => view === 'notes' && mainApp.getState().activeNoteId === note.id, 'Calendar typed Note context opens exact entity').catch(error => { throw new Error(`${error.message}; view=${view}; note=${mainApp.getState().activeNoteId}; operation=${JSON.stringify(workspaceOperation.getSnapshot())}; context=${relationArea.textContent}`) })
   assert(view === 'notes' && mainApp.getState().activeNoteId === note.id, 'Actual Agenda Note context navigation focuses exact existing entity')
   await switchView('calendar'); click('Verknüpfungen'); change(field('Aufgabe für Verknüpfungen'), noteTask.id); mainApp.setState(state => ({ notes: state.notes.filter(item => item.id !== note.id), openNoteIds: [], activeNoteId: null }))
-  await wait(() => active().textContent?.includes('Verknüpftes Ziel fehlt'), 'deleted Note link visible')
+  await wait(() => active().querySelector('.nx-context-section [data-context-state="missing"]'), 'deleted Note link visible in context summary')
   const brokenArea = active().querySelector(`[aria-label="Kontextverknüpfungen: ${noteTask.title}"]`)!;
-  (brokenArea as HTMLDetailsElement).open = true; await wait(() => brokenArea.querySelector('select'), 'actual broken Note context controls opened')
+  await wait(() => brokenArea.querySelector('select'), 'actual broken Note context controls opened')
   assert(!(brokenArea.textContent || '').includes('Ziel fokussieren') && Boolean(mainApp.getState().tasks.find(item => item.id === noteTask.id)?.linkedNoteId), 'Actual source deletion leaves broken reference visible without creating a replacement Note')
   change(brokenArea.querySelector('select')!, JSON.stringify({ kind: 'note', id: repairNote.id })); click('Verknüpfung dauerhaft speichern', brokenArea)
   await wait(() => brokenArea.textContent?.includes('Verknüpfung dauerhaft bestätigt'), 'actual typed relationship repair acknowledgement')

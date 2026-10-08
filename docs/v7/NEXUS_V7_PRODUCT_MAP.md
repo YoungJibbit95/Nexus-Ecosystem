@@ -122,7 +122,15 @@ Ratings: H/M/L indicate relative impact/risk, not measurements. Risk is implemen
 | C: Explicit planning advice + Mobile orientation parity | H | M | M | M | M | M | H |
 | D: Settings and shell interaction consolidation | M | M | M | M | M | M | M |
 
-Only A is authorized for implementation now. C does not authorize activating Cerebri production runtime. No broad design-system, dependency, auth or Code migration work.
+This table records the Wave A audit. A landed in #445; the 2026-10-08 packet authorizes only bounded B1 Context & Material Handoff. C does not authorize activating Cerebri production runtime. No broad design-system, dependency, auth or Code migration work.
+
+## B1 reconciliation against qualified main `55b2883`
+
+Before B1, typed Task context and an acknowledged link manager existed, while summaries/backlinks were fragmented and Files opened Tasks/Reminders only by view. Shared Note/Canvas requests lacked workspace-generation rejection. B1 derives one reusable context index from canonical sources, composes compact context/usage surfaces, and connects Files to exact existing destination owners. Ambiguous legacy links remain repairable; no source ownership moves.
+
+Notes and Canvas retain their editor/store/draft authority and receive active-scope exact navigation, destination focus and derived open-task usage. Files selection is type-scoped and its details distinguish Nexus membership from disk exchange; it remains a library, not an external attachment repository. Task/Reminder exact handoff reuses Wave A product navigation unchanged. Main entity targets use command scope; Mobile retains its existing shell adapter with shared generation checks and visible rejection.
+
+Remaining debt: external material types, broad existing Files subscriptions, legacy direct editor writes and broader Notes/Canvas density remain separate work. B1 does not redesign editors, attention/ranking, planning advice, runtime handoff or security. Qualification is recorded separately; this reconciliation is the architectural map, not a claim of unsupported capabilities.
 
 ## Wave A acceptance design
 

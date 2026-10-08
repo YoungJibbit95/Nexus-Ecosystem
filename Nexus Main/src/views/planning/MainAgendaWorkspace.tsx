@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { PlanningPanel } from '@nexus/core/planning/PlanningPanel'
 import { PlanningIcsPanel } from '@nexus/core/planning/PlanningIcsPanel'
-import { TaskContextLinks } from '@nexus/core/planning/TaskContextLinks'
+import { TaskContextSection } from '../context/ContextRelations'
 import {
   taskRevision,
   zonedDate,
@@ -29,15 +29,12 @@ import {
 } from '@nexus/core/planning/planningTime'
 import { selectPlanningToday } from '@nexus/core/planning/today'
 import { usePlanningNavigation } from '@nexus/core/planning/planningNavigation'
-import { requestEntityNavigation } from '@nexus/core/planning/entityNavigation'
-import type { EntityCatalog, EntityRef } from '@nexus/core/planning/entityLinks'
 import type {
   PlanningCommand,
   PlanningCommandResult,
 } from '@nexus/core/planning/commandService'
 import { Glass } from '../../components/Glass'
 import { useApp } from '../../store/appStore'
-import { useCanvas } from '../../store/canvasStore'
 import { useTheme } from '../../store/themeStore'
 import {
   planningCommands,
@@ -92,8 +89,6 @@ export function MainAgendaWorkspace(props: MainAgendaWorkspaceProps) {
     activeScope = useActiveViewCommandScope()
   const tasks = useApp((state) => state.tasks) as unknown as TaskRecord[],
     reminders = useApp((state) => state.reminders)
-  const notes = useApp((state) => state.notes),
-    canvases = useCanvas((state) => state.canvases)
   const planning = usePlanning(),
     storageError = usePlanningError(),
     navigation = usePlanningNavigation('main')
@@ -156,7 +151,6 @@ export function MainAgendaWorkspace(props: MainAgendaWorkspaceProps) {
   const readCursor = useRef(0)
   const localImportCursor = useRef(0),
     importCursor = props.importCursor || localImportCursor
-  const catalog = { notes, canvases } as unknown as EntityCatalog
   useEffect(() => {
     void planningCommands
       .ready()
@@ -400,10 +394,6 @@ export function MainAgendaWorkspace(props: MainAgendaWorkspaceProps) {
     }
     lastCompletion.current = command
     void execute(command)
-  }
-  const openEntity = (ref: EntityRef) => {
-    requestEntityNavigation('main', ref)
-    props.setView?.(ref.kind === 'note' ? 'notes' : 'canvas')
   }
   const scheduled = [
     ...(today?.events || []).map((event) => ({
@@ -1031,14 +1021,11 @@ export function MainAgendaWorkspace(props: MainAgendaWorkspaceProps) {
             </select>
           </label>
           {contextTask ? (
-            <TaskContextLinks
-              embedded
+            <TaskContextSection
+              manageInline
               key={contextTask.id}
-              task={contextTask}
-              catalog={catalog}
-              planning={planning}
-              execute={planningCommands.execute}
-              onOpen={props.setView ? openEntity : undefined}
+              taskId={contextTask.id}
+              navigate={props.setView}
             />
           ) : (
             <p>Füge zuerst eine Aufgabe hinzu.</p>

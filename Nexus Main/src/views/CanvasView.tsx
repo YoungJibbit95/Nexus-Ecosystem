@@ -55,6 +55,8 @@ import { useCanvasPanAndWheel } from "./canvas/useCanvasPanAndWheel";
 import { useCanvasKeyboardShortcuts } from "./canvas/useCanvasKeyboardShortcuts";
 import { useCanvasNodeActions } from "./canvas/useCanvasNodeActions";
 import { useEntityNavigationTarget } from '@nexus/core/planning/entityNavigation';
+import { useActiveViewCommandScope } from '../app/ViewCommandScope';
+import { ContextUsagePanel, ContextNavigationNotice } from './context/ContextRelations';
 import { planningStore } from '../store/planningStore';
 
 const CANVAS_UI_PREFS_KEY = "nexus-main-canvas-ui-v2";
@@ -62,7 +64,14 @@ const CANVAS_UI_PREFS_KEY = "nexus-main-canvas-ui-v2";
 const CanvasMagicModal = lazy(() =>
   import("./canvas/CanvasMagicModal").then((m) => ({ default: m.CanvasMagicModal })),
 );
-export function CanvasView() {
+export function CanvasView({ setView }: { setView?: (view: string) => void } = {}) {
+  const activeContextScope = useActiveViewCommandScope();
+  const [contextFailure, setContextFailure] = useState('');
+  const [contextFocus, setContextFocus] = useState(0), handledContextFocus = useRef(0);
+  const contextTargetRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (activeContextScope && contextFocus !== handledContextFocus.current && contextTargetRef.current) { handledContextFocus.current = contextFocus; contextTargetRef.current.focus(); }
+  }, [activeContextScope, contextFocus]);
   const t = useTheme();
   const rgb = hexToRgb(t.accent);
   const {
@@ -343,7 +352,7 @@ export function CanvasView() {
           useCanvas.setState({ viewport: vp });
         },
         durationMs: opts?.durationMs ?? 280,
-        reducedMotion: t.qol.reducedMotion,
+        reducedMotion: t.qol.reducedMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches,
       });
       cameraAnimationCancelRef.current = cancel;
     },
@@ -491,13 +500,26 @@ export function CanvasView() {
     },
     [resolveFocusViewport, runViewportTransition],
   );
-  useEntityNavigationTarget('main', 'canvas-node', useCallback(ref => {
+  const nodeNavigationMessage = useEntityNavigationTarget('main', 'canvas-node', useCallback(ref => {
     if (ref.kind !== 'canvas-node') return false;
-    const state = useCanvas.getState(), targetCanvas = state.canvases.find(item => item.id === ref.canvasId);
-    if (!targetCanvas?.nodes.some(node => node.id === ref.id)) { showCanvasNotice('Verknüpfter Canvas-Knoten fehlt. Referenz bleibt zur Reparatur erhalten.'); return true; }
+    const state = useCanvas.getState(), targets = state.canvases.filter(item => item.id === ref.canvasId), targetCanvas = targets[0];
+    if (targets.length !== 1 || targetCanvas.nodes.filter(node => node.id === ref.id).length !== 1) { setContextFailure('Der Canvas-Knoten fehlt oder ist nicht eindeutig. Die Referenz bleibt erhalten.'); return true; }
     if (state.activeCanvasId !== ref.canvasId || canvas?.id !== ref.canvasId) { state.setActiveCanvas(ref.canvasId); return false; }
-    setSelectedNodeId(ref.id); focusNode(ref.id); return true;
-  }, [canvas?.id, focusNode, showCanvasNotice]));
+    const bounds = canvasRef.current?.getBoundingClientRect();
+    if (!bounds?.width || !bounds.height || Math.abs(bounds.width - canvasSize.w) > 1 || Math.abs(bounds.height - canvasSize.h) > 1) return false;
+    const needsProjectPanel = canvasSize.w < 980 || canvasSize.h < 520;
+    if (selectedNodeId !== ref.id || (needsProjectPanel && !showProjectPanel)) { setSelectedNodeId(ref.id); setPmStatusFilter('all'); setShowProjectPanel(needsProjectPanel); return false; }
+    setContextFailure(''); focusNode(ref.id); setContextFocus(value => value + 1); return true;
+  }, [canvas?.id, canvasSize.w, canvasSize.h, selectedNodeId, showProjectPanel, focusNode]), activeContextScope);
+  const canvasNavigationMessage = useEntityNavigationTarget('main', 'canvas', useCallback(ref => {
+    const state = useCanvas.getState(), targets = state.canvases.filter(item => item.id === ref.id);
+    if (targets.length !== 1) { setContextFailure('Dieses Canvas ist nicht mehr eindeutig verfügbar.'); return true; }
+    if (state.activeCanvasId !== ref.id || canvas?.id !== ref.id) { state.setActiveCanvas(ref.id); return false; }
+    const bounds = canvasRef.current?.getBoundingClientRect();
+    if (!bounds?.width || !bounds.height || Math.abs(bounds.width - canvasSize.w) > 1 || Math.abs(bounds.height - canvasSize.h) > 1) return false;
+    if (selectedNodeId !== null || !showProjectPanel) { setSelectedNodeId(null); setShowProjectPanel(true); return false; }
+    setContextFailure(''); fitView(); setContextFocus(value => value + 1); return true;
+  }, [canvas?.id, canvasSize.w, canvasSize.h, selectedNodeId, showProjectPanel, fitView]), activeContextScope);
 
   const zoomFromCenterBy = useCallback(
     (delta: number) => {
@@ -753,7 +775,7 @@ export function CanvasView() {
     />
   );
 
-  const renderCanvasNotice = () =>
+  const renderCanvasNotice = () => <><ContextNavigationNotice message={nodeNavigationMessage || canvasNavigationMessage || contextFailure} />{
     canvasNotice ? (
       <div
         className="nx-canvas-notice"
@@ -778,7 +800,7 @@ export function CanvasView() {
       >
         {canvasNotice}
       </div>
-    ) : null;
+    ) : null}</>;
   // Empty state
   if (canvases.length === 0) {
     return (
@@ -899,6 +921,7 @@ export function CanvasView() {
         />
 
         <CanvasInspector
+          relatedWork={canvas && selectedNode ? <div ref={contextTargetRef} tabIndex={-1} aria-label={`Kontext: ${selectedNode.title}`}><ContextUsagePanel target={{ kind: 'canvas-node', canvasId: canvas.id, id: selectedNode.id }} navigate={setView} /></div> : null}
           onPromoteNode={async () => {
             if (!canvas || !selectedNode) return;
             try { const result = await planningStore.promoteEntity({ kind: 'canvas-node', canvasId: canvas.id, id: selectedNode.id }); showCanvasNotice(result.ok === true ? `Aufgabe dauerhaft bestätigt: ${result.ids.join(', ')}.` : result.message); }
@@ -999,6 +1022,7 @@ export function CanvasView() {
             createMagicTemplate={createMagicTemplate}
           />
           <CanvasProjectPanel
+            relatedWork={canvas ? <div ref={contextTargetRef} tabIndex={-1} aria-label={`Kontext: ${selectedNode?.title || canvas.name}`}><ContextUsagePanel target={selectedNode ? { kind: 'canvas-node', canvasId: canvas.id, id: selectedNode.id } : { kind: 'canvas', id: canvas.id }} navigate={setView} /></div> : null}
             open={showProjectPanel}
             canvas={canvas}
             accent={t.accent}

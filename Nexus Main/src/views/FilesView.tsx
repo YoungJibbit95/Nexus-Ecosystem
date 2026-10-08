@@ -28,6 +28,10 @@ import {
   X,
 } from "lucide-react";
 import { calculateNexusViewQuality } from "@nexus/core";
+import { requestEntityNavigation } from '@nexus/core/planning/entityNavigation';
+import { workspaceOperation } from '@nexus/core/storage/workspaceOperation';
+import { openProductTarget } from '../app/useProductNavigation';
+import { ContextNavigationNotice, ContextUsagePanel, TaskContextSummary } from './context/ContextRelations';
 import { useApp } from "../store/appStore";
 import { useCanvas } from "../store/canvasStore";
 import { useTheme } from "../store/themeStore";
@@ -52,6 +56,8 @@ type FilesViewProps = {
 };
 
 const TYPE_FILTERS = ["all", "note", "code", "task", "reminder", "canvas"] as const;
+const itemKey = (item: FileItem) => JSON.stringify([item.type, item.id]);
+const destinationLabel: Record<ItemType, string> = { note: 'In Notizen öffnen', canvas: 'In Canvas öffnen', task: 'Aufgabe öffnen', reminder: 'Erinnerung öffnen', code: 'In Code öffnen' };
 
 const SMART_VIEWS: Array<{ id: SmartViewMode; label: string }> = [
   { id: "all", label: "All" },
@@ -107,12 +113,10 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     tasks,
     reminders,
     folders,
-    openNote,
-    setNote,
     openCode,
     setCode,
   } = useApp();
-  const { canvases, setActiveCanvas } = useCanvas();
+  const { canvases } = useCanvas();
   const { workspaces, activeWorkspaceId, setActive } = useWorkspaces();
 
   const [search, setSearch] = useState("");
@@ -124,6 +128,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [scope, setScope] = useState<FilesScope>(readStoredScope);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [contextFailure, setContextFailure] = useState('');
   const [newWsOpen, setNewWsOpen] = useState(false);
   const [editWs, setEditWs] = useState<Workspace | null>(null);
   const [assignItem, setAssignItem] = useState<FileItem | null>(null);
@@ -388,7 +393,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   );
 
   const selectedItem = useMemo(
-    () => displayItems.find((item) => item.id === selectedItemId) ?? null,
+    () => displayItems.find((item) => itemKey(item) === selectedItemId) ?? null,
     [displayItems, selectedItemId],
   );
 
@@ -457,8 +462,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
       setSelectedItemId(null);
       return;
     }
-    if (!selectedItemId || !displayItems.some((item) => item.id === selectedItemId)) {
-      setSelectedItemId(displayItems[0].id);
+    if (!selectedItemId || !displayItems.some((item) => itemKey(item) === selectedItemId)) {
+      setSelectedItemId(itemKey(displayItems[0]));
     }
   }, [displayItems, selectedItemId]);
 
@@ -572,10 +577,17 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
   const openItem = useCallback(
     (item: FileItem) => {
+      if (!setView || workspaceOperation.isActive() || !activeCommandScope) return;
+      const app = useApp.getState();
+      const sources = item.type === 'canvas' ? useCanvas.getState().canvases : item.type === 'note' ? app.notes : item.type === 'task' ? app.tasks : item.type === 'reminder' ? app.reminders : app.codes;
+      if (sources.filter(source => source.id === item.id).length !== 1) {
+        setContextFailure('Dieser Inhalt ist nicht mehr eindeutig verfügbar. Bitte die aktuelle Bibliothek prüfen.');
+        return;
+      }
+      setContextFailure('');
       if (item.type === "note") {
-        openNote(item.id);
-        setNote(item.id);
-        setView?.("notes");
+        requestEntityNavigation('main', { kind: 'note', id: item.id });
+        setView("notes");
         return;
       }
       if (item.type === "code") {
@@ -585,17 +597,17 @@ export function FilesView({ setView }: FilesViewProps = {}) {
         return;
       }
       if (item.type === "task") {
-        setView?.("tasks");
+        openProductTarget({ kind: 'task', id: item.id }, setView);
         return;
       }
       if (item.type === "reminder") {
-        setView?.("reminders");
+        openProductTarget({ kind: 'reminder', id: item.id }, setView);
         return;
       }
-      setActiveCanvas(item.id);
-      setView?.("canvas");
+      requestEntityNavigation('main', { kind: 'canvas', id: item.id });
+      setView("canvas");
     },
-    [openCode, openNote, setActiveCanvas, setCode, setNote, setView],
+    [activeCommandScope, openCode, setCode, setView],
   );
 
   const selectWorkspace = (workspaceId: string) => {
@@ -1136,11 +1148,11 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                     const itemWorkspace = getItemPrimaryWorkspace(item);
                     return (
                       <FileCard
-                        key={item.id}
+                        key={itemKey(item)}
                         item={item}
                         viewMode="grid"
-                        selected={selectedItem?.id === item.id}
-                        onSelect={() => setSelectedItemId(item.id)}
+                        selected={selectedItemId === itemKey(item)}
+                        onSelect={() => setSelectedItemId(itemKey(item))}
                         onAssign={() => setAssignItem(item)}
                         onOpen={openItem}
                         wsColor={itemWorkspace?.color}
@@ -1158,11 +1170,11 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                     const itemWorkspace = getItemPrimaryWorkspace(item);
                     return (
                       <FileCard
-                        key={item.id}
+                        key={itemKey(item)}
                         item={item}
                         viewMode="list"
-                        selected={selectedItem?.id === item.id}
-                        onSelect={() => setSelectedItemId(item.id)}
+                        selected={selectedItemId === itemKey(item)}
+                        onSelect={() => setSelectedItemId(itemKey(item))}
                         onAssign={() => setAssignItem(item)}
                         onOpen={openItem}
                         wsColor={itemWorkspace?.color}
@@ -1214,6 +1226,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                   </button>
                 </div>
               ) : null}
+              <ContextNavigationNotice message={contextFailure} />
               {selectedItem && selectedMeta ? (
                 <>
                   <div className="nx-files-detail-head">
@@ -1234,8 +1247,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                   </div>
 
                   <div className="nx-files-detail-actions">
-                    <button type="button" onClick={() => openItem(selectedItem)}>
-                      Oeffnen
+                    <button type="button" disabled={!setView} aria-label={`${destinationLabel[selectedItem.type]}: ${selectedItem.title}`} onClick={() => openItem(selectedItem)}>
+                      {destinationLabel[selectedItem.type]}
                     </button>
                     <button type="button" onClick={() => setAssignItem(selectedItem)}>
                       Workspace zuordnen
@@ -1248,7 +1261,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                       <dd>{selectedMeta.label}</dd>
                     </div>
                     <div>
-                      <dt>Updated</dt>
+                      <dt>{selectedItem.type === 'reminder' ? 'Erinnerungszeit' : 'Zuletzt geändert'}</dt>
                       <dd>
                         {formatDateTime(selectedItem.updated)}
                         <span>{formatRelativeTime(selectedItem.updated)}</span>
@@ -1285,6 +1298,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                       </div>
                     ) : null}
                   </dl>
+
+                  {selectedItem.type === 'note' || selectedItem.type === 'canvas' ? <ContextUsagePanel key={itemKey(selectedItem)} target={{ kind: selectedItem.type, id: selectedItem.id }} navigate={setView} /> : selectedItem.type === 'task' ? <TaskContextSummary taskId={selectedItem.id} navigate={setView} /> : <p>Dieser Inhalt wird nicht als Aufgaben-Kontext verknüpft.</p>}
 
                   <div className="nx-files-preview">
                     <div className="nx-files-detail-label">Preview</div>
