@@ -1,0 +1,51 @@
+name: D01-E1 Synthetic Transport Experiment
+
+on:
+  pull_request:
+    paths:
+      - 'tools/experiments/d01-e1/**'
+      - '.github/workflows/d01-e1-transport-experiment.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-experiment:
+    name: D01-E1 (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        if: runner.os == 'Windows'
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build only the experiment helper outside product packaging
+        if: runner.os == 'Windows'
+        run: |
+          $evidence = Join-Path $env:GITHUB_WORKSPACE '.workspace-maintenance/2026-10-18/d01-e1'
+          dotnet build tools/experiments/d01-e1/native/NativePipeHost.csproj --configuration Release --artifacts-path "$evidence/native-build" --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "D01_E1_PIPE_HOST=$evidence/native-build/bin/NativePipeHost/release/NativePipeHost.dll" >> $env:GITHUB_ENV
+      - name: Native synthetic tests (not installed app or Python qualification)
+        run: node --test --test-timeout=30000 tools/experiments/d01-e1/host.test.mjs tools/experiments/d01-e1/isolation.test.mjs
+      - name: Record actual measurements and explicit missing evidence
+        run: node tools/experiments/d01-e1/measure.mjs --output .workspace-maintenance/2026-10-18/d01-e1/measurement.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: d01-e1-${{ runner.os }}-synthetic-evidence
+          path: .workspace-maintenance/2026-10-18/d01-e1/measurement.json
+          if-no-files-found: error
