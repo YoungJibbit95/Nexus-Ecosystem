@@ -31,7 +31,7 @@ export function request(method) {
   if (method.endsWith('.create')) document.mutation = { actionId: 'action-1', clientId: 'client-1', idempotencyKey: 'stable-key-1', argumentsDigest: identity(method).argumentsDigest, preconditions: { planningRevision: 27 } }
   return document
 }
-const receipt = (method = 'notes.create') => ({ action: identity(method), status: 'acknowledged', entities: [{ kind: method === 'notes.create' ? 'note' : 'task', id: 'entity-1' }], revision: 28, acknowledgedAt: now, retainedUntil: '2026-11-18T10:00:00.000Z', replayed: false, sideEffects: [] })
+const receipt = (method = 'notes.create') => ({ action: identity(method), status: 'acknowledged', entities: [{ kind: method === 'notes.create' ? 'note' : 'task', id: 'entity-1' }], revision: { source: 'planning-document', value: 28 }, acknowledgedAt: now, retainedUntil: '2026-11-18T10:00:00.000Z', replayed: false, sideEffects: [] })
 const snapshot = (data = []) => ({ consistency: 'current', durability: 'queued', snapshotEpoch: hash('a'), data, truncated: false, nextCursor: null, warnings: [] })
 const descriptor = (syntaxKind = 'inline', persistence = 'preview_only') => ({ id: 'badge', version: 1, schemaHash: hash('b'), syntaxKind, label: 'Badge', description: 'Synthetic descriptor; no serializer is installed.', fields: [{ key: 'label', type: 'string', required: true, multiline: false, minLength: 1, maxLength: 64 }], serializerVersion: '1', persistence, supportedMethods: [], sideEffects: [], supportedClients: ['main'], dependencies: [] })
 export function response(method, schemaHash = hash('c')) {
@@ -39,7 +39,7 @@ export function response(method, schemaHash = hash('c')) {
   if (method !== 'system.hello') document.context = clone(context)
   const data = {
     'system.hello': { instanceId: 'i1', supportedProtocolVersions: [PROTOCOL_VERSION], supportedSchemaVersions: [SCHEMA_VERSION], state: 'NOT_READY' },
-    'capabilities.list': { capabilities: METHODS.map(name => ({ method: name, capability: CAPABILITY_MAPPING[name], schemaId: SCHEMA_ID, schemaVersion: SCHEMA_VERSION, schemaHash, state: 'known' })), magicDescriptors: [descriptor()] },
+    'capabilities.list': { capabilities: METHODS.map(name => ({ method: name, capability: CAPABILITY_MAPPING[name], schemaId: SCHEMA_ID, schemaVersion: SCHEMA_VERSION, schemaHash, nexusState: 'known' })), magicDescriptors: [descriptor()] },
     'mutation.status': { state: 'not_found', action: identity() },
     'notes.query': snapshot([{ id: 'n1', title: 'Notiz', updated: now }]),
     'tasks.query': snapshot([{ id: 't1', title: 'Aufgabe', deadline: { date: '2026-10-25', timeZone: 'Europe/Berlin' } }]),
@@ -87,7 +87,8 @@ export function buildCorpus() {
     ['client-security-flag-is-not-authority', value => { value.context.jarvisSecurityVerified = true }],
     ['past-protocol', value => { value.protocolVersion = 'nexus.local.v0' }],
     ['future-protocol', value => { value.protocolVersion = 'nexus.local.v2' }],
-    ['future-schema', value => { value.schemaVersion = '2.0.0' }],
+    ['previous-schema', value => { value.schemaVersion = '1.0.0' }],
+    ['future-schema', value => { value.schemaVersion = '3.0.0' }],
     ['unknown-method', value => { value.method = 'notes.get' }],
     ['durable-not-in-initial-request-schema', value => { value.params.readConsistency = 'durable' }],
     ['zero-limit', value => { value.params.limit = 0 }],
@@ -134,6 +135,12 @@ export function buildCorpus() {
     invalid(`untyped-entities:${method}`, 'Response', value, v => { v.receipt.entities = ['entity-1'] })
     invalid(`receipt-retention-required:${method}`, 'Response', value, v => { delete v.receipt.retainedUntil })
     invalid(`receipt-invalid-retention:${method}`, 'Response', value, v => { v.receipt.retainedUntil = 'sometime' })
+    invalid(`receipt-legacy-naked-revision:${method}`, 'Response', value, v => { v.receipt.revision = 28 })
+    invalid(`receipt-revision-is-not-note-etag:${method}`, 'Response', value, v => { v.receipt.revision.source = 'note-etag' })
+    invalid(`receipt-revision-source-required:${method}`, 'Response', value, v => { delete v.receipt.revision.source })
+    invalid(`receipt-revision-value-type:${method}`, 'Response', value, v => { v.receipt.revision.value = '28' })
+    invalid(`receipt-revision-negative:${method}`, 'Response', value, v => { v.receipt.revision.value = -1 })
+    invalid(`receipt-revision-unsafe-integer:${method}`, 'Response', value, v => { v.receipt.revision.value = 9007199254740992 })
     const accepted = { ...envelope(method), status: 'accepted', context: clone(context), action: identity(method) }; add(`accepted-is-not-durable:${method}`, 'Response', accepted, true)
   }
   for (const kind of ['note', 'task', 'reminder', 'canvas', 'planning-event', 'planning-block']) add(`entity:${kind}`, 'EntityRef', { kind, id: 'same-id' }, true)
@@ -152,6 +159,14 @@ export function buildCorpus() {
   invalid('magic-cannot-register-new-method', 'MagicDescriptorV1', descriptor(), value => { value.supportedMethods = ['magic.preview'] })
   invalid('schema-hash-shape', 'MagicDescriptorV1', descriptor(), value => { value.schemaHash = 'sha256:not-a-digest' })
   const capabilities = response('capabilities.list', schemaHash)
+  for (const nexusState of ['known', 'offered', 'ready', 'authorized']) {
+    const value = clone(capabilities); value.data.capabilities[0].nexusState = nexusState
+    add(`capability-nexus-state:${nexusState}`, 'Response', value, true)
+  }
+  invalid('capability-cannot-claim-jarvis-policy', 'Response', capabilities, value => { value.data.capabilities[0].nexusState = 'policy_allowed' })
+  invalid('capability-no-legacy-unqualified-state', 'Response', capabilities, value => { value.data.capabilities[0].state = 'authorized'; delete value.data.capabilities[0].nexusState })
+  invalid('capability-no-jarvis-verdict-field', 'Response', capabilities, value => { value.data.capabilities[0].jarvisPolicyVerdict = 'ALLOW' })
+  invalid('capability-nexus-state-required', 'Response', capabilities, value => { delete value.data.capabilities[0].nexusState })
   invalid('capability-method-mapping', 'Response', capabilities, value => { value.data.capabilities[0].capability = 'nexus.notes.query' })
   invalid('manifest-unknown-method', 'Response', capabilities, value => { value.data.capabilities[0].method = 'notes.get' })
   for (const stamp of ['2026-10-25T02:30:00+02:00', '2026-10-25T02:30:00+01:00', '2026-10-18T10:00:00Z', '2028-02-29T12:00:00+01:00']) { const value = request('flux.getAttention'); value.params.now = stamp; add(`instant:${stamp}`, 'Request', value, true) }
@@ -160,11 +175,35 @@ export function buildCorpus() {
   invalid('cursor-with-final-newline', 'Request', note, value => { value.params.cursor = 'opaque_cursor_0123456789\n' })
   invalid('instant-with-final-newline', 'Request', request('flux.getAttention'), value => { value.params.now += '\n' })
   invalid('timezone-with-final-newline', 'Request', request('flux.getAttention'), value => { value.params.timeZone += '\n' })
-  invalid('schema-version-with-final-newline', 'Request', request('system.hello'), value => { value.params.supportedSchemaVersions = ['1.0.0\n'] })
+  invalid('schema-version-with-final-newline', 'Request', request('system.hello'), value => { value.params.supportedSchemaVersions = [`${SCHEMA_VERSION}\n`] })
   invalid('flux-no-paging-response', 'Response', response('flux.getAttention'), value => { value.data.snapshot.nextCursor = 'opaque_cursor_0123456789' })
+  const completeFlux = response('flux.getAttention')
+  add('flux-complete-without-paging', 'Response', completeFlux, true)
+  const emptyFlux = clone(completeFlux); emptyFlux.data.snapshot.data = []; add('flux-empty-complete-without-paging', 'Response', emptyFlux, true)
+  const truncatedFlux = clone(completeFlux); truncatedFlux.data.snapshot.truncated = true
+  add('flux-truncated-without-paging', 'Response', truncatedFlux, true)
+  invalid('flux-truncated-still-cannot-page', 'Response', truncatedFlux, value => { value.data.snapshot.nextCursor = 'opaque_cursor_0123456789' })
+  invalid('flux-truncation-flag-required', 'Response', completeFlux, value => { delete value.data.snapshot.truncated })
+  invalid('flux-truncation-flag-must-be-boolean', 'Response', completeFlux, value => { value.data.snapshot.truncated = 'true' })
+  invalid('flux-truncated-cannot-be-empty', 'Response', truncatedFlux, value => { value.data.snapshot.data = [] })
+  invalid('flux-over-maximum-result-count', 'Response', truncatedFlux, value => { value.data.snapshot.data = Array.from({ length: 101 }, () => clone(completeFlux.data.snapshot.data[0])) })
 
   const scenarios = []
   const scenario = (id, gate, facts, requests, expectedResponse, requestValid = true) => scenarios.push({ id, gate, runtimeEvidenceRequired: true, facts, requests, requestValid, expectedResponse })
+  for (const [sourceCount, limit, truncated] of [[0, 2, false], [2, 2, false], [3, 2, true], [101, 100, true]]) {
+    const query = request('flux.getAttention'); query.params.limit = limit
+    const result = clone(completeFlux); result.data.snapshot.data = Array.from({ length: Math.min(sourceCount, limit) }, (_, index) => ({ entity: { kind: 'task', id: `t${index + 1}` }, title: `Task ${index + 1}`, reasons: ['unplanned'] })); result.data.snapshot.truncated = truncated
+    scenario(`flux-bounded-prefix:${sourceCount}:limit:${limit}`, 'G2B', { completeAuthorizedProjectionCount: sourceCount, deterministicOrder: true, omittedRows: sourceCount > limit, fullProjectionFingerprintRequired: true, noNextPage: true }, [query], result)
+  }
+  scenario('flux-byte-budget-overflow-is-explicit', 'G2B', { completeAuthorizedProjectionCount: 3, byteBudgetFitsRows: 1, omittedRows: true, fullProjectionFingerprintRequired: true, noNextPage: true }, [request('flux.getAttention')], truncatedFlux)
+  scenario('flux-unprovable-completeness-is-not-complete-success', 'G2B', { completeAuthorizedProjectionKnown: false }, [request('flux.getAttention')], errorResponse('flux.getAttention', 'not_ready'))
+  scenario('flux-no-row-fits-is-not-empty-success', 'G2B', { completeAuthorizedProjectionCount: 1, byteBudgetFitsRows: 0 }, [request('flux.getAttention')], errorResponse('flux.getAttention', 'not_ready'))
+  const nexusAuthorized = clone(capabilities); nexusAuthorized.data.capabilities.forEach(value => { value.nexusState = 'authorized' })
+  scenario('nexus-authorization-does-not-claim-jarvis-policy', 'G1B', { jarvisPolicyVerdict: 'DENY', jarvisExecutionPermitted: false, policyOwner: 'YJarvis' }, [request('capabilities.list')], nexusAuthorized)
+  for (const method of ['notes.create', 'tasks.create']) {
+    const replay = response('mutation.status'); replay.data = { state: 'acknowledged', receipt: receipt(method) }; replay.data.receipt.replayed = true
+    scenario(`receipt-original-planning-revision:${method}`, 'G3', { originalCommandReceiptRevision: 28, currentPlanningRevision: 99, noteETagMayDiffer: true, revisionSource: 'planning-document' }, [{ ...request('mutation.status'), params: { action: identity(method) } }], replay)
+  }
   const library = request('notes.query'), workspace = clone(library); workspace.context.scope = { kind: 'workspace', workspaceId: 'w1' }
   scenario('null-active-workspace-does-not-grant-library', 'G2A', { activeWorkspaceId: null, grants: ['workspace:w1'] }, [library], errorResponse('notes.query', 'scope_denied'))
   scenario('multiple-memberships-check-selected-workspace', 'G2A', { noteMemberships: ['w1', 'w2'], grants: ['workspace:w1'] }, [workspace], response('notes.query'))

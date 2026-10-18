@@ -89,6 +89,27 @@ test('SCENARIO FIXTURES ONLY: messages are well-formed; future runtime behavior 
   assert.equal(query.params.action.origin.sessionId, original.context.sessionId)
   assert.equal(query.params.action.idempotencyKey, original.mutation.idempotencyKey)
   assert.deepEqual(recovery.expectedResponse.data.receipt.action, query.params.action)
+  for (const scenario of scenarios.filter(value => value.id.startsWith('flux-bounded-prefix:'))) {
+    const snapshot = scenario.expectedResponse.data.snapshot
+    assert.equal(snapshot.nextCursor, null)
+    assert.equal(snapshot.data.length, Math.min(scenario.facts.completeAuthorizedProjectionCount, scenario.requests[0].params.limit))
+    assert.equal(snapshot.truncated, scenario.facts.completeAuthorizedProjectionCount > snapshot.data.length)
+  }
+  const byteLimited = scenarios.find(value => value.id === 'flux-byte-budget-overflow-is-explicit').expectedResponse.data.snapshot
+  assert.equal(byteLimited.truncated, true)
+  assert.equal(byteLimited.nextCursor, null)
+  const policyBoundary = scenarios.find(value => value.id === 'nexus-authorization-does-not-claim-jarvis-policy')
+  assert.equal(policyBoundary.facts.jarvisExecutionPermitted, false)
+  for (const capability of policyBoundary.expectedResponse.data.capabilities) {
+    assert.equal(capability.nexusState, 'authorized')
+    assert.equal(Object.hasOwn(capability, 'jarvisPolicyVerdict'), false)
+    assert.equal(Object.hasOwn(capability, 'state'), false)
+  }
+  for (const scenario of scenarios.filter(value => value.id.startsWith('receipt-original-planning-revision:'))) {
+    const revision = scenario.expectedResponse.data.receipt.revision
+    assert.deepEqual(revision, { source: 'planning-document', value: scenario.facts.originalCommandReceiptRevision })
+    assert.notEqual(revision.value, scenario.facts.currentPlanningRevision)
+  }
 })
 
 test('isolated subpath remains dependency-free and is not imported by the product barrel', () => {

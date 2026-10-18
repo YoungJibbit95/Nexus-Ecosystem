@@ -2,9 +2,9 @@ import { array, boolean, enumeration, integer, literal, number, object, string, 
 import { canonicalBytes } from './canonical'
 
 export const PROTOCOL_VERSION = 'nexus.local.v1'
-export const SCHEMA_VERSION = '1.0.0'
-export const SCHEMA_ID = 'urn:nexus:local:wire:1.0.0'
-export const FIXTURE_VERSION = '1.0.0'
+export const SCHEMA_VERSION = '2.0.0'
+export const SCHEMA_ID = 'urn:nexus:local:wire:2.0.0'
+export const FIXTURE_VERSION = '2.0.0'
 export const MAX_DOCUMENT_BYTES = 131_072
 export const CAPABILITY_MAPPING = Object.freeze({
   'system.hello': 'nexus.system.hello',
@@ -57,8 +57,10 @@ const mutation = define('CreateMutation', object({
   actionId: id, clientId: id, idempotencyKey: id, argumentsDigest: digest, preconditions,
 }))
 const sideEffect = define('SideEffect', object({ kind: literal('native_delivery'), entity: entityRefSchema, state: enumeration('pending', 'unknown') }))
+/** Original committed PlanningDocument receipt counter; never a Note ETag. */
+export const receiptRevisionSchema = define('ReceiptRevision', object({ source: literal('planning-document'), value: integer(0) }))
 const receiptFields = {
-  entities: array(entityRefSchema, 32, 1, true), revision: integer(0), acknowledgedAt: instant,
+  entities: array(entityRefSchema, 32, 1, true), revision: receiptRevisionSchema, acknowledgedAt: instant,
   retainedUntil: instant, replayed: boolean,
 }
 const receiptFor = <A, const S extends 'acknowledged' | 'completed_with_pending_side_effect'>(action: Schema<A>, status: S) => object({
@@ -85,12 +87,12 @@ export const magicDescriptorSchema = define('MagicDescriptorV1', object({
 export type CapabilityDescriptor = { [M in Method]: {
   method: M; capability: (typeof CAPABILITY_MAPPING)[M]; schemaId: typeof SCHEMA_ID
   schemaVersion: typeof SCHEMA_VERSION; schemaHash: string
-  state: 'known' | 'offered' | 'ready' | 'authorized' | 'policy_allowed'
+  nexusState: 'known' | 'offered' | 'ready' | 'authorized'
 } }[Method]
 const capability = define('Capability', union(...METHODS.map(name => object({
   method: literal(name), capability: literal(CAPABILITY_MAPPING[name]), schemaId: literal(SCHEMA_ID),
   schemaVersion: literal(SCHEMA_VERSION), schemaHash: digest,
-  state: enumeration('known', 'offered', 'ready', 'authorized', 'policy_allowed'),
+  nexusState: enumeration('known', 'offered', 'ready', 'authorized'),
 }))) as Schema<CapabilityDescriptor>)
 const cursor = union(string(2_048, { minLength: 16, pattern: '^[A-Za-z0-9_-]+$(?![\\s\\S])' }), literal(null))
 const query = <const T extends readonly string[]>(fields: T) => object({
@@ -120,6 +122,10 @@ const snapshotFields = <T>(items: Schema<T>) => ({
 })
 const unpagedRead = <T>(items: Schema<T>) => object({ ...snapshotFields(items), truncated: literal(false), nextCursor: literal(null) })
 const read = <T>(items: Schema<T>) => union(unpagedRead(items), object({ ...snapshotFields(items), truncated: literal(true), nextCursor: cursor }))
+// Bounded Flux prefix: omission is explicit, but never creates a next page.
+const fluxRead = union(unpagedRead(fluxMetadata), object({
+  ...snapshotFields(fluxMetadata), data: array(fluxMetadata, 100, 1), truncated: literal(true), nextCursor: literal(null),
+}))
 const statusResult = define('MutationStatusResult', union(
   object({ state: literal('acknowledged'), receipt: receiptFor(actionIdentitySchema, 'acknowledged') }),
   object({ state: literal('completed_with_pending_side_effect'), receipt: receiptFor(actionIdentitySchema, 'completed_with_pending_side_effect') }),
@@ -164,7 +170,7 @@ export const RESPONSE_SCHEMAS = {
   'tasks.query': define('TasksQueryResponse', response('tasks.query', read(taskMetadata))),
   'reminders.query': define('RemindersQueryResponse', response('reminders.query', read(reminderMetadata))),
   'planning.queryRange': define('PlanningQueryResponse', response('planning.queryRange', object({ snapshot: read(planningMetadata), coverage: enumeration('known', 'unknown') }))),
-  'flux.getAttention': define('FluxResponse', response('flux.getAttention', object({ snapshot: unpagedRead(fluxMetadata), now: instant, timeZone }))),
+  'flux.getAttention': define('FluxResponse', response('flux.getAttention', object({ snapshot: fluxRead, now: instant, timeZone }))),
   'notes.create': define('NotesCreateResponse', writeResponse('notes.create')),
   'tasks.create': define('TasksCreateResponse', writeResponse('tasks.create')),
 } as const
@@ -187,6 +193,7 @@ export type RuntimeContext = Infer<typeof runtimeContextSchema>
 export type EntityRef = Infer<typeof entityRefSchema>
 export type ActionIdentity = Infer<typeof actionIdentitySchema>
 export type Receipt = Infer<typeof receiptSchema>
+export type ReceiptRevision = Infer<typeof receiptRevisionSchema>
 export type MagicDescriptorV1 = Infer<typeof magicDescriptorSchema>
 export type WireRequest<M extends Method = Method> = Infer<(typeof REQUEST_SCHEMAS)[M]>
 export type WireResponse<M extends Method = Method> = Infer<(typeof RESPONSE_SCHEMAS)[M]>

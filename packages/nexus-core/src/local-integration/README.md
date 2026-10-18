@@ -1,7 +1,7 @@
 # NXB-0: inert Nexus Local Protocol contracts
 
-**NXB-0 review candidate; NOT a G0-B sign-off.** Schema/fixture version: **1.0.0**.
-Protocol: `nexus.local.v1`. Schema ID: `urn:nexus:local:wire:1.0.0`.
+**NXB-0 review candidate; NOT a G0-B sign-off.** Schema/fixture version: **2.0.0**.
+Protocol: `nexus.local.v1`. Schema ID: `urn:nexus:local:wire:2.0.0`.
 
 ## Provenance and isolation
 
@@ -43,6 +43,21 @@ descriptive: a well-formed but unexpected hash still needs a peer compatibility
 check. MagicDescriptorV1 supports bounded field types, syntax/persistence/client
 metadata and dependencies, but cannot extend the ten-method catalog.
 
+Capability `nexusState` describes **Nexus-owned** observations only:
+
+| nexusState | Nexus authority / meaning |
+| --- | --- |
+| known | method known to the Nexus contract catalog |
+| offered | method offered by the current Nexus release/configuration |
+| ready | required Nexus domain owner is ready for the context |
+| authorized | current Nexus session/grant/scope/account/product checks permit it |
+
+There is no unqualified capability `state`, `policy_allowed` or Jarvis verdict
+field. Even nexusState=authorized does not claim that Jarvis offers the tool,
+has passed its own policy, or holds required approval. Jarvis independently
+computes its ALLOW/CONFIRM/DENY verdict in its authorized V2 path. Nexus rechecks
+its own authorization on each later call. The manifest never grants execution.
+
 wire-v1.schema.json uses JSON Schema Draft 2020-12. TypeScript models derive from
 the same constructors. validateContract performs only stateless structure/format
 validation using the emitted keyword vocabulary, not arbitrary JSON Schemas.
@@ -82,8 +97,28 @@ including relevant domain fields/order, memberships and query/filter/field input
 never runtimeGeneration alone. The eventual query owner must supply domain
 normalization. CursorBinding describes client/grant/context, query/membership/
 source fingerprints, position and expiry. It does not protect or verify tokens.
-Each future page needs fresh authorization and fingerprint checks. Flux binds
-now/timeZone and provides no next page.
+Each future page needs fresh authorization and fingerprint checks.
+
+### Bounded Flux without paging
+
+Flux binds now/timeZone and always returns nextCursor=null. The future owner
+must first capture a coherent, complete authorized projection in deterministic
+domain order, then return the longest prefix fitting the requested limit and
+wire byte budget. `truncated=false` means all qualifying rows were included,
+including genuine empty results. `truncated=true` means at least one qualifying
+row was omitted, and requires a nonempty returned prefix. It is an incompleteness
+signal, never a paging promise. Neither the count limit nor missing rows imply
+absence of further work. For example, 3 qualifying rows with limit=2 yield two
+rows, truncated=true, nextCursor=null; exactly 2 rows with limit=2 yield false.
+
+snapshotEpoch fingerprints the full authorized projection and its bound query,
+now/timeZone and relevant sources/memberships **before** prefix truncation, not
+just the returned rows. If completeness/coherence cannot be established, or no
+row fits although qualifying rows exist, return an existing error such as
+not_ready rather than an empty or falsely complete success. Storage failures
+remain storage_failure. No cursor, paging, new query method or runtime is added.
+Schema fixtures validate flag/cursor/count shapes; descriptive scenarios capture
+the completeness obligations that require later G2B runtime evidence.
 
 ERROR_STATUSES distinguishes empty success from not_ready, draft_pending,
 stale/stale_cursor, scope_denied, unsupported_scope, recovery_pending and
@@ -100,6 +135,30 @@ idempotencyKey, argumentsDigest and origin RuntimeContext. argumentsDigest is
 SHA-256 of canonicalBytes(params), **without final LF**. Origin binds the original
 scope/profile/account/generation/session/instance/renderer. Capture preconditions
 use planningRevision; this does not impose that counter on future note edits.
+
+### Receipt revision provenance
+
+`Receipt.revision` is `{source:"planning-document",value:<safe integer>}`. Its
+value is the original committed command receipt's PlanningDocument revision,
+within action.origin.runtimeGeneration and the original profile/account dataset.
+For both current create methods, its source is the durable
+`planning.receipts[commandKey].revision`, recorded after the capture transaction
+increments planning.revision. It is not a global protocol sequence, current
+planning counter, note revision, timestamp or noteETag, and cannot be used as
+an optimistic concurrency token for a later note edit.
+
+In particular, notes.create delegates to ApplicationCommandOwner: capture-note
+persists a PlanningDocument receipt alongside the note even though its current
+ApplicationCaptureResult returns only id/destination/replayed, not revision.
+A future G3 adapter must obtain the original acknowledged receipt through its
+owner/reconciliation path; it must not synthesize a revision from Note.updated
+or sample the mutable current planning counter. PlanningCommandOwner similarly
+stores/returns its original receipt revision for tasks.create. Replay and
+mutation.status must keep that original value (e.g. 28) even after unrelated
+planning changes advance the live counter (e.g. 99). Missing authoritative
+receipt evidence stays uncertain under the existing recovery rules.
+Sources: `application/applicationCommands.ts` and `planning/commandService.ts`.
+This package changes no owner and supplies no revision lookup implementation.
 
 After restart, mutation.status uses the **new current authenticated context** in
 its envelope and the **unchanged original identity** in params.action. Origin
@@ -149,8 +208,14 @@ wire-v1.schema.json **file hash**; no self-referential hash is embedded in schem
 Exact current hashes are published in test/fixtures/local-integration-v1/manifest.json.
 
 Breaking shapes/meaning need a new schema major and versioned ID. Any corpus byte
-change needs a new fixture version and reviewed manifest. The first 1.0.0 candidate
-is not frozen by NXB-0; joint G0-B review remains required.
+change needs a new fixture version and reviewed manifest. The external-review
+correction advances the 1.0.0 candidate to schema/fixtures 2.0.0: naked revision
+becomes a sourced object, capability state becomes Nexus-only nexusState, and
+bounded Flux can truthfully report truncation without a cursor. Schema 1.0.0 is
+rejected rather than silently reinterpreted. Protocol nexus.local.v1, the ten
+methods, MagicDescriptorV1 and all runtime gates are unchanged. The v1 directory
+and wire-v1.schema.json filename identify the protocol, not the schema major.
+Both projects must adopt the new exact corpus; no G0-B freeze is implied.
 
 ## Verification, handoff, risks and rollback
 

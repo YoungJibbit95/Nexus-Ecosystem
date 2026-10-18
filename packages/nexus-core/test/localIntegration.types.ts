@@ -1,4 +1,4 @@
-import { type WireRequest, type WireResponse, type Scope, type EntityRef, type Method, type CapabilityDescriptor } from '../src/local-integration'
+import { SCHEMA_ID, SCHEMA_VERSION, type WireRequest, type WireResponse, type Scope, type EntityRef, type Method, type CapabilityDescriptor } from '../src/local-integration'
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false
 type Assert<T extends true> = T
@@ -13,7 +13,9 @@ const nakedNode: EntityRef = { kind: 'canvas-node', id: 'node' }
 // @ts-expect-error no eleventh method
 const extraMethod: Method = 'notes.get'
 // @ts-expect-error method and capability must be correlated at type level
-const invalidCapability: CapabilityDescriptor = { method: 'notes.query', capability: 'nexus.tasks.query', schemaId: 'urn:nexus:local:wire:1.0.0', schemaVersion: '1.0.0', schemaHash: 'digest', state: 'known' }
+const invalidCapability: CapabilityDescriptor = { method: 'notes.query', capability: 'nexus.tasks.query', schemaId: SCHEMA_ID, schemaVersion: SCHEMA_VERSION, schemaHash: 'digest', nexusState: 'known' }
+// @ts-expect-error Nexus cannot claim a Jarvis policy verdict
+const invalidNexusState: CapabilityDescriptor['nexusState'] = 'policy_allowed'
 
 function requestNarrowing(value: WireRequest) {
   if (value.method === 'system.hello') {
@@ -44,15 +46,28 @@ function responseNarrowing(value: WireResponse<'notes.create'>) {
   if (value.status === 'acknowledged') {
     const method: 'notes.create' = value.receipt.action.method
     const status: 'acknowledged' = value.receipt.status
-    return [method, status]
+    const source: 'planning-document' = value.receipt.revision.source
+    const revision: number = value.receipt.revision.value
+    // @ts-expect-error revision provenance cannot be discarded as a naked number
+    const nakedRevision: number = value.receipt.revision
+    return [method, status, source, revision, nakedRevision]
   }
 }
 function fluxResponse(value: WireResponse<'flux.getAttention'>) {
   if (value.status === 'accepted') {
     const cursor: null = value.data.snapshot.nextCursor
-    const truncated: false = value.data.snapshot.truncated
-    return [cursor, truncated]
+    const truncated: boolean = value.data.snapshot.truncated
+    // @ts-expect-error truncation never creates a Flux cursor
+    const nextPage: string = value.data.snapshot.nextCursor
+    return [cursor, truncated, nextPage]
   }
 }
-void [workspace, missingWorkspace, ambiguousScope, nakedNode, extraMethod, invalidCapability, requestNarrowing, responseNarrowing, fluxResponse]
+function capabilityAuthority(value: CapabilityDescriptor) {
+  value.nexusState
+  // @ts-expect-error no unqualified cross-authority state
+  value.state
+  // @ts-expect-error Jarvis policy belongs to Jarvis, not the Nexus manifest
+  value.jarvisPolicyVerdict
+}
+void [workspace, missingWorkspace, ambiguousScope, nakedNode, extraMethod, invalidCapability, invalidNexusState, requestNarrowing, responseNarrowing, fluxResponse, capabilityAuthority]
 export type { ExactMethods }
