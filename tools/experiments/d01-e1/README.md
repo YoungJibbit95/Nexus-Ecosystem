@@ -125,7 +125,7 @@ Do not rank different OS/CI hosts from these numbers.
 | Dimension | Automated evidence | Still NOT VERIFIED / required later |
 | --- | --- | --- |
 | Access control | Actual UDS owner/modes or actual Windows owner-only protected DACL; wrong experimental credential/instance | Actual different Windows OS user, same-user malware resistance, app/binary attestation |
-| Different user | On native macOS, existing `nobody` via noninteractive sudo attempts an actual socket connect from `/tmp`; selected Node or system `nc` must prove a distinct UID and permission-denied connect | If sudo/foreign-user execution unavailable, explicit skip; no accounts are created, no passwords requested/stored |
+| Different user | On native macOS, existing `nobody` via noninteractive sudo attempts an actual socket connect from `/tmp`; selected Node or a minimal native SDK probe must prove a distinct UID and EACCES | If sudo/SDK/foreign-user execution unavailable, explicit skip; no accounts are created, no passwords requested/stored |
 | Loopback boundary | Real HTTP negative Host/Origin/null-Origin/preflight/forwarded/proxy/header/upgrade/chunked/absolute-target probes; literal IPv4 bind | Controlled DNS changes, IPv6, external proxy deployments; real browser only with explicit completed native probe |
 | Reliability | New connections, 32 sequential slot reuses, stale identity, bounded partial frames, hard process crash, restart, duplicate endpoint | Sleep/wake, renderer lifecycle, OS service sessions, install/upgrade/uninstall |
 | Stale endpoints | Pipe kernel cleanup after parent/child exit; port reuse; UDS crash residue retained and a fresh path chosen | Production lease/PID/discovery ownership and recovery |
@@ -138,6 +138,11 @@ synthetic process tests. The injected clock test proves only expiry logic.
 The Windows remote-rejection flag is set; a remote-machine attempt is **not**
 claimed. Private UDS parent permissions are the access boundary, not an unproven
 Node peer-UID API. No OS security prompt is bypassed.
+If the hosted Node binary cannot be executed by the foreign user, the macOS test
+compiles a minimal connect/UID/errno probe from stdin using the installed clang
+SDK. Only its separate temporary binary directory is made executable; the actual
+UDS parent remains 0700. The probe file and empty directory are removed by exact
+nonrecursive operations. It has no runtime dependency or product packaging role.
 
 ### Recorded local run, 2026-10-18
 
@@ -148,12 +153,12 @@ host and these observations do not select a transport.
 
 | Candidate | Echo p50 ms | Echo p95 ms | Host setup ms | Qualification |
 | --- | ---: | ---: | ---: | --- |
-| Named Pipe | 0.4246 | 0.8530 | 181.7323 | Native synthetic host/controller only |
-| Loopback | 4.4879 | 5.9353 | 16.8470 | Native synthetic HTTP only |
+| Named Pipe | 0.5899 | 1.5233 | 288.2772 | Native synthetic host/controller only |
+| Loopback | 6.5242 | 8.5889 | 18.9491 | Native synthetic HTTP only |
 | UDS/macOS | — | — | — | NOT VERIFIED on this Windows host |
 
 Source-inventory SHA-256:
-`35a8855e9a1c987f9f03568c9dfc5abfe932f72d332bc8f4bfa33936b03699e1`.
+`edbab403df03aaab59218b2b3a67e5f490bdf5135ffc053b5d482c3adb739b19`.
 The output records a dirty experiment worktree because measurement preceded the
 final corrective commit; this digest binds its actual source bytes. Exact samples remain in
 workspace maintenance. Documentation edits do not affect that source digest.
@@ -201,5 +206,6 @@ to undo. No self-merge, transport winner, D01-E2 or G1A continuation.
 - [Microsoft CreateNamedPipe flags](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createnamedpipea)
 - [Microsoft named-pipe access rights](https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipe-security-and-access-rights)
 - [Microsoft PipeSecurity](https://learn.microsoft.com/en-us/dotnet/api/system.io.pipes.pipesecurity)
+- [Apple system netcat source, Unix connect behavior](https://github.com/apple-oss-distributions/netcat/blob/main/netcat.c)
 
 These sources explain mechanisms, not a security sign-off for this experiment.
