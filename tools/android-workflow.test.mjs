@@ -17,6 +17,8 @@ const run = (script, args, extra = {}) => spawnSync(process.execPath, [path.join
 
 test('Android authority policy allows the separated workflow and rejects unsafe mutations', () => {
   assertAndroidWorkflowPolicy(source)
+  const checkoutPin = source.match(/actions\/checkout@[a-f0-9]{40}/)?.[0]
+  assert.ok(checkoutPin, 'The mutation fixture requires an immutable checkout pin')
   for (const [before, after] of [
     ['  contents: read', '  contents: write'],
     ['    timeout-minutes: 45', '    env:\n      KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}'],
@@ -33,7 +35,7 @@ test('Android authority policy allows the separated workflow and rejects unsafe 
     ['NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM', 'NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM'],
     ['--require-signature', ''],
     ['${{ github.sha }}-${{ github.run_attempt }}', 'mutable'],
-    ['actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09', 'actions/checkout@v5'],
+    [checkoutPin, 'actions/checkout@v7'],
   ]) {
     assert.ok(source.includes(before), before)
     assert.throws(() => assertAndroidWorkflowPolicy(source.replace(before, after)), before)
