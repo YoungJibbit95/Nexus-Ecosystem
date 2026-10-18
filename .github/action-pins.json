@@ -71,6 +71,12 @@
       "source": "https://api.github.com/repos/actions/dependency-review-action/git/ref/tags/v5.0.0",
       "verifiedAt": "2026-10-18",
       "verification": "Official upstream tag, peeled to commit"
+    },
+    "actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9": {
+      "version": "v4",
+      "source": "https://api.github.com/repos/actions/setup-dotnet/git/ref/tags/v4",
+      "verifiedAt": "2026-10-18",
+      "verification": "Official upstream tag resolves directly to this commit; experiment-only Windows build"
     }
   },
   "requiredWorkflows": [
