@@ -1,77 +1,5 @@
 {
   "actions": {
-    "actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9": {
-      "version": "v4",
-      "source": "https://api.github.com/repos/actions/setup-dotnet/git/ref/tags/v4",
-      "verifiedAt": "2026-10-18",
-      "verification": "Official upstream tag resolves directly to this commit; experiment-only Windows build"
-    },
-    "actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09": {
-      "version": "v5",
-      "source": "https://api.github.com/repos/actions/checkout/git/ref/tags/v5",
-      "verifiedAt": "2026-10-07",
-      "verification": "Official upstream tag; annotated tags peeled to commit"
-    },
-    "actions/checkout@11d5960a326750d5838078e36cf38b85af677262": {
-      "version": "v4.4.0",
-      "source": "https://api.github.com/repos/actions/checkout/git/ref/tags/v4.4.0",
-      "verifiedAt": "2026-10-07",
-      "verification": "Official upstream tag; annotated tags peeled to commit"
-    },
-    "actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444": {
-      "version": "v5",
-      "source": "https://api.github.com/repos/actions/setup-node/git/ref/tags/v5",
-      "verifiedAt": "2026-10-07",
-      "verification": "Official upstream tag; annotated tags peeled to commit"
-    },
-    "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020": {
-      "version": "v4.4.0",
-      "source": "https://api.github.com/repos/actions/setup-node/git/ref/tags/v4.4.0",
-      "verifiedAt": "2026-10-07",
-      "verification": "Official upstream tag; annotated tags peeled to commit"
-    },
-    "actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961": {
-      "version": "v5",
-      "source": "https://api.github.com/repos/actions/setup-java/git/ref/tags/v5",
-      "verifiedAt": "2026-10-07",
-      "verification": "Official upstream tag; annotated tags peeled to commit"
-    },
-    "gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a": {
-      "version": "v4",
-      "source": "https://api.github.com/repos/gradle/actions/git/ref/tags/v4",
-      "verifiedAt": "2026-10-07",
-      "verification": "Official upstream tag; annotated tags peeled to commit"
-    },
-    "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02": {
-      "version": "v4.6.2",
-      "source": "https://api.github.com/repos/actions/upload-artifact/git/ref/tags/v4.6.2",
-      "verifiedAt": "2026-10-07",
-      "verification": "Official upstream tag; annotated tags peeled to commit"
-    },
-    "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093": {
-      "version": "v4.3.0",
-      "source": "https://api.github.com/repos/actions/download-artifact/git/ref/tags/v4.3.0",
-      "verifiedAt": "2026-10-07",
-      "verification": "Official upstream tag; annotated tags peeled to commit"
-    },
-    "github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2": {
-      "version": "v4",
-      "source": "https://api.github.com/repos/github/codeql-action/git/ref/tags/v4",
-      "verifiedAt": "2026-10-07",
-      "verification": "Official upstream tag; annotated tags peeled to commit"
-    },
-    "github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2": {
-      "version": "v4",
-      "source": "https://api.github.com/repos/github/codeql-action/git/ref/tags/v4",
-      "verifiedAt": "2026-10-07",
-      "verification": "Official upstream tag; annotated tags peeled to commit"
-    },
-    "actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48": {
-      "version": "v4.9.0",
-      "source": "https://api.github.com/repos/actions/dependency-review-action/git/ref/tags/v4.9.0",
-      "verifiedAt": "2026-10-07",
-      "verification": "Official upstream tag; annotated tags peeled to commit"
-    },
     "actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d": {
       "version": "v6",
       "source": "https://api.github.com/repos/actions/configure-pages/git/ref/tags/v6",
@@ -89,6 +17,66 @@
       "source": "https://api.github.com/repos/actions/deploy-pages/git/ref/tags/v5",
       "verifiedAt": "2026-10-07",
       "verification": "Official upstream tag; annotated tags peeled to commit"
+    },
+    "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1": {
+      "version": "v7.0.1",
+      "source": "https://api.github.com/repos/actions/checkout/git/ref/tags/v7.0.1",
+      "verifiedAt": "2026-10-18",
+      "verification": "Official upstream tag, peeled to commit"
+    },
+    "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1": {
+      "version": "v7.1.0",
+      "source": "https://api.github.com/repos/actions/setup-node/git/ref/tags/v7.1.0",
+      "verifiedAt": "2026-10-18",
+      "verification": "Official upstream tag, peeled to commit"
+    },
+    "actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6": {
+      "version": "v6.0.1",
+      "source": "https://api.github.com/repos/actions/setup-java/git/ref/tags/v6.0.1",
+      "verifiedAt": "2026-10-18",
+      "verification": "Official upstream tag, peeled to commit"
+    },
+    "gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6": {
+      "version": "v6.4.0",
+      "source": "https://api.github.com/repos/gradle/actions/git/ref/tags/v6.4.0",
+      "verifiedAt": "2026-10-18",
+      "verification": "Official upstream tag, peeled to commit"
+    },
+    "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9": {
+      "version": "v7.0.2",
+      "source": "https://api.github.com/repos/actions/upload-artifact/git/ref/tags/v7.0.2",
+      "verifiedAt": "2026-10-18",
+      "verification": "Official upstream tag, peeled to commit"
+    },
+    "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333": {
+      "version": "v8.0.2",
+      "source": "https://api.github.com/repos/actions/download-artifact/git/ref/tags/v8.0.2",
+      "verifiedAt": "2026-10-18",
+      "verification": "Official upstream tag, peeled to commit"
+    },
+    "github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee": {
+      "version": "v4",
+      "source": "https://api.github.com/repos/github/codeql-action/git/ref/tags/v4",
+      "verifiedAt": "2026-10-18",
+      "verification": "Official upstream tag, peeled to commit"
+    },
+    "github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee": {
+      "version": "v4",
+      "source": "https://api.github.com/repos/github/codeql-action/git/ref/tags/v4",
+      "verifiedAt": "2026-10-18",
+      "verification": "Official upstream tag, peeled to commit"
+    },
+    "actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294": {
+      "version": "v5.0.0",
+      "source": "https://api.github.com/repos/actions/dependency-review-action/git/ref/tags/v5.0.0",
+      "verifiedAt": "2026-10-18",
+      "verification": "Official upstream tag, peeled to commit"
+    },
+    "actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9": {
+      "version": "v4",
+      "source": "https://api.github.com/repos/actions/setup-dotnet/git/ref/tags/v4",
+      "verifiedAt": "2026-10-18",
+      "verification": "Official upstream tag resolves directly to this commit; experiment-only Windows build"
     }
   },
   "requiredWorkflows": [
