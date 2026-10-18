@@ -72,7 +72,7 @@ export async function createHost({ candidate, endpoint, nativeHost = process.env
       if ([...counts.values()].some(count => count !== 1) || req.headers.host !== hostHeader || req.socket.remoteAddress !== '127.0.0.1'
           || req.method !== 'POST' || req.url !== '/experiment' || req.httpVersion !== '1.1'
           || Object.hasOwn(req.headers, 'origin') || Object.keys(req.headers).some(key => key.startsWith('sec-fetch-') || key.startsWith('x-forwarded-'))
-          || req.headers.forwarded || req.headers['transfer-encoding'] || req.headers['content-encoding'] || req.headers.upgrade
+          || ['forwarded', 'transfer-encoding', 'content-encoding', 'upgrade', 'expect'].some(key => Object.hasOwn(req.headers, key))
           || req.headers['content-type'] !== 'application/json' || !protocol.authentic(req.headers['x-nexus-experiment-token'])) return deny(403)
       const length = req.headers['content-length']
       if (!/^[1-9][0-9]{0,3}$/.test(length || '') || Number(length) > MAX_FRAME) return deny(413)

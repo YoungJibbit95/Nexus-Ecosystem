@@ -140,6 +140,7 @@ test('loopback rejects Host/Origin/browser/proxy/preflight surfaces and never gr
     { Origin: 'https://attacker.invalid' }, { Origin: 'null' }, { Origin: descriptor.endpoint },
     { 'Sec-Fetch-Site': 'same-origin' }, { 'X-Forwarded-Host': '127.0.0.1' },
     { Forwarded: 'host=127.0.0.1' }, { 'Content-Type': 'text/plain' },
+    { Forwarded: '' }, { 'Content-Encoding': '' }, { Upgrade: '' },
     { 'X-Nexus-Experiment-Token': '0'.repeat(64) }, { 'Content-Encoding': 'gzip' },
   ]) {
     const response = await exchange(descriptor, hello(descriptor), headers)
