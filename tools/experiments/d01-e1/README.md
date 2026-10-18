@@ -125,7 +125,7 @@ Do not rank different OS/CI hosts from these numbers.
 | Dimension | Automated evidence | Still NOT VERIFIED / required later |
 | --- | --- | --- |
 | Access control | Actual UDS owner/modes or actual Windows owner-only protected DACL; wrong experimental credential/instance | Actual different Windows OS user, same-user malware resistance, app/binary attestation |
-| Different user | On native macOS, existing `nobody` via noninteractive sudo and the selected Node binary attempts an actual socket connect from `/tmp`; EACCES and a distinct UID are required | If sudo/foreign-user execution unavailable, explicit skip; no accounts are created, no passwords requested/stored |
+| Different user | On native macOS, existing `nobody` via noninteractive sudo attempts an actual socket connect from `/tmp`; selected Node or system `nc` must prove a distinct UID and permission-denied connect | If sudo/foreign-user execution unavailable, explicit skip; no accounts are created, no passwords requested/stored |
 | Loopback boundary | Real HTTP negative Host/Origin/null-Origin/preflight/forwarded/proxy/header/upgrade/chunked/absolute-target probes; literal IPv4 bind | Controlled DNS changes, IPv6, external proxy deployments; real browser only with explicit completed native probe |
 | Reliability | New connections, 32 sequential slot reuses, stale identity, bounded partial frames, hard process crash, restart, duplicate endpoint | Sleep/wake, renderer lifecycle, OS service sessions, install/upgrade/uninstall |
 | Stale endpoints | Pipe kernel cleanup after parent/child exit; port reuse; UDS crash residue retained and a fresh path chosen | Production lease/PID/discovery ownership and recovery |
@@ -148,12 +148,12 @@ host and these observations do not select a transport.
 
 | Candidate | Echo p50 ms | Echo p95 ms | Host setup ms | Qualification |
 | --- | ---: | ---: | ---: | --- |
-| Named Pipe | 0.5591 | 1.0898 | 246.8701 | Native synthetic host/controller only |
-| Loopback | 5.4461 | 7.4588 | 20.7575 | Native synthetic HTTP only |
+| Named Pipe | 0.4246 | 0.8530 | 181.7323 | Native synthetic host/controller only |
+| Loopback | 4.4879 | 5.9353 | 16.8470 | Native synthetic HTTP only |
 | UDS/macOS | — | — | — | NOT VERIFIED on this Windows host |
 
 Source-inventory SHA-256:
-`846971270eaf353f011cb40cdf8165791148e21a7d32c77f101d4be8822a3bf7`.
+`35a8855e9a1c987f9f03568c9dfc5abfe932f72d332bc8f4bfa33936b03699e1`.
 The output records a dirty experiment worktree because measurement preceded the
 final corrective commit; this digest binds its actual source bytes. Exact samples remain in
 workspace maintenance. Documentation edits do not affect that source digest.
