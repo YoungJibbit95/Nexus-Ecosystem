@@ -61,7 +61,7 @@
     "tailwindcss": "^4.3.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
-    "wait-on": "^9.0.10"
+    "wait-on": "^9.5.1"
   },
   "build": {
     "appId": "com.youngjibbit95.nexus",
